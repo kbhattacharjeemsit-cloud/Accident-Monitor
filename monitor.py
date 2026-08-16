@@ -104,7 +104,7 @@ RSS_SEARCH = "https://news.google.com/rss/search?q="
 # translation (SIMPLE build: "builtin" needs NOTHING installed - it calls the free
 # Google endpoint directly with Python's standard library. Use "none" to switch off.)
 TRANSLATE_BACKEND = "builtin"         # "builtin" | "none"
-MAX_TRANSLATE_PER_RUN = 120
+MAX_TRANSLATE_PER_RUN = 4000
 # natural-calamity exclusion
 STRICT_NATURAL_EXCLUSION = True       # True: drop ANY item mentioning a calamity
 # images
@@ -434,6 +434,116 @@ CITIES = ["Mumbai", "Delhi", "New Delhi", "Kolkata", "Chennai", "Bengaluru", "Ba
     "Moradabad", "Junagadh", "Anand", "Surat", "Navi Mumbai", "Kalyan", "Sangli", "Latur", "Akola",
     "Ratlam", "Sagar", "Satna", "Rewa", "Bilaspur", "Korba", "Sambalpur", "Berhampur", "Puri",
     "Dibrugarh", "Silchar", "Tezpur", "Jorhat", "Nagaon"]
+
+# --- Additional district/town names (extracted locations were missing on ~90%
+# --- of items in field testing, so the gazetteer was widened considerably).
+CITIES += ["Ambattur","Avadi","Tambaram","Thoothukudi","Dindigul","Thanjavur","Nagercoil",
+ "Karur","Cuddalore","Kancheepuram","Vellore","Namakkal","Sivakasi","Virudhunagar","Karaikudi",
+ "Palakkad","Alappuzha","Kottayam","Malappuram","Pathanamthitta","Idukki","Wayanad","Kasaragod",
+ "Ernakulam","Munnar","Guruvayur","Ballari","Davanagere","Shivamogga","Tumakuru","Raichur",
+ "Bidar","Hassan","Udupi","Chikkamagaluru","Chitradurga","Bagalkot","Vijayapura","Karwar",
+ "Kurnool","Kadapa","Anantapur","Rajahmundry","Kakinada","Eluru","Ongole","Srikakulam",
+ "Vizianagaram","Machilipatnam","Chittoor","Karimnagar","Khammam","Nizamabad","Ramagundam",
+ "Mahbubnagar","Adilabad","Siddipet","Sangareddy","Medak","Nalgonda",
+ "Ahmednagar","Jalgaon","Chandrapur","Parbhani","Beed","Osmanabad","Wardha","Yavatmal",
+ "Bhusawal","Panvel","Vasai","Virar","Mira Road","Dombivli","Ulhasnagar","Ichalkaranji",
+ "Satara","Ratnagiri","Sindhudurg","Raigad","Palghar","Nandurbar","Dhule","Buldhana",
+ "Gondia","Bhandara","Washim","Hingoli","Jalna",
+ "Bhiwandi","Malegaon","Baramati","Karad","Sangamner",
+ "Muzaffarnagar","Shamli","Baghpat","Hapur","Bulandshahr","Amroha","Sambhal","Rampur",
+ "Bijnor","Pilibhit","Shahjahanpur","Hardoi","Sitapur","Lakhimpur","Barabanki","Unnao",
+ "Raebareli","Fatehpur","Banda","Hamirpur","Mahoba","Jalaun","Etawah","Auraiya","Kannauj",
+ "Farrukhabad","Mainpuri","Firozabad","Mathura","Hathras","Kasganj","Etah","Budaun",
+ "Ayodhya","Faizabad","Sultanpur","Amethi","Pratapgarh","Jaunpur","Ghazipur","Ballia",
+ "Mau","Azamgarh","Deoria","Kushinagar","Maharajganj","Basti","Gonda","Bahraich",
+ "Shravasti","Balrampur","Siddharthnagar","Mirzapur","Sonbhadra","Chandauli","Bhadohi",
+ "Rohtas","Sasaram","Arrah","Buxar","Chhapra","Siwan","Gopalganj","Bettiah","Motihari",
+ "Sitamarhi","Madhubani","Samastipur","Begusarai","Khagaria","Munger","Jamui","Nawada",
+ "Nalanda","Bihar Sharif","Aurangabad Bihar","Jehanabad","Katihar","Purnia","Araria",
+ "Kishanganj","Supaul","Saharsa","Madhepura",
+ "Bokaro","Deoghar","Hazaribagh","Giridih","Ramgarh","Chaibasa","Dumka","Palamu","Daltonganj",
+ "Bardhaman","Malda","Krishnanagar","Barasat","Baharampur","Jalpaiguri","Cooch Behar",
+ "Alipurduar","Raiganj","Balurghat","Bankura","Purulia","Midnapore","Kharagpur","Haldia",
+ "Diamond Harbour","Barrackpore","Serampore","Chandannagar","Habra","Bongaon","Basirhat",
+ "Bhilwara","Alwar","Sikar","Pali","Barmer","Jaisalmer","Nagaur","Churu","Jhunjhunu",
+ "Hanumangarh","Sri Ganganagar","Bharatpur","Dholpur","Karauli","Sawai Madhopur","Bundi",
+ "Baran","Jhalawar","Chittorgarh","Banswara","Dungarpur","Sirohi","Jalore","Rajsamand",
+ "Morena","Bhind","Shivpuri","Guna","Vidisha","Sehore","Raisen","Hoshangabad","Betul",
+ "Chhindwara","Seoni","Balaghat","Mandla","Dindori","Shahdol","Umaria","Katni","Damoh",
+ "Panna","Chhatarpur","Tikamgarh","Datia","Ashoknagar","Neemuch","Mandsaur","Dewas",
+ "Shajapur","Khandwa","Khargone","Barwani","Dhar","Jhabua","Ratlam MP",
+ "Durg","Rajnandgaon","Jagdalpur","Ambikapur","Raigarh","Janjgir","Mahasamund","Dhamtari",
+ "Kanker","Dantewada","Sukma","Bijapur Chhattisgarh",
+ "Balasore","Bhadrak","Jajpur","Kendrapara","Jagatsinghpur","Angul","Dhenkanal","Keonjhar",
+ "Mayurbhanj","Baripada","Sundargarh","Jharsuguda","Bargarh","Bolangir","Kalahandi",
+ "Koraput","Rayagada","Nabarangpur","Malkangiri","Nuapada","Boudh","Ganjam","Gajapati",
+ "Anantnag","Baramulla","Udhampur","Kathua","Rajouri","Poonch","Doda","Kishtwar","Leh",
+ "Kargil","Jammu",
+ "Solan","Mandi","Kullu","Kangra","Dharamshala","Una","Hamirpur HP","Bilaspur HP","Chamba",
+ "Kinnaur","Lahaul","Sirmaur","Nahan","Palampur",
+ "Haridwar","Rishikesh","Roorkee","Haldwani","Rudrapur","Kashipur","Nainital","Almora",
+ "Pithoragarh","Chamoli","Rudraprayag","Uttarkashi","Tehri","Pauri","Bageshwar","Champawat",
+ "Bathinda","Patiala","Mohali","Pathankot","Hoshiarpur","Moga","Firozpur","Faridkot",
+ "Muktsar","Barnala","Sangrur","Kapurthala","Gurdaspur","Batala","Khanna","Phagwara",
+ "Rewari","Bhiwani","Jind","Kaithal","Kurukshetra","Yamunanagar","Sirsa","Fatehabad",
+ "Palwal","Nuh","Mahendragarh","Charkhi Dadri","Jhajjar",
+ "Bharuch","Ankleshwar","Vapi","Valsad","Navsari","Mehsana","Patan","Palanpur","Godhra",
+ "Nadiad","Bhuj","Gandhidham","Morbi","Surendranagar","Amreli","Porbandar","Veraval",
+ "Botad","Dahod","Gandhinagar",
+ "Dibang","Tinsukia","Sivasagar","Golaghat","Bongaigaon","Barpeta","Dhubri","Goalpara",
+ "Karimganj","Hailakandi","Diphu","Haflong","Lakhimpur Assam","Sonitpur",
+ "Dimapur","Tura","Jowai","Churachandpur","Lunglei","Namchi","Pasighat","Tawang",
+ "Rourkela Steel","Vasco","Margao","Mapusa","Ponda",
+ "Karaikal","Mahe","Yanam","Port Blair","Kavaratti","Silvassa","Daman","Diu"]
+CITIES += ["Uttar Pradesh","Madhya Pradesh","Maharashtra","Rajasthan","Tamil Nadu","Karnataka",
+ "Kerala","Gujarat","Bihar","West Bengal","Odisha","Telangana","Andhra Pradesh","Punjab",
+ "Haryana","Jharkhand","Chhattisgarh","Assam","Uttarakhand","Himachal Pradesh","Goa",
+ "Tripura","Meghalaya","Manipur","Nagaland","Mizoram","Arunachal Pradesh","Sikkim",
+ "Jammu and Kashmir","Ladakh","Delhi NCR"]
+
+# Native-script names for the largest cities, so a report written only in an
+# Indian script still yields a joinable location even if translation fails.
+CITY_ALIASES = {
+ "Delhi": ["दिल्ली","দিল্লি","டெல்லி","ఢిల్లీ","ದೆಹಲಿ","ഡൽഹി","દિલ્હી","ਦਿੱਲੀ"],
+ "Mumbai": ["मुंबई","মুম্বই","மும்பை","ముంబై","ಮುಂಬೈ","മുംബൈ","મુંબઈ","ਮੁੰਬਈ"],
+ "Kolkata": ["कोलकाता","কলকাতা","கொல்கத்தா","కోల్‌కతా","ಕೋಲ್ಕತ್ತಾ","കൊൽക്കത്ത","કોલકાતા"],
+ "Chennai": ["चेन्नई","চেন্নাই","சென்னை","చెన్నై","ಚೆನ್ನೈ","ചെന്നൈ","ચેન્નઈ"],
+ "Bengaluru": ["बेंगलुरु","বেঙ্গালুরু","பெங்களூரு","బెంగళూరు","ಬೆಂಗಳೂರು","ബെംഗളൂരു","બેંગલુરુ"],
+ "Hyderabad": ["हैदराबाद","হায়দরাবাদ","ஹைதராபாத்","హైదరాబాద్","ಹೈದರಾಬಾದ್","ഹൈദരാബാദ്","હૈદરાબાદ"],
+ "Pune": ["पुणे","পুনে","புனே","పూణే","ಪುಣೆ","പൂനെ","પુણે"],
+ "Ahmedabad": ["अहमदाबाद","আহমেদাবাদ","அகமதாபாத்","అహ్మదాబాద్","ಅಹಮದಾಬಾದ್","અમદાવાદ"],
+ "Jaipur": ["जयपुर","জয়পুর","ஜெய்ப்பூர்","జైపూర్","ಜೈಪುರ","ജയ്പുർ","જયપુર"],
+ "Lucknow": ["लखनऊ","লখনউ","லக்னோ","లక్నో","ಲಕ್ನೋ","લખનૌ"],
+ "Kanpur": ["कानपुर","কানপুর","கான்பூர்","కాన్పూర్","ಕಾನ್ಪುರ"],
+ "Patna": ["पटना","পাটনা","பாட்னா","పాట్నా","ಪಟ್ನಾ","પટના"],
+ "Nagpur": ["नागपुर","নাগপুর","நாக்பூர்","నాగ్‌పూర్","�ನಾಗ್ಪುರ"],
+ "Bhopal": ["भोपाल","ভোপাল","போபால்","భోపాల్","ಭೋಪಾಲ್"],
+ "Indore": ["इंदौर","ইন্দোর","இந்தூர்","ఇండోర్","ಇಂದೋರ್"],
+ "Surat": ["सूरत","সুরাট","சூரத்","సూరత్","ಸೂರತ್","સુરત"],
+ "Varanasi": ["वाराणसी","বারাণসী","வாரணாசி","వారణాసి","ವಾರಾಣಸಿ"],
+ "Guwahati": ["गुवाहाटी","গুয়াহাটি","கவுகாத்தி","గువహాటి"],
+ "Coimbatore": ["कोयंबटूर","கோயம்புத்தூர்","కోయంబత్తూరు","ಕೊಯಮತ್ತೂರು"],
+ "Visakhapatnam": ["विशाखापत्तनम","বিশাখাপত্তনম","விசாகப்பட்டினம்","విశాఖపట్నం","ವಿಶಾಖಪಟ್ಟಣಂ"],
+ "Thiruvananthapuram": ["तिरुवनंतपुरम","திருவனந்தபுரம்","తిరువనంతపురం","തിരുവനന്തപുരം"],
+ "Kochi": ["कोच्चि","কোচি","கொச்சி","కొచ్చి","ಕೊಚ್ಚಿ","കൊച്ചി"],
+ "Ludhiana": ["लुधियाना","লুধিয়ানা","ਲੁਧਿਆਣਾ","లూధియానా"],
+ "Amritsar": ["अमृतसर","অমৃতসর","ਅੰਮ੍ਰਿਤਸਰ","அமிர்தசரஸ்"],
+ "Gurugram": ["गुरुग्राम","গুরুগ্রাম","గురుగ్రామ్"],
+ "Noida": ["नोएडा","নয়ডা","நொய்டா","నోయిడా"],
+ "Ranchi": ["रांची","রাঁচি","ராஞ்சி","రాంచీ"],
+ "Raipur": ["रायपुर","রায়পুর","ராய்பூர்","రాయ్‌పూర్"],
+ "Bhubaneswar": ["भुवनेश्वर","ভুবনেশ্বর","புவனேஸ்வர்","భువనేశ్వర్"],
+ "Dehradun": ["देहरादून","দেরাদুন","டேராடூன்","డెహ్రాడూన్"],
+ "Srinagar": ["श्रीनगर","শ্রীনগর","ஸ்ரீநகர்","శ్రీనగర్"],
+ "Madurai": ["मदुरै","মাদুরাই","மதுரை","మధురై","ಮಧುರೈ"],
+ "Mysuru": ["मैसूर","মহীশূর","மைசூர்","మైసూరు","ಮೈಸೂರು"],
+ "Vijayawada": ["विजयवाड़ा","বিজয়ওয়াড়া","விஜயவாடா","విజయవాడ","ವಿಜಯವಾಡ"],
+ "Kozhikode": ["कोझिकोड","கோழிக்கோடு","കോഴിക്കോട്"],
+ "Thrissur": ["त्रिशूर","திருச்சூர்","തൃശൂർ"],
+ "Nashik": ["नाशिक","নাসিক","நாசிக்","నాసిక్"],
+ "Tiruchirappalli": ["तिरुचिरापल्ली","திருச்சிராப்பள்ளி","తిరుచిరాపల్లి"],
+}
+
 CITIES = sorted(set(CITIES), key=len, reverse=True)
 _CITY_PATTERNS = [(c, re.compile(r"\b" + re.escape(c) + r"\b", re.IGNORECASE)) for c in CITIES]
 _HIGHWAY_PATTERNS = [
@@ -452,6 +562,15 @@ def extract_locations(text):
     for name, pat in _CITY_PATTERNS:
         if pat.search(text) and name.lower() not in seen:
             cities.append(name); seen.add(name.lower())
+    # native-script aliases map back to the canonical English name, so a Hindi
+    # and an English report of the same city produce the SAME join key
+    for canon, aliases in CITY_ALIASES.items():
+        if canon.lower() in seen:
+            continue
+        for a in aliases:
+            if a in text:
+                cities.append(canon); seen.add(canon.lower())
+                break
     highways, hseen = [], set()
     for pat in _HIGHWAY_PATTERNS:
         for m in pat.findall(text):
