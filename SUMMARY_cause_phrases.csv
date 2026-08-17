@@ -1,0 +1,137 @@
+Accident Type,Reported Cause (as written in the report),Times Reported
+roadway,overspeeding,27
+old structure collapse,structural_failure,25
+others,explosion_blast,20
+others,firecracker_unit,16
+roadway,structural_failure,14
+construction ongoing,under_construction,13
+roadway,hit_divider_barrier,13
+roadway,lost_control,13
+roadway,head_on_collision,11
+others,gas_leak,10
+roadway,fire_short_circuit,10
+roadway,explosion_blast,7
+construction ongoing,structural_failure; under_construction,7
+construction ongoing,structural_failure,6
+roadway,pothole_bad_road,6
+others,fire_short_circuit,6
+industrial,firecracker_unit,5
+others,explosion_blast; firecracker_unit,5
+roadway,gorge_valley_plunge,4
+roadway,firecracker_unit,4
+roadway,brake_failure,4
+industrial,explosion_blast,4
+roadway,tyre_burst,4
+roadway,hit_stationary_vehicle,3
+industrial,gas_leak,3
+port maritime,structural_failure,3
+roadway,structural_failure; under_construction,3
+roadway,fell_into_water,3
+roadway,lost_control; hit_divider_barrier,3
+train,overspeeding,3
+industrial,fire_short_circuit,3
+roadway,fog_poor_visibility,2
+others,boiler_blast,2
+construction ongoing,crane_failure,2
+roadway,trench_excavation_collapse; gorge_valley_plunge,2
+roadway,driver_fatigue,2
+train,crossing_railway_track,2
+train,fell_from_train,2
+roadway,gas_leak,2
+old structure collapse,wall_slab_roof_collapse,2
+roadway,boiler_blast; explosion_blast,2
+train,fire_short_circuit,2
+roadway,overtaking,2
+roadway,lost_control; hit_tree_pole,2
+old structure collapse,fog_poor_visibility,1
+train,rail_signal_track_fault,1
+roadway,overspeeding; driver_fatigue,1
+train,structural_failure; under_construction,1
+roadway,under_construction; fell_into_water,1
+old structure collapse,structural_failure; fire_short_circuit,1
+roadway,structural_failure; fell_into_water,1
+roadway,trench_excavation_collapse,1
+roadway,slippery_wet_road; manhole_drain,1
+roadway,tyre_burst; lost_control,1
+train,electrocution,1
+train,explosion_blast,1
+train,fell_into_water,1
+aviation,runway_excursion,1
+aviation,drunk_driving,1
+aviation,fire_short_circuit,1
+roadway,gas_leak; suffocation_toxic_fumes; septic_sewer_deaths,1
+roadway,suffocation_toxic_fumes; septic_sewer_deaths,1
+old structure collapse,structural_failure; explosion_blast; firecracker_unit,1
+roadway,crane_failure,1
+roadway,boiler_blast,1
+roadway,wall_slab_roof_collapse; boiler_blast,1
+port maritime,under_construction,1
+roadway,electrocution,1
+roadway,gas_leak; septic_sewer_deaths,1
+roadway,hit_tree_pole,1
+others,boiler_blast; explosion_blast,1
+train,hit_divider_barrier,1
+old structure collapse,overspeeding; lost_control; fell_into_water,1
+port maritime,head_on_collision,1
+others,pothole_bad_road,1
+old structure collapse,gorge_valley_plunge,1
+roadway,explosion_blast; firecracker_unit,1
+old structure collapse,under_construction,1
+old structure collapse,gas_leak,1
+roadway,overspeeding; lost_control,1
+roadway,hit_and_run,1
+roadway,drunk_driving; hit_divider_barrier,1
+others,electrocution,1
+others,lift_elevator,1
+old structure collapse,explosion_blast,1
+roadway,drunk_driving,1
+others,machinery_entrapment,1
+roadway,overspeeding; fog_poor_visibility,1
+train,lost_control; hit_tree_pole,1
+port maritime,hit_stationary_vehicle,1
+roadway,manhole_drain,1
+old structure collapse,structural_failure; wall_slab_roof_collapse,1
+roadway,After multiple road accidents across Maharashtra,1
+others,Caused By Drunk Drivers,1
+others,After 2 vehicles fall into ‘gap’ on Gujarat road,1
+roadway,After hitting bridge railing,1
+others,After Fatal Accident in India,1
+others,After Air India crash killed 260: Do we know what happened?,1
+aviation,After Ajit Pawar plane accident,1
+aviation,After wedding in helicopter crash,1
+aviation,"After wedding, Indian-origin pilot killed in US chopper crash, wife survives",1
+others,After blast at Vedanta power plant in Chhattisgarh,1
+others,After wall crashes on auto,1
+others,After man killed in Holi,1
+others,After Water Balloon Hits Woman On Holi,1
+others,After hit-and-run crash near 20th Avenue and Indian School Road,1
+others,After man killed in road rage incident,1
+others,After being hit by a car on I-17 near Indian School Road,1
+others,Trying to save turtle on I-95 in Indian River County,1
+others,After man killed trying to save turtle,1
+others,Due to the driver's intervention,1
+others,Due to bad road,1
+others,"While returning home after finishing work, Gram Sevak met with a terrible accident in Baramati",1
+others,"When returning from Vitthal's darshan, the devotees of Bombay were put to death",1
+others,"After being hit by a car in Atpadi, Pudhari",1
+others,Due to corruption and negligence,1
+roadway,While driving the bus,1
+others,When their car hit a tree in Kannur Chalo,1
+others,When the accident was only half an hour before reaching home,1
+others,After being hit by an unknown vehicle,1
+others,After being hit by a car while riding a bicycle,1
+others,After being trapped between lift door and wall,1
+others,While talking on a mobile phone 500 meters away from the accident site,1
+others,After falling into open drain in Mumbai #Mumbai #gutter #drowning #death,1
+others,While driving a car,1
+roadway,"When the truck did not brake, the bus full of passengers overturned on the 8th",1
+others,After being hit by a car from Surat,1
+others,While overtaking near Mosali Char Road Divya Bhaskar,1
+others,"Due to car overturning, two seriously injured",1
+others,Due to getting stuck in the machine,1
+others,"After the dead bodies of the Mathura accident reached Jagrao, there was a wave of mourning",1
+others,"Due to cylinder explosion in Batala, 5 people were present in the house, there was screaming",1
+others,"After the accident, ACP and Gunman died",1
+others,"Following Medha Prithviraj’s death, residents have been demanding better roads in Electronics City Phase 1",1
+others,After car catches fire in Vellore,1
+others,Caused by an electrical short circuit,1

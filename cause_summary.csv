@@ -1,95 +1,29 @@
-category,reported_cause,unique_events
-bus,unstated,620
-bus,lost_control,16
-bus,overspeeding,10
-bus,hit_divider_barrier,9
-bus,structural_failure,6
-bus,gorge_valley_plunge,5
-bus,head_on_collision,5
-bus,brake_failure,4
-bus,hit_tree_pole,3
-bus,hit_stationary_vehicle,2
-bus,trench_excavation_collapse,2
-bus,pothole_bad_road,2
-bus,overtaking,2
-bus,fog_poor_visibility,1
-bus,fell_into_water,1
-bus,driver_fatigue,1
-bus,fire_short_circuit,1
-bus,hit_and_run,1
-bus,slippery_wet_road,1
-bus,rear_end_collision,1
-cargo,unstated,136
-cargo,overspeeding,10
-cargo,lost_control,5
-cargo,explosion_blast,3
-cargo,hit_divider_barrier,3
-cargo,hit_stationary_vehicle,3
-cargo,tyre_burst,2
-cargo,structural_failure,2
-cargo,manhole_drain,2
-cargo,slippery_wet_road,1
-cargo,fire_short_circuit,1
-cargo,brake_failure,1
-construction_infra,unstated,375
-construction_infra,structural_failure,54
-construction_infra,under_construction,30
-construction_infra,wall_slab_roof_collapse,5
-construction_infra,crane_failure,2
-construction_infra,explosion_blast,2
-construction_infra,firecracker_unit,2
-construction_infra,fog_poor_visibility,1
-construction_infra,fell_into_water,1
-construction_infra,fire_short_circuit,1
-construction_infra,boiler_blast,1
-flight,unstated,147
-flight,runway_excursion,1
-flight,drunk_driving,1
-flight,fire_short_circuit,1
-industrial,unstated,290
-industrial,firecracker_unit,35
-industrial,explosion_blast,30
-industrial,gas_leak,18
-industrial,boiler_blast,7
-industrial,fire_short_circuit,5
-industrial,suffocation_toxic_fumes,4
-industrial,septic_sewer_deaths,4
-industrial,electrocution,2
-industrial,pothole_bad_road,1
-industrial,machinery_entrapment,1
-industrial,hit_divider_barrier,1
-pedestrian,unstated,40
-pedestrian,overspeeding,4
-pedestrian,hit_and_run,2
-pedestrian,lost_control,2
-pedestrian,driver_fatigue,1
-pedestrian,fell_into_water,1
-pedestrian,pothole_bad_road,1
-traffic,unstated,531
-traffic,overspeeding,8
-traffic,hit_divider_barrier,3
-traffic,head_on_collision,3
-traffic,gorge_valley_plunge,3
-traffic,fog_poor_visibility,3
-traffic,lost_control,2
-traffic,trench_excavation_collapse,2
-traffic,fell_into_water,1
-traffic,electrocution,1
-traffic,runway_excursion,1
-traffic,hit_and_run,1
-traffic,explosion_blast,1
-traffic,pothole_bad_road,1
-train,unstated,318
-train,fire_short_circuit,3
-train,crane_failure,2
-train,structural_failure,2
-train,explosion_blast,2
-train,crossing_railway_track,2
-train,fell_from_train,2
-train,rail_signal_track_fault,1
-train,under_construction,1
-train,fell_into_water,1
-train,hit_divider_barrier,1
-train,lost_control,1
-train,hit_tree_pole,1
-train,head_on_collision,1
+Accident Type,Reported Cause (tag),Number of Accidents
+aviation,unstated,107
+construction infra,unstated,2
+construction ongoing,unstated,34
+industrial,unstated,58
+old structure collapse,unstated,287
+old structure collapse,structural failure,1
+others,unstated,366
+others,fire short circuit,9
+others,explosion blast,9
+others,gorge valley plunge,4
+others,pothole bad road,4
+others,overspeeding,3
+others,head on collision,2
+others,hit divider barrier,2
+others,hit and run,2
+others,trench excavation collapse,2
+others,hit tree pole,1
+others,manhole drain,1
+others,electrocution,1
+others,overtaking,1
+pedestrian,unstated,1
+port maritime,unstated,23
+roadway,unstated,1152
+roadway,hit divider barrier,2
+roadway,fog poor visibility,1
+roadway,pothole bad road,1
+roadway,fire short circuit,1
+train,unstated,262
