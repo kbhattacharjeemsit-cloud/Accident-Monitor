@@ -168,8 +168,61 @@ INJURED_CUES = ["injured", "hurt", "wounded", "injuries", "घायल", "ज�
                 "ਜ਼ਖ਼ਮੀ", "ਜ਼ਖਮੀ", "ਘਾਇਲ"]
 
 
+
+# Spelled-out numerals. Field testing showed reports like "two died, 20 injured"
+# (Tamil "irandu per pali") caused the digit 20 to be mis-assigned to deaths,
+# because the death count was a WORD. Converting words to digits fixes this.
+WORD_NUMBERS = {
+ "one":1,"two":2,"three":3,"four":4,"five":5,"six":6,"seven":7,"eight":8,"nine":9,"ten":10,
+ "eleven":11,"twelve":12,"thirteen":13,"fourteen":14,"fifteen":15,"sixteen":16,
+ "seventeen":17,"eighteen":18,"nineteen":19,"twenty":20,"thirty":30,"forty":40,"fifty":50,
+ "एक":1,"दो":2,"तीन":3,"चार":4,"पांच":5,"पाँच":5,"छह":6,"सात":7,"आठ":8,"नौ":9,"दस":10,
+ "এক":1,"দুই":2,"তিন":3,"চার":4,"পাঁচ":5,"ছয়":6,"সাত":7,"আট":8,"নয়":9,"দশ":10,
+ "ஒரு":1,"ஒருவர":1,"இரண்டு":2,"இருவர":2,"மூன்று":3,"மூவர":3,"நான்கு":4,"நால்வர":4,
+ "ஐந்து":5,"ஆறு":6,"ஏழு":7,"எட்டு":8,"ஒன்பது":9,"பத்து":10,
+ "ఒక":1,"ఇద్దరు":2,"ముగ్గురు":3,"నలుగురు":4,"ఐదుగురు":5,"ఆరుగురు":6,"ఏడుగురు":7,
+ "ఎనిమిది":8,"తొమ్మిది":9,"పది":10,
+ "ఇద్దరికి":2,"ముగ్గురికి":3,"నలుగురికి":4,"ఐదుగురికి":5,"ఆరుగురికి":6,"ఏడుగురికి":7,
+ "ಒಬ್ಬ":1,"ಇಬ್ಬರು":2,"ಮೂವರು":3,"ನಾಲ್ವರು":4,"ಐವರು":5,
+ "ഒരാൾ":1,"രണ്ട":2,"മൂന്ന":3,"നാല":4,"അഞ്ച":5,
+ "એક":1,"બે":2,"ત્રણ":3,"ચાર":4,"પાંચ":5,
+ "ਇੱਕ":1,"ਦੋ":2,"ਤਿੰਨ":3,"ਚਾਰ":4,"ਪੰਜ":5,
+ "एका":1,"दोन":2,"तीन":3,"चार":4,"पाच":5,
+}
+_WORDNUM_SORTED = sorted(WORD_NUMBERS.items(), key=lambda kv: len(kv[0]), reverse=True)
+
+
+def _words_to_digits(t):
+    for word, val in _WORDNUM_SORTED:
+        if word in t:
+            t = t.replace(word, f" {val} ")
+    return t
+
+def _clean_for_numbers(text):
+    """Prepare text for casualty extraction.
+    Fixes found in field testing:
+      * trailing ' - Source Name' contributed stray numbers (e.g. Bengali outlet
+        'Ekattor' and article IDs like '|1271497')
+      * thousand separators split '37,000' into '37' and '000' -> bogus 0
+    """
+    t = text.translate(DIGIT_TRANS)
+    t = re.sub(r"\|\s*\d+\s*$", " ", t)            # trailing |1271497 article ids
+    t = re.sub(r"\s+-\s+[^-]{0,40}$", " ", t)       # trailing ' - Publisher'
+    t = re.sub(r"(?<=\d)[,\.](?=\d{3}\b)", "", t)  # 37,000 -> 37000
+    return _words_to_digits(t.lower())
+
+
+def _plausible(val):
+    """Reject values that are not casualty counts."""
+    if val <= 0 or val > 500:
+        return False
+    if 1900 <= val <= 2100:                          # years
+        return False
+    return True
+
+
 def extract_counts(text):
-    t = text.translate(DIGIT_TRANS).lower()
+    t = _clean_for_numbers(text)
 
     def near(cues, window=22):
         best = None
@@ -179,53 +232,125 @@ def extract_counts(text):
                 i = t.find(cue.lower(), start)
                 if i == -1:
                     break
-                seg = t[max(0, i - window): i + len(cue) + window]
                 base = max(0, i - window)
-                for m in re.finditer(r"\d{1,4}", seg):
-                    val = int(m.group())
-                    if val > 500:
+                end = i + len(cue) + window
+                # never slice through a number, or '2024' becomes '4'
+                while base > 0 and t[base - 1].isdigit():
+                    base -= 1
+                while end < len(t) and t[end].isdigit():
+                    end += 1
+                seg = t[base:end]
+                # full digit runs only, so '1271497' is read whole and rejected
+                for mm in re.finditer(r"\d+", seg):
+                    val = int(mm.group())
+                    if not _plausible(val):
                         continue
-                    dist = abs((m.start() + base) - i)
+                    pos = mm.start() + base
+                    dist = abs(pos - i)
+                    # In English and most Indian languages the count PRECEDES the
+                    # cue ("3 killed", "20 per kayam"). Bengali often puts it after
+                    # ("nihoto 12"), so numbers after the cue are penalised, not
+                    # excluded.
+                    if pos > i:
+                        dist *= 2.0
                     if best is None or dist < best[0]:
-                        best = (dist, val)
+                        best = (dist, val, pos)
                 start = i + len(cue)
-        return best[1] if best else None
+        return best  # (distance, value, position) or None
 
-    return near(DEATH_CUES), near(INJURED_CUES)
+    d = near(DEATH_CUES)
+    i = near(INJURED_CUES)
+    # If BOTH cues claim the SAME number (e.g. "two died, 20 injured" - the word
+    # 'two' is not a digit, so '20' sits near both cues), award it to the closer
+    # cue only and leave the other blank rather than double-counting it.
+    if d and i and d[2] == i[2]:
+        if d[0] <= i[0]:
+            i = None
+        else:
+            d = None
+    return (d[1] if d else None), (i[1] if i else None)
 
 
 # ===========================================================================
 # CATEGORY + NATURAL-CALAMITY CUES  (ordered: most specific first)
 # ===========================================================================
 CATEGORY_CUES = OrderedDict([
-    ("pedestrian", ["pedestrian", "pedestrians", "run over", "ran over", "mowed down", "knocked down",
-                    "hit while crossing", "पैदल", "राहगीर", "পথচারী", "பாதசாரி", "పాదచారి",
-                    "ಪಾದಚಾರಿ", "കാൽനട", "રાહદારી", "ਪੈਦਲ"]),
-    ("flight", ["plane", "planes", "aircraft", "aeroplane", "airplane", "helicopter", "chopper",
-                "air crash", "aviation", "flight", "flights", "emergency landing", "crash landing",
-                "runway", "विमान", "हेलिकॉप्टर", "বিমান", "হেলিকপ্টার", "விமான",
-                "విమానం", "ವಿಮಾನ", "വിമാനം", "વિમાન", "ਜਹਾਜ਼"]),
-    ("train", ["train", "trains", "railway", "rail", "derail*", "locomotive", "level crossing",
-               "ट्रेन", "रेल", "রেল", "ট্রেন", "ரயில்", "రైలు", "ರೈಲು", "ട്രെയിൻ", "ટ્રેન", "ਰੇਲ"]),
-    ("bus", ["bus", "buses", "minibus", "school bus", "बस", "বাস", "பேருந்து", "బస్సు", "ಬಸ್", "ബസ്", "બસ", "ਬੱਸ"]),
-    ("cargo", ["truck", "trucks", "lorry", "lorries", "tanker", "tankers", "trailer", "goods vehicle", "container", "cargo",
-               "dumper", "freight", "ट्रक", "लॉरी", "टैंकर", "ট্রাক", "லாரி", "ట్రక్", "ಟ್ರಕ್",
-               "ലോറി", "ટ્રક", "ਟਰੱਕ"]),
-    ("construction_infra", ["collaps*", "under construction", "under-construction", "scaffolding",
-                            "girder", "construction site", "caved in", "building razed",
-                            "under-construction building", "slab fell", "wall gave way",
-                            "इमारत", "ढह", "दीवार", "भवन", "पुल", "फ्लाईओवर", "निर्माणाधीन", "কোসল",
-                            "ভবন", "সেতু", "ধস", "निर्माण", "कोसळ", "पूल", "கட்டிடம்", "இடிந்து", "பாலம்",
-                            "భవనం", "కూలి", "వంతెన", "ಕಟ್ಟಡ", "ಕುಸಿ", "ಸೇತುವೆ", "കെട്ടിടം", "തകർന്നു",
-                            "പാലം", "ઇમారત", "ધરાશાયી", "પુલ", "ਇਮਾਰਤ", "ਢਹਿ", "ਪੁਲ"]),
-    ("industrial", ["factory", "boiler", "gas leak", "industrial", "chemical plant", "refinery",
-                    "mine collaps*", "mining", "फैक्ट्री", "कारखाना", "गैस रिसाव", "बॉयलर", "কারখানা",
-                    "গ্যাস", "தொழிற்சாலை", "ఫ్యాక్టరీ", "ಕಾರ್ಖಾನೆ", "ഫാക്ടറി", "ફેક્ટરી", "ਫੈਕਟਰੀ", "खदान"]),
-    ("traffic", ["road accident", "road mishap", "road crash", "car crash", "two-wheeler",
-                 "motorcycle", "motorbike", "bike", "bikes", "scooter", "scooty", "suv", "van", "vans",
-                 "auto-rickshaw", "autorickshaw", "jeep", "highway", "expressway", "सड़क", "हादसा",
-                 "हाईवे", "राजमार्ग", "রাস্তা", "সড়ক", "पथ", "रस्ता", "சாலை", "நெடுஞ்சாலை", "రోడ్డు",
-                 "హైవే", "ರಸ್ತೆ", "ಹೆದ್ದಾರಿ", "റോഡ്", "માર્ગ", "હાઈવે", "ਸੜਕ", "ਹਾਈਵੇ"]),
+    # --- AVIATION -----------------------------------------------------------
+    ("aviation", ["plane","planes","aircraft","aeroplane","airplane","helicopter","chopper",
+        "air crash","aviation","flight","flights","emergency landing","crash landing","runway",
+        "airport","airstrip","विमान","हेलिकॉप्टर","विमानतळ","বিমান","হেলিকপ্টার","விமான",
+        "విమానం","ವಿಮಾನ","വിമാനം","વિમાન","ਜਹਾਜ਼"]),
+
+    # --- PORT / MARITIME ----------------------------------------------------
+    ("port_maritime", ["boat","boats","ferry","ferries","ship","ships","vessel","trawler","barge",
+        "launch capsiz*","capsiz*","harbour","harbor","jetty","dockyard","dock ","shipyard",
+        "port ","seaport","fishing boat","steamer","dredger","tugboat","cargo ship","container ship",
+        "नौका","नाव","जहाज","बंदरगाह","घाट","নৌকা","জাহাজ","লঞ্চ","বন্দর","ফেরি",
+        "படகு","கப்பல்","துறைமுகம்","పడవ","నౌక","ఓడ","ఓడరేవు","ದೋಣಿ","ಹಡಗು","ಬಂದರು",
+        "ബോട്ട്","കപ്പൽ","തുറമുഖം","હોડી","જહાજ","બંદર","ਕਿਸ਼ਤੀ","ਜਹਾਜ਼ ਬੰਦਰਗਾਹ"]),
+
+    # --- TRAIN --------------------------------------------------------------
+    ("train", ["train","trains","railway","rail","derail*","locomotive","level crossing",
+        "railway crossing","metro train","goods train","express train",
+        "ट्रेन","रेल","रेलवे","রেল","ট্রেন","ரயில்","రైలు","ರೈಲು","ട്രെയിൻ","ટ્રેન","ਰੇਲ"]),
+
+    # --- ROADWAY (buses + cargo + cars/two-wheelers + pedestrians merged) ----
+    ("roadway", [
+        # buses
+        "bus","buses","minibus","school bus","बस","বাস","பேருந்து","బస్సు","ಬಸ್","ബസ്","બસ","ਬੱਸ",
+        # cargo / goods vehicles
+        "truck","trucks","lorry","lorries","tanker","tankers","trailer","goods vehicle","container",
+        "cargo","dumper","freight","pickup van","tempo","ट्रक","लॉरी","टैंकर","ট্রাক","லாரி",
+        "ట్రక్","ಟ್ರಕ್","ലോറി","ટ્રક","ਟਰੱਕ",
+        # pedestrians
+        "pedestrian","pedestrians","run over","ran over","mowed down","knocked down",
+        "hit while crossing","पैदल","राहगीर","পথচারী","பாதசாரி","పాదచారి","ಪಾದಚಾರಿ","કાൽനട",
+        "રાહદારી","ਪੈਦਲ",
+        # general road traffic
+        "road accident","road mishap","road crash","car crash","two-wheeler","motorcycle",
+        "motorbike","bike","bikes","scooter","scooty","suv","van","vans","auto-rickshaw",
+        "autorickshaw","auto rickshaw","jeep","highway","expressway","road accidents",
+        "सड़क","हादसा","हाईवे","राजमार्ग","রাস্তা","সড়ক","पथ","रस्ता","சாலை","நெடுஞ்சாலை",
+        "రోడ్డు","హైవే","ರಸ್ತೆ","ಹೆದ್ದಾರಿ","റോഡ്","માર્ગ","હાઈવે","ਸੜਕ","ਹਾਈਵੇ"]),
+
+    # --- ONGOING CONSTRUCTION (building / infrastructure being built) -------
+    ("construction_ongoing", ["under construction","under-construction","construction site",
+        "scaffolding","girder","crane","cranes","trench collaps*","excavation collaps*",
+        "pit collaps*","newly built","newly constructed","being built","construction work",
+        "under repair","tunnel collaps*","bridge under","flyover under","formwork","shuttering",
+        "निर्माणाधीन","निर्माण कार्य","निर्माण स्थल","क्रेन","নির্মীয়মাণ","নির্মাণ",
+        "கட்டுமான","నిర్మాణంలో","ನಿರ್ಮಾಣ","നിർമാണ","બાંધકામ","ਉਸਾਰੀ"]),
+
+    # --- OLD / EXISTING STRUCTURE COLLAPSE ----------------------------------
+    ("old_structure_collapse", ["collaps*","caved in","gave way","dilapidated","old building",
+        "decades-old","century-old","declared dangerous","dangerous building","wall fell",
+        "roof fell","slab fell","building razed","structure fell",
+        "इमारत","ढह","दीवार","भवन","जर्जर","पुरानी इमारत","छत गिर","ভবন ধস","ধস","পুরনো ভবন",
+        "कोसळ","इमारत कोसळ","கட்டிடம்","இடிந்து","భవనం","కూలి","ಕಟ್ಟಡ","ಕುಸಿ","കെട്ടിടം",
+        "തകർന്നു","ઇમારત","ધરાશાયી","ਇਮਾਰਤ","ਢਹਿ"]),
+])
+
+# Anything that matches none of the above but IS an accident falls into "others".
+# The sector column says what kind of activity it was.
+OTHER_SECTOR_CUES = OrderedDict([
+    ("factory_manufacturing", ["factory","plant","manufacturing","workshop","boiler","assembly line",
+        "फैक्ट्री","कारखाना","কারখানা","தொழிற்சாலை","ఫ్యాక్టరీ","ಕಾರ್ಖಾನೆ","ഫാക്ടറി","ફેક્ટરી","ਫੈਕਟਰੀ"]),
+    ("mining_quarry", ["mine","mines","mining","colliery","quarry","stone crusher","खदान","खनन","खान",
+        "খনি","சுரங்க","గని","ಗಣಿ","ഖനി","ખાણ"]),
+    ("chemical_refinery", ["chemical","refinery","petrochemical","acid","ammonia","chlorine",
+        "रासायनिक","रिफाइनरी","রাসায়নিক","ரசாயன","రసాయన"]),
+    ("fireworks_explosives", ["firecracker","cracker unit","fireworks","explosive","पटाखा","आतिशबाजी",
+        "বাজি","পটকা","பட்டாசு","బాణాసంచా"]),
+    ("gas_cylinder", ["gas leak*","cylinder","lpg","gas pipeline","गैस","গ্যাস","எரிவாயு","గ్యాస్"]),
+    ("electrical", ["electrocut*","live wire","transformer","short circuit","high tension",
+        "करंट","बिजली","বিদ্যুৎ","மின்சார","విద్యుత్"]),
+    ("fire", ["fire","blaze","caught fire","आग","আগুন","தீ விபத்து","మంటలు","ಬೆಂಕಿ","തീപിടിത്തം"]),
+    ("sewer_sanitation", ["septic tank","sewer","manhole","drain","सेप्टिक","सीवर","নর্দমা"]),
+    ("borewell_well", ["borewell","bore well","open well","बोरवेल","কূপ"]),
+    ("lift_elevator", ["lift","elevator","लिफ्ट","লিফট"]),
+    ("drowning_water", ["drowned","drowning","canal","pond","waterfall","डूब","ডুবে","மூழ்கி"]),
+    ("stampede_crowd", ["stampede","crowd crush","भगदड़","পদপিষ্ট","நெரிசல்"]),
+    ("agriculture", ["tractor","harvester","thresher","farm","ट्रैक्टर","ট্রাক্টর","டிராக்டர்"]),
 ])
 
 NATURAL_CUES = ["flood*", "deluge", "inundat*", "landslide", "landslip", "mudslide",
@@ -255,6 +380,7 @@ def _compile(cues):
 
 CATEGORY_PATTERNS = OrderedDict((cat, _compile(cues)) for cat, cues in CATEGORY_CUES.items())
 NATURAL_PATTERNS = _compile(NATURAL_CUES)
+SECTOR_PATTERNS = OrderedDict((s, _compile(c)) for s, c in OTHER_SECTOR_CUES.items())
 
 
 def _hit(patterns, text, low):
@@ -267,11 +393,30 @@ def _hit(patterns, text, low):
     return False
 
 
+GENERIC_ACCIDENT_CUES = ["accident","mishap","crash","killed","dead","death","died","injured",
+ "collaps*","blast","explosion","fire","electrocut*","drowned","stampede","trapped","crushed",
+ "हादसा","दुर्घटना","अपघात","मौत","घायल","দুর্ঘটনা","নিহত","আহত","விபத்து","உயிரிழ",
+ "ప్రమాదం","మృతి","ಅಪಘಾತ","ಸಾವು","അപകടം","മരണം","અકસ્માત","મોત","ਹਾਦਸਾ","ਮੌਤ"]
+GENERIC_PATTERNS = _compile(GENERIC_ACCIDENT_CUES)
+
+
+def detect_sector(text):
+    """For 'others': which sector/activity the accident belongs to."""
+    low = text.lower()
+    for sector, patterns in SECTOR_PATTERNS.items():
+        if _hit(patterns, text, low):
+            return sector
+    return "unspecified"
+
+
 def detect_category(text):
     low = text.lower()
     for cat, patterns in CATEGORY_PATTERNS.items():
         if _hit(patterns, text, low):
             return cat
+    # not one of the named groups - keep it as "others" if it is still an accident
+    if _hit(GENERIC_PATTERNS, text, low):
+        return "others"
     return None
 
 
@@ -326,6 +471,36 @@ FOREIGN_PLACES = [
  "feni","comilla","cumilla","narayanganj","gazipur","bogura","jessore","jashore","cox's bazar",
  "tangail","noakhali","brahmanbaria","dinajpur","pabna","kushtia","faridpur","madaripur",
  "gopalganj bd","munshiganj","manikganj","sirajganj","naogaon","natore","joypurhat",
+ "lalmonirhat","rangamati","magura","jhenaidah","meherpur","chuadanga","satkhira","bagerhat",
+ "pirojpur","jhalokathi","barguna","bhola","habiganj","moulvibazar","sunamganj","netrokona",
+ "jamalpur","sherpur","kurigram","nilphamari","panchagarh","thakurgaon","gaibandha",
+ "chapainawabganj","bandarban","khagrachhari","patuakhali","shariatpur","rajbari","narsingdi",
+ "kishoreganj","fatullah","savar","narail","keraniganj","tongi","ashulia",
+ "হাঙ্গেরি","বগুড়া","নড়াইল","চকরিয়া","গাজীপুর","কক্সবাজার","নোয়াখালী","কুমিল্লা","লক্ষ্মীপুর",
+ "চাঁদপুর","হবিগঞ্জ","ব্রাহ্মণবাড়িয়া","টাঙ্গাইল","কিশোরগঞ্জ","মানিকগঞ্জ","লালমনিরহাট",
+ "রাঙামাটি","মাগুরা","ঝিনাইদহ","সাতক্ষীরা","বাগেরহাট","পিরোজপুর","ঝালকাঠি","বরগুনা","ভোলা",
+ "মৌলভীবাজার","সুনামগঞ্জ","নেত্রকোনা","জামালপুর","শেরপুর","কুড়িগ্রাম","নীলফামারী","পঞ্চগড়",
+ "ঠাকুরগাঁও","গাইবান্ধা","চাঁপাইনবাবগঞ্জ","বান্দরবান","খাগড়াছড়ি","পটুয়াখালী","শরীয়তপুর",
+ "রাজবাড়ী","নরসিংদী","ফতুল্লা","সাভার","নারায়ণগঞ্জ","কেরানীগঞ্জ","টঙ্গী","আশুলিয়া",
+ "ਹੰਗਰੀ","ਯੂਗਾਂਡਾ","uganda","tanzania",
+ # Bangladeshi upazilas/towns seen in field testing
+ "sitakunda","kaliakore","kaliakair","osmaninagar","ishwardi","puthia","bhaluka","hatibandha",
+ "daganbhuiyan","daganbhuan","sundarganj","pakundia","kotalipara","gouripur","trishal",
+ "chhagalnaiya","parshuram","sonagazi","mirsharai","hathazari","fatikchhari","raozan",
+ "patiya","banshkhali","lohagara bd","satkania","boalkhali","sandwip","anwara","chandanaish",
+ "shibganj","gomastapur","bholahat","nachole","dhamoirhat","porsha","sapahar","mahadebpur",
+ "tanore","godagari","charghat","bagha","durgapur bd","mohanpur","paba","bagmara",
+ "lalpur","baraigram","gurudaspur","singra","bagatipara","naldanga","kalia","lohagara narail",
+ "shailkupa","harinakunda","kaliganj bd","kotchandpur","maheshpur","damurhuda","jibannagar",
+ "alamdanga","gangni","mujibnagar","kushtia sadar","kumarkhali","khoksa","mirpur bd",
+ "bheramara","daulatpur","rajbari sadar","goalanda","pangsha","baliakandi","kalukhali",
+ "shibchar","kalkini","rajoir","dasar","naria","zajira","bhedarganj","damudya","gosairhat",
+ "narsingdi sadar","palash","shibpur","monohardi","belabo","raipura","araihazar","sonargaon",
+ "bandar","rupganj","siddhirganj","kaliakoir","kapasia","sreepur bd","kaliganj gazipur",
+ "savar bd","dhamrai","keraniganj bd","nawabganj bd","dohar","tongi bd",
+ "টাঙ্গাইল","সীতাকুণ্ড","কালিয়াকৈর","ওসমানীনগর","ঈশ্বরদী","পুঠিয়া","ভালুকা","হাতীবান্ধা",
+ "দাগনভূঞা","সুন্দরগঞ্জ","পাকুন্দিয়া","নারায়ণগঞ্জ","সিলেট","ময়মনসিংহ","ফেনী","নাটোর",
+ "হাঙ্গেরিতে","যুক্তরাজ্য","লন্ডন","ব্রিটেন",
  # native-script country names commonly seen
  "বাংলাদেশ","ঢাকা","চট্টগ্রাম","সিলেট","খুলনা","রাজশাহী","বরিশাল","রংপুর","ময়মনসিংহ",
  "হাঙ্গেরি","ভিয়েতনাম","পাকিস্তান","নেপাল","শ্রীলঙ্কা","সৌদি","চীন","ব্রাজিল","পোল্যান্ড",
@@ -489,6 +664,59 @@ def extract_causes(text, limit=6):
 
 
 # ===========================================================================
+# CAUSE AS A PHRASE (not a fixed label)
+# A fixed taxonomy forces every report into a preset bucket and mislabels the
+# ones that do not fit. Instead we lift the actual wording out of the report -
+# "after the driver lost control on a wet road" - so nothing is squeezed into a
+# category it does not belong to. A short tag is still derived alongside it,
+# purely so that repetition can be counted; the phrase is the primary field.
+# ===========================================================================
+_CAUSE_TRIGGER_RE = re.compile(
+    r"\b(?:after|when|while|during|due to|because of|owing to|caused by|"
+    r"as a result of|on account of|following|reportedly|allegedly|suspected|"
+    r"believed to|police said|police suspect|prima facie|blamed on|attributed to|"
+    r"lost control|failed to|in a bid to|trying to|attempting to)\b", re.I)
+CAUSE_CONTENT_CUES = ["driver","vehicle","brake","tyre","tire","speed","control","road","track",
+ "train","bus","truck","car","bike","wall","roof","slab","building","bridge","scaffold","crane",
+ "fire","gas","boiler","machine","wire","current","water","river","canal","fog","rain","slip",
+ "collid","hit","ram","overturn","fell","fall","collaps","blast","explos","leak","short circuit",
+ "signal","crossing","platform","boat","ferry","capsiz","drown","crush","trapped","negligence",
+ "maintenance","repair","construction","overload","fatigue","asleep","drunk","phone"]
+CAUSE_CONTENT_PATTERNS = _compile(CAUSE_CONTENT_CUES)
+_CAUSE_STOP = re.compile(r"[.;|]|\s+-\s+")
+
+
+def extract_cause_phrase(text, max_words=16):
+    """Return a short human-readable phrase describing the reported cause, taken
+    verbatim (lightly trimmed) from the article text. Empty when the report does
+    not say why it happened - which is common and is reported honestly as blank."""
+    if not text:
+        return ""
+    t = re.sub(r"\s+", " ", text).strip()
+    m = _CAUSE_TRIGGER_RE.search(t)
+    if not m:
+        return ""
+    tail = t[m.start():]
+    cut = _CAUSE_STOP.search(tail, m.end() - m.start())
+    phrase = tail[:cut.start()] if cut else tail
+    words = phrase.split()
+    if len(words) < 3:
+        return ""
+    phrase = " ".join(words[:max_words]).strip(" ,-")
+    # discard phrases with no accident-related content (political headlines etc.
+    # can contain "due to" without describing an accident cause)
+    if not _hit(GENERIC_PATTERNS, phrase, phrase.lower()) and \
+       not _hit(CAUSE_CONTENT_PATTERNS, phrase, phrase.lower()):
+        return ""
+    return phrase[0].upper() + phrase[1:] if phrase else ""
+
+
+def derive_cause_tags(text, phrase=""):
+    """Short tags kept ONLY so repeated causes can be counted month to month.
+    Derived from the phrase where possible, else from the whole text."""
+    return extract_causes((phrase or "") + " " + (text or ""))
+
+# ===========================================================================
 # CITIES + HIGHWAYS
 # ===========================================================================
 CITIES = ["Mumbai", "Delhi", "New Delhi", "Kolkata", "Chennai", "Bengaluru", "Bangalore", "Hyderabad",
@@ -629,6 +857,40 @@ _HIGHWAY_PATTERNS = [
 ]
 
 
+
+# A fixed list can never contain every Indian town (there are thousands). After
+# translation the text is English, so we can also read the location from common
+# phrasings - "in Sangrur", "near Chikhli", "Bhiwandi district". This catches
+# places absent from the gazetteer.
+_LOC_PATTERNS = [
+    re.compile(r"\b(?:in|at|near|outside)\s+([A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{3,})?)"),
+    re.compile(r"\b([A-Z][a-z]{3,})\s+(?:district|taluka|tehsil|mandal|village|town|city)\b"),
+    re.compile(r"\b([A-Z][a-z]{3,})\s*[-,]\s*(?:based|bound)\b"),
+]
+_LOC_STOPWORDS = {"India","Indian","National","State","Highway","Expressway","Road","Bus","Train",
+ "Police","Court","Hospital","Government","Ministry","Chief","Minister","Video","Watch","Update",
+ "Breaking","News","Live","Report","After","Before","During","While","Several","Many","Three",
+ "Four","Five","Vehicle","Truck","Lorry","Factory","Building","Bridge","Flyover","Tunnel",
+ "Accident","Crash","Collapse","Death","Deaths","Killed","Injured","People","Workers","Family",
+ "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday","January","February",
+ "March","April","May","June","July","August","September","October","November","December"}
+
+
+def extract_generic_places(text, limit=3):
+    """Pull likely place names from English text via phrasing patterns."""
+    found, seen = [], set()
+    for pat in _LOC_PATTERNS:
+        for m in pat.findall(text):
+            name = m.strip()
+            if name in _LOC_STOPWORDS or name.split()[0] in _LOC_STOPWORDS:
+                continue
+            if name.lower() in seen:
+                continue
+            found.append(name); seen.add(name.lower())
+            if len(found) >= limit:
+                return found
+    return found
+
 def extract_locations(text):
     if not text:
         return "", ""
@@ -651,6 +913,11 @@ def extract_locations(text):
             h = re.sub(r"[-\s]+", "-", m.strip())
             if h.lower() not in hseen:
                 highways.append(h); hseen.add(h.lower())
+    if not cities:
+        # nothing from the gazetteer - fall back to phrasing-based detection
+        for name in extract_generic_places(text):
+            if name.lower() not in seen:
+                cities.append(name); seen.add(name.lower())
     return "; ".join(cities), "; ".join(highways)
 
 
@@ -668,9 +935,9 @@ def _hwset(s):
 COLUMNS = OrderedDict([
     ("id", "TEXT PRIMARY KEY"), ("title", "TEXT"), ("title_en", "TEXT"), ("url", "TEXT"),
     ("resolved_url", "TEXT"), ("source", "TEXT"), ("published", "TEXT"), ("published_ts", "REAL"),
-    ("category", "TEXT"), ("language", "TEXT"), ("query", "TEXT"), ("title_norm", "TEXT"),
+    ("category", "TEXT"), ("sector", "TEXT"), ("language", "TEXT"), ("query", "TEXT"), ("title_norm", "TEXT"),
     ("snippet", "TEXT"), ("image_url", "TEXT"), ("cities", "TEXT"), ("highways", "TEXT"),
-    ("deaths", "INTEGER"), ("injured", "INTEGER"), ("cause", "TEXT"), ("fetched_at", "TEXT"),
+    ("deaths", "INTEGER"), ("injured", "INTEGER"), ("cause", "TEXT"), ("cause_tags", "TEXT"), ("fetched_at", "TEXT"),
     ("is_duplicate", "INTEGER DEFAULT 0"), ("dup_group", "TEXT"), ("translated", "INTEGER DEFAULT 0"),
 ])
 
@@ -871,7 +1138,10 @@ def store(conn, articles, enrich_budget, translate_budget):
 
         deaths, injured = extract_counts(native + " " + english)
         cities, highways = extract_locations(combined)
-        cause = extract_causes(combined)
+        english_text = (english or "") if english else (native if a["language"] == "English" else "")
+        cause = extract_cause_phrase(english_text or native)
+        cause_tags = derive_cause_tags(combined, cause)
+        sector = detect_sector(combined) if category == "others" else ""
         a.update({"category": category, "deaths": deaths, "injured": injured,
                   "cities": cities, "highways": highways})
 
@@ -882,13 +1152,13 @@ def store(conn, articles, enrich_budget, translate_budget):
         conn.execute(
             """INSERT OR IGNORE INTO articles
                (id,title,title_en,url,resolved_url,source,published,published_ts,category,language,
-                query,title_norm,snippet,image_url,cities,highways,deaths,injured,cause,fetched_at,
+                query,title_norm,snippet,image_url,cities,highways,deaths,injured,cause,cause_tags,sector,fetched_at,
                 is_duplicate,dup_group,translated)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (a["id"], a["title"], title_en, a["url"], resolved_url, a["source"], a["published"],
              a["published_ts"], category, a["language"], a["query"], a["title_norm"],
              a.get("snippet", ""), a["image_url"], cities, highways, deaths, injured,
-             cause, a["fetched_at"], is_dupe, dup_group, translated))
+             cause, cause_tags, sector, a["fetched_at"], is_dupe, dup_group, translated))
         new += 1
     conn.commit()
     return new, enrich_budget, translate_budget
@@ -897,6 +1167,67 @@ def store(conn, articles, enrich_budget, translate_budget):
 # ===========================================================================
 # EXPORTS
 # ===========================================================================
+
+
+
+def remap_categories(conn):
+    """Rows saved under the previous taxonomy (bus/cargo/traffic/pedestrian/
+    flight/construction_infra/industrial) are re-classified into the current
+    groups, so old and new data are comparable."""
+    changed = 0
+    for rid, title, ten, snip, cat in conn.execute(
+            "SELECT id,title,title_en,snippet,category FROM articles").fetchall():
+        text = (title or "") + " " + (ten or "") + " " + (snip or "")
+        new_cat = detect_category(text)
+        if new_cat is None:
+            continue
+        new_sec = detect_sector(text) if new_cat == "others" else ""
+        if new_cat != cat:
+            conn.execute("UPDATE articles SET category=?, sector=? WHERE id=?",
+                         (new_cat, new_sec, rid))
+            changed += 1
+        else:
+            conn.execute("UPDATE articles SET sector=? WHERE id=?", (new_sec, rid))
+    conn.commit()
+    if changed:
+        print(f"[remap] re-classified {changed} rows into the new categories")
+    return changed
+
+
+def purge_foreign(conn):
+    """Remove rows saved BEFORE the geographic filter existed. Without this the
+    old foreign articles stay in the database and keep appearing in the counts."""
+    if not INDIA_ONLY:
+        return 0
+    removed = 0
+    for rid, title, ten, source in conn.execute(
+            "SELECT id,title,title_en,source FROM articles").fetchall():
+        if is_foreign((title or "") + " " + (ten or ""), source or ""):
+            conn.execute("DELETE FROM articles WHERE id=?", (rid,))
+            removed += 1
+    conn.commit()
+    if removed:
+        print(f"[geo-purge] removed {removed} non-India rows")
+    return removed
+
+
+def recompute_counts(conn, limit=6000):
+    """Re-run casualty extraction over stored rows. Needed after extraction bugs
+    are fixed, so old rows get corrected instead of keeping bad numbers."""
+    fixed = 0
+    for rid, title, ten, snip, d0, i0 in conn.execute(
+            "SELECT id,title,title_en,snippet,deaths,injured FROM articles LIMIT ?",
+            (limit,)).fetchall():
+        text = (title or "") + " " + (ten or "") + " " + (snip or "")
+        d, i = extract_counts(text)
+        if d != d0 or i != i0:
+            conn.execute("UPDATE articles SET deaths=?,injured=? WHERE id=?", (d, i, rid))
+            fixed += 1
+    conn.commit()
+    if fixed:
+        print(f"[recount] corrected casualty numbers on {fixed} rows")
+    return fixed
+
 
 def backfill_translations(conn, budget):
     """Rows saved on earlier runs WITHOUT a translation stay untranslated forever
@@ -970,23 +1301,146 @@ def rededupe(conn):
 
 def export_articles_csv(conn, path="articles.csv"):
     rows = conn.execute(
-        """SELECT published,language,category,cause,source,title,title_en,cities,highways,
-                  deaths,injured,image_url,url,is_duplicate,dup_group
+        """SELECT published,language,category,sector,cause,cause_tags,source,title,title_en,
+                  cities,highways,deaths,injured,image_url,url,is_duplicate,dup_group
            FROM articles ORDER BY published_ts DESC""").fetchall()
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["published", "language", "category", "cause", "source", "title", "title_en",
-                    "cities", "highways", "deaths", "injured", "image_url", "url",
-                    "is_duplicate", "dup_group"])
-        w.writerows(rows)
+        w.writerow(["Date", "Language", "Accident Type", "Sector (others only)",
+                    "Reported Cause (phrase)", "Cause Tags", "Source", "Title",
+                    "Title (English)", "Cities", "Highways", "Killed", "Injured",
+                    "Image URL", "Link", "Is Duplicate", "Event Group"])
+        for r in rows:
+            r = list(r)
+            r[2] = (r[2] or "").replace("_", " ")
+            r[3] = (r[3] or "").replace("_", " ")
+            r[5] = (r[5] or "").replace("_", " ")
+            w.writerow(r)
     return len(rows)
+
+
+
+def export_simple_summary_csv(conn, path="SUMMARY_simple.csv"):
+    """The plain-English summary: one row per month per accident type, with the
+    number of accidents, people killed/injured, the main cities, and the most
+    common reported cause. This is the file to open first."""
+    rows = conn.execute(
+        """SELECT strftime('%Y-%m',published) AS month, category,
+                  COUNT(*)         AS number,
+                  SUM(COALESCE(deaths,0))  AS killed,
+                  SUM(COALESCE(injured,0)) AS injured
+           FROM articles WHERE is_duplicate=0 AND published!=''
+           GROUP BY month, category ORDER BY month DESC, number DESC""").fetchall()
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["Month", "Accident Type", "Sector (for Others)", "Number of Accidents",
+                    "People Killed", "People Injured", "Main Cities",
+                    "Most Common Cause", "Example Reported Cause"])
+        for month, cat, number, killed, injured in rows:
+            city_counter, cause_counter, sector_counter = Counter(), Counter(), Counter()
+            phrase_counter = Counter()
+            for (cities, cause, sect, tags) in conn.execute(
+                    """SELECT cities, cause, sector, cause_tags FROM articles
+                       WHERE is_duplicate=0 AND category=? AND strftime('%Y-%m',published)=?""",
+                    (cat, month)):
+                if sect:
+                    sector_counter[sect] += 1
+                for tg in (tags or "").split(";"):
+                    if tg.strip():
+                        cause_counter[tg.strip()] += 1
+                if (cause or "").strip():
+                    phrase_counter[cause.strip()] += 1
+                for c in (cities or "").split(";"):
+                    if c.strip():
+                        city_counter[c.strip()] += 1
+                if (cause or "").strip():
+                    cause_counter[cause.strip()] += 1
+            top_cities = ", ".join(f"{c} ({n})" for c, n in city_counter.most_common(5))
+            top_cause = cause_counter.most_common(1)[0][0].replace("_", " ") if cause_counter else "not reported"
+            example = phrase_counter.most_common(1)[0][0] if phrase_counter else ""
+            sectors = ", ".join(f"{s.replace('_',' ')} ({n})"
+                                for s, n in sector_counter.most_common(4)) if cat == "others" else ""
+            w.writerow([month, cat.replace("_", " "), sectors, number, killed or 0, injured or 0,
+                        top_cities or "not identified", top_cause, example])
+    return len(rows)
+
+
+
+def export_others_sector_csv(conn, path="SUMMARY_others_by_sector.csv"):
+    """Breakdown of the 'others' category by sector."""
+    rows = conn.execute(
+        """SELECT strftime('%Y-%m',published) AS month, sector, COUNT(*),
+                  SUM(COALESCE(deaths,0)), SUM(COALESCE(injured,0))
+           FROM articles WHERE is_duplicate=0 AND category='others' AND published!=''
+           GROUP BY month, sector ORDER BY month DESC, 3 DESC""").fetchall()
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["Month", "Sector", "Number of Accidents", "People Killed", "People Injured"])
+        for month, sector, n, k, inj in rows:
+            w.writerow([month, (sector or "unspecified").replace("_", " "), n, k or 0, inj or 0])
+    return len(rows)
+
+
+def export_month_by_type_csv(conn, path="SUMMARY_month_by_type.csv"):
+    """Wide view: one row per month, one column per accident type - easiest to
+    chart, and shows at a glance which type dominates."""
+    data, cats = {}, set()
+    for month, cat, n in conn.execute(
+            """SELECT strftime('%Y-%m',published), category, COUNT(*)
+               FROM articles WHERE is_duplicate=0 AND published!=''
+               GROUP BY 1,2"""):
+        data.setdefault(month, {})[cat] = n
+        cats.add(cat)
+    cats = sorted(cats)
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["Month"] + [c.replace("_", " ") for c in cats] + ["TOTAL"])
+        for month in sorted(data, reverse=True):
+            row = [data[month].get(c, 0) for c in cats]
+            w.writerow([month] + row + [sum(row)])
+    return len(data)
+
+
+def export_city_summary_csv(conn, path="SUMMARY_by_city.csv"):
+    """Which places see the most accidents, and of what type."""
+    counter = Counter()
+    killed = Counter()
+    for cities, cat, d in conn.execute(
+            "SELECT cities, category, deaths FROM articles WHERE is_duplicate=0 AND cities!=''"):
+        for c in cities.split(";"):
+            c = c.strip()
+            if c:
+                counter[(c, cat)] += 1
+                killed[(c, cat)] += int(d) if d else 0
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["City / Place", "Accident Type", "Number of Accidents", "People Killed"])
+        for (city, cat), n in counter.most_common():
+            w.writerow([city, cat.replace("_", " "), n, killed[(city, cat)]])
+    return len(counter)
+
+
+
+def export_cause_phrases_csv(conn, path="SUMMARY_cause_phrases.csv"):
+    """Every reported-cause phrase, most repeated first, with its accident type.
+    This is the unfiltered wording from the reports - no preset categories."""
+    counter = Counter()
+    for cat, phrase in conn.execute(
+            "SELECT category, cause FROM articles WHERE is_duplicate=0 AND cause!=''"):
+        counter[((cat or "").replace("_", " "), phrase.strip())] += 1
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["Accident Type", "Reported Cause (as written in the report)", "Times Reported"])
+        for (cat, phrase), n in counter.most_common():
+            w.writerow([cat, phrase, n])
+    return len(counter)
 
 
 def export_cause_summary_csv(conn, path="cause_summary.csv"):
     """Counts of reported causes per category (unique events only)."""
     counts = Counter()
     for cat, cause in conn.execute(
-            "SELECT category, cause FROM articles WHERE is_duplicate=0"):
+            "SELECT category, cause_tags FROM articles WHERE is_duplicate=0"):
         if not cause:
             counts[(cat, "unstated")] += 1
             continue
@@ -996,9 +1450,9 @@ def export_cause_summary_csv(conn, path="cause_summary.csv"):
                 counts[(cat, part)] += 1
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["category", "reported_cause", "unique_events"])
+        w.writerow(["Accident Type", "Reported Cause (tag)", "Number of Accidents"])
         for (cat, cause), n in sorted(counts.items(), key=lambda x: (x[0][0], -x[1])):
-            w.writerow([cat, cause, n])
+            w.writerow([(cat or "").replace("_", " "), cause.replace("_", " "), n])
 
 
 def export_cause_trend_csv(conn, path="cause_trend_monthly.csv"):
@@ -1006,7 +1460,7 @@ def export_cause_trend_csv(conn, path="cause_trend_monthly.csv"):
     the file to chart for 'which causes are repeating / rising'."""
     counts = Counter()
     for month, cause in conn.execute(
-            "SELECT strftime('%Y-%m', published), cause FROM articles WHERE is_duplicate=0"):
+            "SELECT strftime('%Y-%m', published), cause_tags FROM articles WHERE is_duplicate=0"):
         if not cause:
             counts[(month, "unstated")] += 1
             continue
@@ -1016,9 +1470,9 @@ def export_cause_trend_csv(conn, path="cause_trend_monthly.csv"):
                 counts[(month, part)] += 1
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["month", "reported_cause", "unique_events"])
+        w.writerow(["Month", "Reported Cause (tag)", "Number of Accidents"])
         for (month, cause), n in sorted(counts.items(), key=lambda x: (x[0][0], -x[1]), reverse=True):
-            w.writerow([month, cause, n])
+            w.writerow([month, cause.replace("_", " "), n])
 
 
 def _summary(conn, period):
@@ -1032,7 +1486,7 @@ def export_summary_csv(conn, period, path):
     rows = _summary(conn, period)
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["period", "category", "unique_events"])
+        w.writerow(["period", "category", "number_of_accidents"])
         w.writerows(rows)
 
 
@@ -1042,6 +1496,13 @@ def top_counts(conn, column, limit=15):
         for part in val.split(";"):
             if part.strip():
                 c[part.strip()] += 1
+    return c.most_common(limit)
+
+
+def top_phrases(conn, limit=15):
+    c = Counter()
+    for (p,) in conn.execute("SELECT cause FROM articles WHERE is_duplicate=0 AND cause!=''"):
+        c[p.strip()] += 1
     return c.most_common(limit)
 
 
@@ -1058,7 +1519,7 @@ def export_dashboard(conn, path="index.html"):
     with_img = conn.execute("SELECT COUNT(*) FROM articles WHERE image_url!=''").fetchone()[0]
     with_cause = conn.execute("SELECT COUNT(*) FROM articles WHERE is_duplicate=0 AND cause!=''").fetchone()[0]
     last = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    head = "".join(f"<th>{html.escape(c)}</th>" for c in cats)
+    head = "".join(f"<th>{html.escape(c.replace(chr(95), chr(32)))}</th>" for c in cats)
     body = ""
     for p in sorted(periods, reverse=True):
         cells = "".join(f"<td>{periods[p].get(c,0)}</td>" for c in cats)
@@ -1093,8 +1554,8 @@ def export_dashboard(conn, path="index.html"):
 </div>
 <h2>Monthly unique events by category</h2>
 <table><thead><tr><th style="text-align:left">Month</th>{head}<th>Total</th></tr></thead><tbody>{body}</tbody></table>
-<h2>Top reported causes <span style="font-weight:400;color:#888;font-size:12px">(as-reported / preliminary, not investigated)</span></h2>
-<table><tbody>{rows_html(top_counts(conn,'cause'))}</tbody></table>
+<h2>Most repeated reported causes <span style="font-weight:400;color:#888;font-size:12px">(wording taken from the reports; preliminary, not investigated)</span></h2>
+<table><tbody>{rows_html(top_phrases(conn))}</tbody></table>
 <div class="two">
  <div><h2>Top cities</h2><table><tbody>{rows_html(top_counts(conn,'cities'))}</tbody></table></div>
  <div><h2>Top highways</h2><table><tbody>{rows_html(top_counts(conn,'highways'))}</tbody></table></div>
@@ -1134,12 +1595,20 @@ def run():
         print(f"[PAPER {label}] {url}: {len(arts)} candidate items, {added} kept")
         time.sleep(1)
 
+    purge_foreign(conn)
+    remap_categories(conn)
     backfill_translations(conn, tbudget)
+    recompute_counts(conn)
     rededupe(conn)
 
     n = export_articles_csv(conn)
     export_summary_csv(conn, "%Y-%m", "monthly_summary.csv")
     export_summary_csv(conn, "%Y", "yearly_summary.csv")
+    export_simple_summary_csv(conn)
+    export_month_by_type_csv(conn)
+    export_others_sector_csv(conn)
+    export_city_summary_csv(conn)
+    export_cause_phrases_csv(conn)
     export_cause_summary_csv(conn)
     export_cause_trend_csv(conn)
     export_dashboard(conn)
@@ -1152,20 +1621,25 @@ def run():
 
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
-        # ---- categories ----
-        assert detect_category("Flyover collapses in Mumbai, 5 dead") == "construction_infra"
-        assert detect_category("School bus overturns near Pune") == "bus"
-        assert detect_category("Truck rams into cars on NH-19") == "cargo"
-        assert detect_category("Train derails near Kanpur") == "train"
-        assert detect_category("Plane crashes near Delhi airport") == "flight"
-        assert detect_category("Pedestrian run over by speeding SUV") == "pedestrian"
-        assert detect_category("Two-wheeler skids on highway, rider dead") == "traffic"
-        assert detect_category("Boiler blast at chemical factory") == "industrial"
+        # ---- new category grouping ----
+        assert detect_category("School bus overturns near Pune") == "roadway"
+        assert detect_category("Truck rams into cars on NH-19") == "roadway"
+        assert detect_category("Pedestrian run over by speeding SUV") == "roadway"
+        assert detect_category("Two-wheeler skids on highway, rider dead") == "roadway"
+        assert detect_category("Passenger train derails near Kanpur") == "train"
+        assert detect_category("Plane crashes near Delhi airport") == "aviation"
+        assert detect_category("Ferry capsizes near Kochi harbour, 6 missing") == "port_maritime"
+        assert detect_category("Under-construction flyover girder falls, 4 dead") == "construction_ongoing"
+        assert detect_category("Dilapidated four-storey building collapses in Bhiwandi") == "old_structure_collapse"
+        assert detect_category("Boiler blast at chemical factory kills 3") == "others"
+        assert detect_sector("Boiler blast at chemical factory kills 3") == "factory_manufacturing"
+        assert detect_sector("Three die cleaning septic tank") == "sewer_sanitation"
+        assert detect_sector("Two workers die in coal mine") == "mining_quarry"
         assert detect_category("Minister opens new hospital") is None
         # ---- natural exclusion ----
         assert classify("20 dead as floods hit Kerala") is None
         assert classify("Building collapses after cloudburst, 5 dead") is None  # STRICT default
-        assert classify("Bus falls into river on NH-48, 8 dead") == "bus"
+        assert classify("Bus falls into river on NH-48, 8 dead") == "roadway"
         # ---- casualty extraction incl Devanagari digits ----
         assert extract_counts("3 killed, 2 injured in bus crash") == (3, 2)
         d, i = extract_counts("बस दुर्घटना में \u0969 की मौत, \u0968 घायल"); assert (d, i) == (3, 2)
