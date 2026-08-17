@@ -14,4 +14,5 @@ jobs:
           git config user.email "actions@github.com"
           git add -A
           git diff --staged --quiet || git commit -m "Update accident data"
-          git push
+          git pull --rebase origin main || true
+          git push || echo "push skipped"
