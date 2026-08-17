@@ -106,7 +106,8 @@ RSS_SEARCH = "https://news.google.com/rss/search?q="
 TRANSLATE_BACKEND = "builtin"         # "builtin" | "none"
 MAX_TRANSLATE_PER_RUN = 4000
 # natural-calamity exclusion
-STRICT_NATURAL_EXCLUSION = True       # True: drop ANY item mentioning a calamity
+STRICT_NATURAL_EXCLUSION = True
+INDIA_ONLY = True                     # drop accidents occurring outside India       # True: drop ANY item mentioning a calamity
 # images
 ENRICH = True
 MAX_ENRICH_PER_RUN = 80
@@ -278,8 +279,81 @@ def is_natural(text):
     return _hit(NATURAL_PATTERNS, text, text.lower())
 
 
-def classify(combined):
+
+# ===========================================================================
+# GEOGRAPHIC FILTER - keep INDIA only
+# Google News language editions leak across borders: the Bengali edition
+# carries Bangladeshi outlets, and some foreign sites publish in Hindi.
+# Field testing found ~24% of Bengali items came from Bangladeshi outlets.
+# ===========================================================================
+FOREIGN_SOURCES = [
+ # Bangladesh
+ "daily star","prothom alo","প্রথম আলো","ডেইলি স্টার","bss","bangladesh sangbad","unb",
+ "bdnews24","kalerkantho","jugantor","ittefaq","samakal","bangla tribune","ajkalerkhobor",
+ "banglanews","risingbd","bd-pratidin","dhaka post","dhakapost","dhaka mail","dhaka tribune",
+ "naya diganta","নয়া দিগন্ত","ajker patrika","আজকের পত্রিকা","desh rupantor","দেশ রূপান্তর",
+ "jagonews","somoy","channel24","jamuna","ntv bd","rtv","bangladesh pratidin","manabzamin",
+ "amader shomoy","bhorer kagoj","observerbd","newagebd","tbsnews","businesspostbd",
+ # Pakistan
+ "dawn","geo news","ary news","express tribune","the news international","samaa","dunya",
+ "jang","nawaiwaqt","bol news",
+ # Nepal / Sri Lanka / others in South Asia
+ "kathmandu post","himalayan times","onlinekhabar","ekantipur","setopati","myrepublica",
+ "ada derana","colombo","daily mirror sri","newsfirst.lk","sundaytimes.lk",
+ # Vietnam / East Asia sites that publish Indian-language pages
+ "vietnam.vn","vnexpress","xinhua","global times","china daily",
+ # International wires / broadcasters (their India-datelined copy is usually
+ # duplicated by Indian outlets anyway)
+ "bbc","al jazeera","cnn","sputnik","voa","dw.com","deutsche welle",
+]
+
+FOREIGN_PLACES = [
+ # countries / regions, English
+ "bangladesh","pakistan","nepal","sri lanka","afghanistan","myanmar","bhutan","maldives",
+ "china","vietnam","hungary","thailand","indonesia","malaysia","singapore","philippines",
+ "japan","korea","russia","ukraine","turkey","iran","iraq","syria","israel","egypt",
+ "saudi arabia","dubai","abu dhabi","qatar","kuwait","oman","bahrain","yemen",
+ "nigeria","kenya","ethiopia","congo","ghana","tanzania","uganda","south africa","morocco",
+ "brazil","mexico","peru","bolivia","colombia","argentina","chile","venezuela","ecuador",
+ "united states","u.s.","usa","america","canada","mexico city","texas","california",
+ "florida","new york","chicago","washington","united kingdom","britain","england","london",
+ "scotland","ireland","france","paris","germany","berlin","italy","rome","spain","madrid",
+ "portugal","poland","greece","serbia","croatia","austria","switzerland","netherlands",
+ "belgium","sweden","norway","denmark","finland","australia","new zealand","kazakhstan",
+ "uzbekistan","azerbaijan","georgia","armenia","cambodia","laos","taiwan","hong kong",
+ # Bangladeshi districts/cities that appear without the country name
+ "dhaka","chattogram","chittagong","sylhet","khulna","rajshahi","barisal","rangpur","mymensingh",
+ "feni","comilla","cumilla","narayanganj","gazipur","bogura","jessore","jashore","cox's bazar",
+ "tangail","noakhali","brahmanbaria","dinajpur","pabna","kushtia","faridpur","madaripur",
+ "gopalganj bd","munshiganj","manikganj","sirajganj","naogaon","natore","joypurhat",
+ # native-script country names commonly seen
+ "বাংলাদেশ","ঢাকা","চট্টগ্রাম","সিলেট","খুলনা","রাজশাহী","বরিশাল","রংপুর","ময়মনসিংহ",
+ "হাঙ্গেরি","ভিয়েতনাম","পাকিস্তান","নেপাল","শ্রীলঙ্কা","সৌদি","চীন","ব্রাজিল","পোল্যান্ড",
+ "बांग्लादेश","ढाका","पाकिस्तान","नेपाल","श्रीलंका","हंगरी","वियतनाम","चीन","सऊदी","ब्राजील",
+ "म्यूनिख","रूस","यूक्रेन","अमेरिका","ब्रिटेन","लंदन",
+ "பாகிஸ்தான்","வங்காளதேசம்","இலங்கை","சீனா","அமெரிக்கா",
+ "పాకిస్తాన్","బంగ్లాదేశ్","శ్రీలంక","చైనా","అమెరికా",
+ "ಪಾಕಿಸ್ತಾನ","ಬಾಂಗ್ಲಾದೇಶ","ಶ್ರೀಲಂಕಾ","ಚೀನಾ","ಅಮೆರಿಕ",
+ "പാകിസ്ഥാൻ","ബംഗ്ലാദേശ്","ശ്രീലങ്ക","ചൈന","അമേരിക്ക",
+ "પાકિસ્તાન","બાંગ્લાદેશ","શ્રીલંકા","ચીન","અમેરિકા",
+ "ਪਾਕਿਸਤਾਨ","ਬੰਗਲਾਦੇਸ਼","ਸ਼੍ਰੀਲੰਕਾ","ਚੀਨ","ਅਮਰੀਕਾ",
+]
+FOREIGN_PLACE_PATTERNS = _compile(FOREIGN_PLACES)
+
+
+def is_foreign(text, source=""):
+    """True if the item looks like it is about another country."""
+    s = (source or "").lower()
+    for f in FOREIGN_SOURCES:
+        if f in s:
+            return True
+    return _hit(FOREIGN_PLACE_PATTERNS, text, text.lower())
+
+
+def classify(combined, source=""):
     """Return an in-scope category, or None if it should be dropped."""
+    if INDIA_ONLY and is_foreign(combined, source):
+        return None                      # accident in another country
     cat = detect_category(combined)
     if cat is None:
         return None
@@ -782,7 +856,7 @@ def store(conn, articles, enrich_budget, translate_budget):
         english = title_en
         combined = (english + " " + native).strip()
 
-        category = classify(combined)
+        category = classify(combined, a.get('source', ''))
         if category is None:
             continue  # not in-scope, or a natural calamity -> dropped
 
@@ -823,6 +897,77 @@ def store(conn, articles, enrich_budget, translate_budget):
 # ===========================================================================
 # EXPORTS
 # ===========================================================================
+
+def backfill_translations(conn, budget):
+    """Rows saved on earlier runs WITHOUT a translation stay untranslated forever
+    unless we revisit them. The free endpoint throttles (field testing translated
+    ~550 items before being cut off), so each run picks up where the last stopped.
+    Coverage therefore accumulates across days instead of stalling."""
+    if TRANSLATE_BACKEND == "none" or budget <= 0:
+        return 0
+    rows = conn.execute(
+        """SELECT id,title,snippet,language FROM articles
+           WHERE (title_en IS NULL OR title_en='') AND language!='English'
+           ORDER BY published_ts DESC LIMIT ?""", (budget,)).fetchall()
+    done = 0
+    for rid, title, snippet, lang in rows:
+        tx = translate_to_en((title + "\n" + (snippet or ""))[:1800])
+        if not tx:
+            break                      # throttled - stop, resume next run
+        combined = tx + " " + title + " " + (snippet or "")
+        cities, highways = extract_locations(combined)
+        deaths, injured = extract_counts(title + " " + (snippet or "") + " " + tx)
+        cause = extract_causes(combined)
+        conn.execute("""UPDATE articles SET title_en=?,translated=1,cities=?,highways=?,
+                        deaths=COALESCE(deaths,?),injured=COALESCE(injured,?),
+                        cause=CASE WHEN cause='' THEN ? ELSE cause END
+                        WHERE id=?""",
+                     (tx, cities, highways, deaths, injured, cause, rid))
+        done += 1
+        time.sleep(0.25)               # be gentle with the free service
+    conn.commit()
+    if done:
+        print(f"[translate-backfill] filled {done} older items")
+    return done
+
+
+def rededupe(conn):
+    """Re-run duplicate detection over the whole table. Needed because items get
+    richer over time (translation adds city/casualty data), which reveals matches
+    that were invisible when the item was first stored."""
+    conn.execute("UPDATE articles SET is_duplicate=0, dup_group=id")
+    rows = conn.execute(
+        """SELECT id,title_norm,language,cities,highways,deaths,injured,category,published_ts
+           FROM articles ORDER BY published_ts ASC""").fetchall()
+    seen = []
+    merged = 0
+    for r in rows:
+        a = {"id": r[0], "title_norm": r[1], "language": r[2], "cities": r[3] or "",
+             "highways": r[4] or "", "deaths": r[5], "injured": r[6], "category": r[7],
+             "published_ts": r[8] or 0}
+        best = None
+        for b in seen:
+            if b["category"] != a["category"]:
+                continue
+            if abs((b["published_ts"] or 0) - a["published_ts"]) > EVENT_DATE_WINDOW_DAYS * 86400:
+                continue
+            score, strong = event_similarity(a, b)
+            if score >= EVENT_SIM_THRESHOLD and strong and (best is None or score > best[1]):
+                best = (b["dup_group"], score)
+        if best:
+            conn.execute("UPDATE articles SET is_duplicate=1, dup_group=? WHERE id=?", (best[0], a["id"]))
+            a["dup_group"] = best[0]
+            merged += 1
+        else:
+            a["dup_group"] = a["id"]
+        seen.append(a)
+        if len(seen) > 4000:
+            seen = seen[-4000:]
+    conn.commit()
+    print(f"[re-dedup] {merged} duplicates across the whole database")
+    return merged
+
+
 def export_articles_csv(conn, path="articles.csv"):
     rows = conn.execute(
         """SELECT published,language,category,cause,source,title,title_en,cities,highways,
@@ -988,6 +1133,9 @@ def run():
         total_new += added
         print(f"[PAPER {label}] {url}: {len(arts)} candidate items, {added} kept")
         time.sleep(1)
+
+    backfill_translations(conn, tbudget)
+    rededupe(conn)
 
     n = export_articles_csv(conn)
     export_summary_csv(conn, "%Y-%m", "monthly_summary.csv")
