@@ -1,16 +1,17 @@
 Accident Type,Reported Cause (tag),Number of Accidents
-aviation,unstated,107
+aviation,unstated,116
 construction infra,unstated,2
-construction ongoing,unstated,34
-industrial,unstated,58
-old structure collapse,unstated,287
+construction ongoing,unstated,35
+construction ongoing,under construction,2
+industrial,unstated,42
+old structure collapse,unstated,284
 old structure collapse,structural failure,1
-others,unstated,366
-others,fire short circuit,9
-others,explosion blast,9
-others,gorge valley plunge,4
+others,unstated,400
+others,explosion blast,11
+others,fire short circuit,10
+others,gorge valley plunge,5
 others,pothole bad road,4
-others,overspeeding,3
+others,overspeeding,4
 others,head on collision,2
 others,hit divider barrier,2
 others,hit and run,2
@@ -19,11 +20,20 @@ others,hit tree pole,1
 others,manhole drain,1
 others,electrocution,1
 others,overtaking,1
-pedestrian,unstated,1
+others,gas leak,1
+others,firecracker unit,1
 port maritime,unstated,23
-roadway,unstated,1152
-roadway,hit divider barrier,2
-roadway,fog poor visibility,1
+roadway,unstated,1244
+roadway,overspeeding,4
+roadway,hit divider barrier,3
+roadway,fog poor visibility,2
+roadway,fire short circuit,2
+roadway,firecracker unit,2
 roadway,pothole bad road,1
-roadway,fire short circuit,1
-train,unstated,262
+roadway,drunk driving,1
+roadway,hit and run,1
+roadway,driver fatigue,1
+roadway,explosion blast,1
+roadway,head on collision,1
+train,unstated,269
+train,fire short circuit,1

@@ -1,66 +1,80 @@
 Month,Reported Cause (tag),Number of Accidents
-2026-08,hit divider barrier,1
-2026-08,fog poor visibility,1
 2026-08,electrocution,1
+2026-08,drunk driving,1
+2026-08,hit and run,1
+2026-08,driver fatigue,1
 2026-08,head on collision,2
+2026-08,hit divider barrier,2
 2026-08,trench excavation collapse,2
 2026-08,gorge valley plunge,2
+2026-08,fog poor visibility,2
 2026-08,fire short circuit,2
+2026-08,overspeeding,2
 2026-08,pothole bad road,3
-2026-08,unstated,460
-2026-07,overspeeding,1
+2026-08,unstated,536
 2026-07,hit tree pole,1
 2026-07,manhole drain,1
 2026-07,structural failure,1
-2026-07,unstated,403
+2026-07,firecracker unit,1
+2026-07,head on collision,1
+2026-07,overspeeding,2
+2026-07,fire short circuit,2
+2026-07,explosion blast,2
+2026-07,unstated,419
 2026-06,hit divider barrier,1
 2026-06,gorge valley plunge,1
 2026-06,explosion blast,1
+2026-06,gas leak,1
 2026-06,fire short circuit,2
-2026-06,unstated,341
+2026-06,unstated,346
 2026-05,hit and run,1
 2026-05,pothole bad road,1
 2026-05,hit divider barrier,1
+2026-05,overspeeding,1
+2026-05,gorge valley plunge,1
 2026-05,unstated,227
 2026-04,hit and run,1
 2026-04,explosion blast,2
-2026-04,unstated,117
+2026-04,unstated,120
 2026-03,hit divider barrier,1
 2026-03,gorge valley plunge,1
-2026-03,unstated,74
+2026-03,under construction,1
+2026-03,unstated,80
 2026-02,pothole bad road,1
 2026-02,overspeeding,1
 2026-02,fire short circuit,1
-2026-02,unstated,75
-2026-01,unstated,60
+2026-02,under construction,1
+2026-02,unstated,77
+2026-01,unstated,64
 2025-12,overspeeding,1
 2025-12,explosion blast,1
-2025-12,unstated,46
+2025-12,unstated,49
 2025-11,fire short circuit,1
-2025-11,unstated,31
-2025-10,unstated,36
-2025-09,unstated,21
-2025-08,unstated,28
-2025-07,unstated,36
+2025-11,unstated,33
+2025-10,unstated,37
+2025-09,overspeeding,1
+2025-09,unstated,19
+2025-08,unstated,29
+2025-07,unstated,33
 2025-06,explosion blast,1
 2025-06,unstated,16
-2025-05,unstated,9
+2025-05,unstated,10
 2025-04,unstated,8
 2025-03,unstated,9
-2025-02,unstated,6
-2025-01,unstated,13
+2025-02,unstated,8
+2025-01,unstated,15
 2024-12,unstated,16
 2024-11,unstated,11
 2024-10,unstated,13
 2024-09,explosion blast,1
-2024-09,unstated,14
+2024-09,unstated,13
 2024-08,explosion blast,1
 2024-08,unstated,18
 2024-07,unstated,25
 2024-06,unstated,9
 2024-05,unstated,4
 2024-04,fire short circuit,1
-2024-04,unstated,6
+2024-04,unstated,5
 2024-03,unstated,3
 2024-02,unstated,8
 2024-01,unstated,4
@@ -72,19 +86,20 @@ Month,Reported Cause (tag),Number of Accidents
 2023-07,explosion blast,1
 2023-07,unstated,10
 2023-06,unstated,6
-2023-05,unstated,4
+2023-05,unstated,5
 2023-04,unstated,5
 2023-03,unstated,3
 2023-02,fire short circuit,1
 2023-02,unstated,4
 2023-01,unstated,2
-2022-12,unstated,4
+2022-12,unstated,6
 2022-11,unstated,5
 2022-10,unstated,2
 2022-09,unstated,3
 2022-08,explosion blast,1
 2022-08,fire short circuit,1
-2022-08,unstated,2
+2022-08,unstated,3
+2022-07,fire short circuit,1
 2022-07,unstated,2
 2022-06,unstated,2
 2022-05,unstated,3
@@ -123,11 +138,15 @@ Month,Reported Cause (tag),Number of Accidents
 2018-05,unstated,1
 2018-02,unstated,1
 2018-01,unstated,1
+2017-10,explosion blast,1
+2017-10,firecracker unit,1
 2017-08,unstated,1
 2017-06,unstated,1
 2017-01,unstated,1
+2017-01,firecracker unit,1
 2016-12,unstated,3
-2016-11,unstated,1
+2016-11,unstated,2
+2016-08,unstated,1
 2016-05,unstated,4
 2014-07,unstated,1
 2014-03,unstated,1

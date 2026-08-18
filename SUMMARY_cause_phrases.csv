@@ -1,50 +1,53 @@
 Accident Type,Reported Cause (as written in the report),Times Reported
-roadway,overspeeding,27
-old structure collapse,structural_failure,25
-others,explosion_blast,20
-others,firecracker_unit,16
+roadway,overspeeding,28
+old structure collapse,structural_failure,27
+others,explosion_blast,25
+others,firecracker_unit,17
+roadway,explosion_blast,15
+construction ongoing,under_construction,14
+roadway,hit_divider_barrier,14
 roadway,structural_failure,14
-construction ongoing,under_construction,13
-roadway,hit_divider_barrier,13
 roadway,lost_control,13
+roadway,fire_short_circuit,12
 roadway,head_on_collision,11
 others,gas_leak,10
-roadway,fire_short_circuit,10
-roadway,explosion_blast,7
-construction ongoing,structural_failure; under_construction,7
+others,fire_short_circuit,10
 construction ongoing,structural_failure,6
+construction ongoing,structural_failure; under_construction,6
 roadway,pothole_bad_road,6
-others,fire_short_circuit,6
-industrial,firecracker_unit,5
-others,explosion_blast; firecracker_unit,5
-roadway,gorge_valley_plunge,4
+old structure collapse,wall_slab_roof_collapse,6
+roadway,fog_poor_visibility,5
+roadway,gorge_valley_plunge,5
+roadway,brake_failure,5
 roadway,firecracker_unit,4
-roadway,brake_failure,4
-industrial,explosion_blast,4
+others,explosion_blast; firecracker_unit,4
+roadway,boiler_blast; explosion_blast,4
 roadway,tyre_burst,4
 roadway,hit_stationary_vehicle,3
-industrial,gas_leak,3
 port maritime,structural_failure,3
 roadway,structural_failure; under_construction,3
 roadway,fell_into_water,3
 roadway,lost_control; hit_divider_barrier,3
 train,overspeeding,3
-industrial,fire_short_circuit,3
-roadway,fog_poor_visibility,2
+roadway,overtaking,3
 others,boiler_blast,2
+industrial,gas_leak,2
 construction ongoing,crane_failure,2
 roadway,trench_excavation_collapse; gorge_valley_plunge,2
 roadway,driver_fatigue,2
 train,crossing_railway_track,2
 train,fell_from_train,2
 roadway,gas_leak,2
-old structure collapse,wall_slab_roof_collapse,2
-roadway,boiler_blast; explosion_blast,2
+roadway,hit_tree_pole,2
+train,head_on_collision,2
+roadway,explosion_blast; firecracker_unit,2
 train,fire_short_circuit,2
-roadway,overtaking,2
+old structure collapse,under_construction,2
+old structure collapse,explosion_blast,2
 roadway,lost_control; hit_tree_pole,2
 old structure collapse,fog_poor_visibility,1
 train,rail_signal_track_fault,1
+industrial,firecracker_unit,1
 roadway,overspeeding; driver_fatigue,1
 train,structural_failure; under_construction,1
 roadway,under_construction; fell_into_water,1
@@ -68,24 +71,24 @@ roadway,wall_slab_roof_collapse; boiler_blast,1
 port maritime,under_construction,1
 roadway,electrocution,1
 roadway,gas_leak; septic_sewer_deaths,1
-roadway,hit_tree_pole,1
 others,boiler_blast; explosion_blast,1
 train,hit_divider_barrier,1
-old structure collapse,overspeeding; lost_control; fell_into_water,1
+roadway,overspeeding; lost_control; fell_into_water,1
 port maritime,head_on_collision,1
 others,pothole_bad_road,1
 old structure collapse,gorge_valley_plunge,1
-roadway,explosion_blast; firecracker_unit,1
-old structure collapse,under_construction,1
+old structure collapse,fire_short_circuit,1
+industrial,explosion_blast,1
 old structure collapse,gas_leak,1
 roadway,overspeeding; lost_control,1
+roadway,wrong_side_driving,1
 roadway,hit_and_run,1
 roadway,drunk_driving; hit_divider_barrier,1
 others,electrocution,1
-others,lift_elevator,1
-old structure collapse,explosion_blast,1
+old structure collapse,lift_elevator,1
 roadway,drunk_driving,1
 others,machinery_entrapment,1
+industrial,fire_short_circuit,1
 roadway,overspeeding; fog_poor_visibility,1
 train,lost_control; hit_tree_pole,1
 port maritime,hit_stationary_vehicle,1
@@ -135,3 +138,31 @@ others,"After the accident, ACP and Gunman died",1
 others,"Following Medha Prithviraj’s death, residents have been demanding better roads in Electronics City Phase 1",1
 others,After car catches fire in Vellore,1
 others,Caused by an electrical short circuit,1
+others,After Car Falls Into Drain In Delhi,1
+roadway,After Van Collides With Truck On Punjab Highway,1
+others,"After Air India AI171 crash, families grapple with loss and unanswered questions",1
+roadway,"While trying to save cows, pickup-dumper collision on NH-719, 8 laborers killed",1
+roadway,"Due to collision with truck in Kanpur, stunt bikers trample engineer in Bithoor",1
+roadway,"Due to collision with speeding bike, compensation",1
+roadway,"After finishing work, ran away after being hit by an unknown vehicle",1
+others,"Due to accident in Gonda: Accusation of murder on friends is wrong, PM report says it",1
+roadway,"While returning from Nag Panchami fair in Rafiganj, Hiwa collided, one injured",1
+roadway,"After driver dozes off, one passenger from Kanpur killed, 20 injured",1
+aviation,"Due to the negligence of the bus driver, the youth going abroad missed his flight, now",1
+roadway,"After the collision of two trucks, both the vehicles burst into flames, the driver trapped in",1
+train,"After being hit by train in Mau: Accident happened at Paligarh halt, had left home to",1
+train,Due to train shock in Navgachia: This happened while passing by the track side due to,1
+train,After being hit by a train in Prayagraj: Accident happened while going to get medicine in,1
+train,"After being hit by a train: The accident happened while grazing on the railway track, animal",1
+train,"While boarding train at Barabanki railway station: dies, wife seriously injured",1
+roadway,"While filling gunpowder in kiosk, employee got burnt: Accident in Ordnance Factory of Jabalpur",1
+others,"After 40 years, toxic waste from Bhopal gas accident to be burnt",1
+old structure collapse,After slab fell,1
+roadway,After falling directly on road,1
+roadway,While 5 crore are injured Lokmat,1
+roadway,When an ST bus moved forward without a driver,1
+roadway,After being crushed,1
+roadway,After being hit by a lorry,1
+roadway,After Being Hit by Trailer,1
+roadway,Due to high speed and carelessness,1
+roadway,Due to rain,1
