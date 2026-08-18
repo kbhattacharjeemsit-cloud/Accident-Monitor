@@ -278,7 +278,9 @@ CATEGORY_CUES = OrderedDict([
     # --- AVIATION -----------------------------------------------------------
     ("aviation", ["plane","planes","aircraft","aeroplane","airplane","helicopter","chopper",
         "air crash","aviation","flight","flights","emergency landing","crash landing","runway",
-        "airport","airstrip","विमान","हेलिकॉप्टर","विमानतळ","বিমান","হেলিকপ্টার","விமான",
+        "airport","airstrip","विमान","हेलिकॉप्टर","विमानतळ","एयरपोर्ट","एयरक्राफ्ट","हवाई अड्डा",
+        "उड़ान","विमानतल","এয়ারপোর্ট","বিমানবন্দর","விமான நிலைய","వિమానాశ్రయ","ವಿಮಾನ ನಿಲ್ದಾಣ",
+        "വിമാനത്താവള","એરપોર્ટ","ਏਅਰਪੋਰਟ","ਹਵਾਈ ਅੱਡਾ","বিমান","হেলিকপ্টার","விமான",
         "విమానం","ವಿಮಾನ","വിമാനം","વિમાન","ਜਹਾਜ਼"]),
 
     # --- PORT / MARITIME ----------------------------------------------------
@@ -310,7 +312,8 @@ CATEGORY_CUES = OrderedDict([
         "road accident","road mishap","road crash","car crash","two-wheeler","motorcycle",
         "motorbike","bike","bikes","scooter","scooty","suv","van","vans","auto-rickshaw",
         "autorickshaw","auto rickshaw","jeep","highway","expressway","road accidents",
-        "सड़क","हादसा","हाईवे","राजमार्ग","রাস্তা","সড়ক","पथ","रस्ता","சாலை","நெடுஞ்சாலை",
+        "सड़क","हाईवे","राजमार्ग","सड़क हादसा","सड़क दुर्घटना","রাস্তা","সড়ক","পথ দুর্ঘটনা",
+        "रस्ता अपघात","महामार्ग","சாலை","நெடுஞ்சாலை",
         "రోడ్డు","హైవే","ರಸ್ತೆ","ಹೆದ್ದಾರಿ","റോഡ്","માર્ગ","હાઈવે","ਸੜਕ","ਹਾਈਵੇ"]),
 
     # --- ONGOING CONSTRUCTION (building / infrastructure being built) -------
@@ -1061,6 +1064,21 @@ def enrich_image(url):
 # ===========================================================================
 # DEDUP
 # ===========================================================================
+
+_STOPWORDS_EN = {"the","a","an","in","on","at","of","to","and","for","with","after","near","from",
+ "was","were","is","are","by","as","it","its","his","her","their","two","three","four","five",
+ "accident","accidents","news","video","watch","update","report","reports","said","says","killed",
+ "dead","death","died","injured","injury","people","person","man","men","woman","women"}
+
+
+def content_words(text):
+    """Meaningful lowercase words used to compare two reports' content."""
+    if not text:
+        return set()
+    words = re.findall(r"[a-z]{4,}", text.lower())
+    return {w for w in words if w not in _STOPWORDS_EN}
+
+
 def event_similarity(a, b):
     parts, weights = [], []
     strong = False
@@ -1080,9 +1098,29 @@ def event_similarity(a, b):
     if a["language"] == b["language"]:
         r = SequenceMatcher(None, a["title_norm"], b["title_norm"]).ratio()
         parts.append(r); weights.append(0.25); strong = strong or r >= TITLE_DUP_THRESHOLD
+
+    # Content overlap on the ENGLISH text. Two Hindi reports of one accident are
+    # worded differently but their translations share the same content words
+    # ("policemen killed collision car tanker Shimla"), so this catches pairs
+    # that numbers and place names alone would miss.
+    ea, eb = a.get("en_words") or set(), b.get("en_words") or set()
+    overlap = 0.0
+    if ea and eb:
+        overlap = len(ea & eb) / max(1, min(len(ea), len(eb)))
+        # Only counted when it is INFORMATIVE. Low overlap is common between two
+        # true reports of one accident (different angles), so it must never drag
+        # the score down - it can only confirm a match.
+        if overlap >= 0.45:
+            parts.append(overlap); weights.append(0.35)
+        if overlap >= 0.55 and len(ea & eb) >= 4:
+            strong = True
     if not parts:
-        return 0.0, False
-    return sum(p * w for p, w in zip(parts, weights)) / sum(weights), strong
+        return (overlap, True) if overlap >= 0.7 else (0.0, False)
+    score = sum(p * w for p, w in zip(parts, weights)) / sum(weights)
+    if overlap >= 0.7:                      # near-identical content
+        score = max(score, overlap)
+        strong = True
+    return score, strong
 
 
 def find_duplicate(conn, a):
@@ -1090,11 +1128,12 @@ def find_duplicate(conn, a):
     hi = a["published_ts"] + EVENT_DATE_WINDOW_DAYS * 86400
     best = None
     for r in conn.execute(
-        """SELECT id,dup_group,title_norm,language,cities,highways,deaths,injured
+        """SELECT id,dup_group,title_norm,language,cities,highways,deaths,injured,title_en,title
            FROM articles WHERE category=? AND published_ts BETWEEN ? AND ?""",
             (a["category"], lo, hi)):
         b = {"id": r[0], "dup_group": r[1], "title_norm": r[2], "language": r[3],
-             "cities": r[4] or "", "highways": r[5] or "", "deaths": r[6], "injured": r[7]}
+             "cities": r[4] or "", "highways": r[5] or "", "deaths": r[6], "injured": r[7],
+             "en_words": content_words((r[8] or "") or (r[9] if r[3] == "English" else ""))}
         score, strong = event_similarity(a, b)
         if score >= EVENT_SIM_THRESHOLD and strong and (best is None or score > best[1]):
             best = (b["dup_group"] or b["id"], score)
@@ -1145,6 +1184,7 @@ def store(conn, articles, enrich_budget, translate_budget):
         a.update({"category": category, "deaths": deaths, "injured": injured,
                   "cities": cities, "highways": highways})
 
+        a["en_words"] = content_words(english or (native if a["language"] == "English" else ""))
         canonical = find_duplicate(conn, a)
         is_dupe = 1 if canonical else 0
         dup_group = canonical or a["id"]
@@ -1268,14 +1308,16 @@ def rededupe(conn):
     that were invisible when the item was first stored."""
     conn.execute("UPDATE articles SET is_duplicate=0, dup_group=id")
     rows = conn.execute(
-        """SELECT id,title_norm,language,cities,highways,deaths,injured,category,published_ts
+        """SELECT id,title_norm,language,cities,highways,deaths,injured,category,published_ts,
+                  title_en,title
            FROM articles ORDER BY published_ts ASC""").fetchall()
     seen = []
     merged = 0
     for r in rows:
         a = {"id": r[0], "title_norm": r[1], "language": r[2], "cities": r[3] or "",
              "highways": r[4] or "", "deaths": r[5], "injured": r[6], "category": r[7],
-             "published_ts": r[8] or 0}
+             "published_ts": r[8] or 0,
+             "en_words": content_words((r[9] or "") or (r[10] if r[2] == "English" else ""))}
         best = None
         for b in seen:
             if b["category"] != a["category"]:
@@ -1299,12 +1341,69 @@ def rededupe(conn):
     return merged
 
 
+
+def export_unique_events_csv(conn, path="EVENTS_unique.csv"):
+    """ONE ROW PER REAL ACCIDENT - duplicates collapsed.
+    For each event group the fullest record is kept (most casualty/location
+    detail, English preferred), and the other reports of the same accident are
+    counted in 'Times Reported' and their outlets listed. This is the file to
+    use for counting; articles.csv remains the full archive of every article."""
+    groups = {}
+    for row in conn.execute(
+            """SELECT dup_group,published,category,sector,cause,cause_tags,source,title,title_en,
+                      cities,highways,deaths,injured,url,language
+               FROM articles ORDER BY published_ts DESC"""):
+        g = row[0]
+        groups.setdefault(g, []).append(row)
+
+    def score(r):
+        # prefer the record with the most extracted information
+        s = 0
+        if r[11] is not None: s += 3      # deaths
+        if r[12] is not None: s += 2      # injured
+        if r[9]:  s += 2                  # cities
+        if r[10]: s += 1                  # highways
+        if r[4]:  s += 2                  # cause phrase
+        if r[14] == "English": s += 1
+        if r[8]:  s += 1                  # has translation
+        return s
+
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f)
+        w.writerow(["Date", "Accident Type", "Sector (others only)", "Cities", "Highways",
+                    "Killed", "Injured", "Reported Cause (phrase)", "Cause Tags",
+                    "Times Reported", "Reported By", "Headline", "Headline (English)", "Link"])
+        out = []
+        for g, members in groups.items():
+            best = max(members, key=score)
+            outlets = sorted({(m[6] or "").strip() for m in members if (m[6] or "").strip()})
+            # take the highest casualty figures seen across the reports of this event
+            deaths = max([m[11] for m in members if m[11] is not None], default=None)
+            injured = max([m[12] for m in members if m[12] is not None], default=None)
+            cities = best[9] or next((m[9] for m in members if m[9]), "")
+            highways = best[10] or next((m[10] for m in members if m[10]), "")
+            cause = best[4] or next((m[4] for m in members if m[4]), "")
+            tags = best[5] or next((m[5] for m in members if m[5]), "")
+            headline_en = best[8] or (best[7] if best[14] == "English" else "")
+            out.append([best[1], (best[2] or "").replace("_", " "), (best[3] or "").replace("_", " "),
+                        cities, highways, deaths if deaths is not None else "",
+                        injured if injured is not None else "", cause,
+                        (tags or "").replace("_", " "), len(members),
+                        "; ".join(outlets[:6]), best[7], headline_en, best[13]])
+        out.sort(key=lambda r: r[0], reverse=True)
+        w.writerows(out)
+    return len(groups)
+
+
 def export_articles_csv(conn, path="articles.csv"):
     rows = conn.execute(
-        """SELECT published,language,category,sector,cause,cause_tags,source,title,title_en,
+        """SELECT published,language,category,sector,cause,cause_tags,source,title,
+                  CASE WHEN title_en IS NULL OR title_en='' THEN
+                       (CASE WHEN language='English' THEN title ELSE '' END)
+                       ELSE title_en END,
                   cities,highways,deaths,injured,image_url,url,is_duplicate,dup_group
            FROM articles ORDER BY published_ts DESC""").fetchall()
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["Date", "Language", "Accident Type", "Sector (others only)",
                     "Reported Cause (phrase)", "Cause Tags", "Source", "Title",
@@ -1331,7 +1430,7 @@ def export_simple_summary_csv(conn, path="SUMMARY_simple.csv"):
                   SUM(COALESCE(injured,0)) AS injured
            FROM articles WHERE is_duplicate=0 AND published!=''
            GROUP BY month, category ORDER BY month DESC, number DESC""").fetchall()
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["Month", "Accident Type", "Sector (for Others)", "Number of Accidents",
                     "People Killed", "People Injured", "Main Cities",
@@ -1373,7 +1472,7 @@ def export_others_sector_csv(conn, path="SUMMARY_others_by_sector.csv"):
                   SUM(COALESCE(deaths,0)), SUM(COALESCE(injured,0))
            FROM articles WHERE is_duplicate=0 AND category='others' AND published!=''
            GROUP BY month, sector ORDER BY month DESC, 3 DESC""").fetchall()
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["Month", "Sector", "Number of Accidents", "People Killed", "People Injured"])
         for month, sector, n, k, inj in rows:
@@ -1392,7 +1491,7 @@ def export_month_by_type_csv(conn, path="SUMMARY_month_by_type.csv"):
         data.setdefault(month, {})[cat] = n
         cats.add(cat)
     cats = sorted(cats)
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["Month"] + [c.replace("_", " ") for c in cats] + ["TOTAL"])
         for month in sorted(data, reverse=True):
@@ -1412,7 +1511,7 @@ def export_city_summary_csv(conn, path="SUMMARY_by_city.csv"):
             if c:
                 counter[(c, cat)] += 1
                 killed[(c, cat)] += int(d) if d else 0
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["City / Place", "Accident Type", "Number of Accidents", "People Killed"])
         for (city, cat), n in counter.most_common():
@@ -1428,7 +1527,7 @@ def export_cause_phrases_csv(conn, path="SUMMARY_cause_phrases.csv"):
     for cat, phrase in conn.execute(
             "SELECT category, cause FROM articles WHERE is_duplicate=0 AND cause!=''"):
         counter[((cat or "").replace("_", " "), phrase.strip())] += 1
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["Accident Type", "Reported Cause (as written in the report)", "Times Reported"])
         for (cat, phrase), n in counter.most_common():
@@ -1448,7 +1547,7 @@ def export_cause_summary_csv(conn, path="cause_summary.csv"):
             part = part.strip()
             if part:
                 counts[(cat, part)] += 1
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["Accident Type", "Reported Cause (tag)", "Number of Accidents"])
         for (cat, cause), n in sorted(counts.items(), key=lambda x: (x[0][0], -x[1])):
@@ -1468,7 +1567,7 @@ def export_cause_trend_csv(conn, path="cause_trend_monthly.csv"):
             part = part.strip()
             if part:
                 counts[(month, part)] += 1
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["Month", "Reported Cause (tag)", "Number of Accidents"])
         for (month, cause), n in sorted(counts.items(), key=lambda x: (x[0][0], -x[1]), reverse=True):
@@ -1484,7 +1583,7 @@ def _summary(conn, period):
 
 def export_summary_csv(conn, period, path):
     rows = _summary(conn, period)
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["period", "category", "number_of_accidents"])
         w.writerows(rows)
@@ -1601,6 +1700,7 @@ def run():
     recompute_counts(conn)
     rededupe(conn)
 
+    export_unique_events_csv(conn)
     n = export_articles_csv(conn)
     export_summary_csv(conn, "%Y-%m", "monthly_summary.csv")
     export_summary_csv(conn, "%Y", "yearly_summary.csv")
