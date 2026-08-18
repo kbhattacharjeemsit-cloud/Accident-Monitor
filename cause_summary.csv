@@ -1,39 +1,43 @@
-Accident Type,Reported Cause (tag),Number of Accidents
-aviation,unstated,116
+﻿Accident Type,Reported Cause (tag),Number of Accidents
+aviation,unstated,125
 construction infra,unstated,2
-construction ongoing,unstated,35
-construction ongoing,under construction,2
-industrial,unstated,42
-old structure collapse,unstated,284
-old structure collapse,structural failure,1
-others,unstated,400
-others,explosion blast,11
-others,fire short circuit,10
+construction ongoing,unstated,41
+construction ongoing,under construction,3
+industrial,unstated,38
+old structure collapse,unstated,280
+old structure collapse,structural failure,2
+old structure collapse,wall slab roof collapse,1
+others,unstated,459
+others,explosion blast,12
+others,fire short circuit,11
 others,gorge valley plunge,5
 others,pothole bad road,4
 others,overspeeding,4
+others,gas leak,3
 others,head on collision,2
 others,hit divider barrier,2
 others,hit and run,2
+others,manhole drain,2
 others,trench excavation collapse,2
-others,hit tree pole,1
-others,manhole drain,1
-others,electrocution,1
+others,hit tree pole,2
+others,electrocution,2
 others,overtaking,1
-others,gas leak,1
 others,firecracker unit,1
-port maritime,unstated,23
-roadway,unstated,1244
-roadway,overspeeding,4
-roadway,hit divider barrier,3
-roadway,fog poor visibility,2
+port maritime,unstated,30
+roadway,unstated,1173
+roadway,overspeeding,5
+roadway,hit divider barrier,4
+roadway,fog poor visibility,3
+roadway,firecracker unit,3
 roadway,fire short circuit,2
-roadway,firecracker unit,2
 roadway,pothole bad road,1
 roadway,drunk driving,1
 roadway,hit and run,1
 roadway,driver fatigue,1
 roadway,explosion blast,1
 roadway,head on collision,1
-train,unstated,269
-train,fire short circuit,1
+roadway,lost control,1
+roadway,hit stationary vehicle,1
+train,unstated,277
+train,fire short circuit,2
+train,hit stationary vehicle,1

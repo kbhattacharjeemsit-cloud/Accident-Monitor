@@ -1,45 +1,48 @@
-Month,Sector,Number of Accidents,People Killed,People Injured
-2026-08,unspecified,44,352,73
-2026-08,factory manufacturing,6,19,2
-2026-08,electrical,2,12,0
+﻿Month,Sector,Number of Accidents,People Killed,People Injured
+2026-08,unspecified,56,375,333
+2026-08,factory manufacturing,10,29,2
+2026-08,fire,3,7,2
+2026-08,electrical,3,12,0
 2026-08,stampede crowd,1,0,0
-2026-08,fire,1,0,2
-2026-07,factory manufacturing,30,351,26
-2026-07,unspecified,22,31,17
+2026-08,sewer sanitation,1,0,0
+2026-08,agriculture,1,4,0
+2026-07,factory manufacturing,37,372,24
+2026-07,unspecified,25,39,17
 2026-07,sewer sanitation,3,24,0
 2026-07,electrical,1,2,0
-2026-06,unspecified,36,351,15
-2026-06,factory manufacturing,25,35,27
-2026-06,fire,4,2,2
-2026-06,chemical refinery,3,31,0
+2026-07,agriculture,1,0,0
+2026-06,unspecified,43,359,15
+2026-06,factory manufacturing,34,65,29
+2026-06,chemical refinery,4,47,0
+2026-06,fire,3,2,2
 2026-06,fireworks explosives,1,0,0
-2026-05,unspecified,20,99,6
-2026-05,factory manufacturing,13,40,0
+2026-05,unspecified,25,101,6
+2026-05,factory manufacturing,19,57,0
 2026-05,lift elevator,2,0,0
 2026-05,fire,1,0,1
 2026-05,chemical refinery,1,0,0
-2026-04,factory manufacturing,21,139,57
-2026-04,unspecified,12,118,19
+2026-04,factory manufacturing,21,139,38
+2026-04,unspecified,13,118,19
 2026-04,fireworks explosives,3,0,0
 2026-04,fire,2,0,0
 2026-04,chemical refinery,1,0,0
-2026-03,unspecified,10,352,0
-2026-03,factory manufacturing,9,38,36
-2026-02,unspecified,13,485,0
+2026-03,unspecified,11,352,0
+2026-03,factory manufacturing,8,38,36
+2026-02,unspecified,15,491,0
 2026-02,factory manufacturing,2,28,0
 2026-02,fire,1,1,0
-2026-01,unspecified,13,97,6
-2026-01,factory manufacturing,7,7,4
+2026-01,unspecified,14,97,6
+2026-01,factory manufacturing,6,10,4
 2026-01,agriculture,1,0,0
-2025-12,unspecified,7,103,14
+2025-12,unspecified,8,103,14
 2025-12,gas cylinder,1,0,0
 2025-12,factory manufacturing,1,0,0
 2025-11,unspecified,4,31,15
 2025-11,factory manufacturing,3,1,0
 2025-11,fire,1,0,0
 2025-10,unspecified,6,24,10
+2025-10,factory manufacturing,3,6,0
 2025-10,fire,2,0,0
-2025-10,factory manufacturing,1,0,0
 2025-09,unspecified,5,63,3
 2025-09,factory manufacturing,1,0,0
 2025-08,unspecified,2,15,0
@@ -55,12 +58,13 @@ Month,Sector,Number of Accidents,People Killed,People Injured
 2025-04,factory manufacturing,3,21,0
 2025-03,unspecified,1,0,0
 2025-01,unspecified,3,3,3
+2025-01,factory manufacturing,1,5,0
 2024-12,unspecified,3,400,0
 2024-12,gas cylinder,1,0,0
 2024-12,agriculture,1,0,0
 2024-11,unspecified,1,1,0
 2024-10,unspecified,2,10,0
-2024-09,factory manufacturing,2,4,0
+2024-09,factory manufacturing,3,4,0
 2024-08,unspecified,4,34,0
 2024-08,factory manufacturing,1,0,4
 2024-07,unspecified,1,0,0
@@ -69,7 +73,7 @@ Month,Sector,Number of Accidents,People Killed,People Injured
 2024-06,fire,1,3,0
 2024-06,factory manufacturing,1,0,0
 2024-05,factory manufacturing,1,0,0
-2024-04,factory manufacturing,3,6,1
+2024-04,factory manufacturing,2,5,0
 2024-04,fire,1,0,0
 2024-02,factory manufacturing,2,8,60
 2024-02,unspecified,1,3,0
@@ -91,7 +95,6 @@ Month,Sector,Number of Accidents,People Killed,People Injured
 2022-08,electrical,1,2,10
 2022-04,fire,1,6,13
 2022-04,factory manufacturing,1,0,0
-2022-03,factory manufacturing,1,2,0
 2022-02,unspecified,1,0,0
 2022-02,factory manufacturing,1,0,0
 2022-01,unspecified,1,0,0
@@ -100,6 +103,7 @@ Month,Sector,Number of Accidents,People Killed,People Injured
 2021-11,unspecified,1,6,0
 2021-08,factory manufacturing,1,0,0
 2021-03,factory manufacturing,1,4,0
+2021-02,fire,1,0,0
 2020-11,factory manufacturing,1,2,6
 2020-08,unspecified,1,1,0
 2020-08,fire,1,0,0

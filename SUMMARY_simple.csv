@@ -1,119 +1,119 @@
-Month,Accident Type,Sector (for Others),Number of Accidents,People Killed,People Injured,Main Cities,Most Common Cause,Example Reported Cause
-2026-08,roadway,,340,1783,1117,"Telangana (5), Mumbai (4), Lucknow (3), Kanpur (3), Karnataka (3)",overspeeding,overspeeding
-2026-08,train,,95,139,84,"Jharkhand (3), Kerala (3), Pune (2), Srikakulam (2), Bihar (2)",crossing railway track,crossing_railway_track
-2026-08,others,"unspecified (44), factory manufacturing (6), electrical (2), stampede crowd (1)",54,383,77,"Bengaluru (3), Mumbai (2), Madurai (2), Punjab (2), Telangana (1)",pothole bad road,pothole_bad_road
-2026-08,aviation,,31,2,19,"Delhi (7), Baramati (2), Varanasi (2), Jaipur (2), Chhindwara (1)",runway excursion,runway_excursion
-2026-08,old structure collapse,,19,46,0,"Bhiwandi (3), Gujarat (3), Maharashtra (2), Delhi (1), Shimla (1)",structural failure,structural_failure
-2026-08,port maritime,,8,158,279,"Sangli (2), Jharkhand (1), Chittorgarh (1), Mumbai (1), Navsari (1)",structural failure,structural_failure
+﻿Month,Accident Type,Sector (for Others),Number of Accidents,People Killed,People Injured,Main Cities,Most Common Cause,Example Reported Cause
+2026-08,roadway,,311,1327,680,"Mumbai (4), Telangana (4), Anantapur (4), Kanpur (3), Karnataka (3)",overspeeding,overspeeding
+2026-08,train,,94,139,69,"Kerala (3), Jharkhand (2), Chennai (2), Pune (2), Tamil Nadu (2)",crossing railway track,crossing_railway_track
+2026-08,others,"unspecified (56), factory manufacturing (10), electrical (3), fire (3)",75,427,337,"Delhi (3), Bengaluru (3), Mumbai (2), Madurai (2), Punjab (2)",trench excavation collapse,explosion_blast
+2026-08,aviation,,34,83,19,"Delhi (7), Baramati (2), Varanasi (2), Jaipur (2), Chhindwara (1)",runway excursion,runway_excursion
+2026-08,old structure collapse,,23,247,22,"Gujarat (4), Noida (2), Bhiwandi (2), Kolkata (2), Delhi (1)",structural failure,structural_failure
+2026-08,port maritime,,15,168,281,"Sangli (2), Unnao (2), Jharkhand (1), Chittorgarh (1), Mumbai (1)",structural failure,structural_failure
 2026-08,industrial,,4,0,0,"Bengaluru (1), Mysuru (1), Uttar Pradesh (1), Delhi (1)",not reported,
 2026-08,construction ongoing,,3,108,0,"Saharsa (1), Chamoli (1)",under construction,under_construction
-2026-07,roadway,,234,638,844,"Delhi (4), Mumbai (4), Jaipur (4), Telangana (4), Ahmedabad (4)",overspeeding,overspeeding
-2026-07,old structure collapse,,60,126,2,"Bhiwandi (5), Pune (4), Mumbai (3), Kalyan (2), Maharashtra (2)",structural failure,structural_failure
-2026-07,others,"factory manufacturing (30), unspecified (22), sewer sanitation (3), electrical (1)",56,408,43,"Mumbai (3), Gujarat (2), Jaipur (2), Raipur (2), Chhattisgarh (2)",firecracker unit,firecracker_unit
-2026-07,train,,45,67,0,"Delhi (2), Baharampur (2), Ulhasnagar (2), Mumbai (2), Ghaziabad (1)",fire short circuit,
-2026-07,aviation,,20,540,0,"Ahmedabad (7), Mumbai (1)","Due to the negligence of the bus driver, the youth going abroad missed his flight, now","Due to the negligence of the bus driver, the youth going abroad missed his flight, now"
-2026-07,construction ongoing,,8,29,0,"Delhi (1), Pune (1), Kottayam (1)",under construction,under_construction
+2026-07,roadway,,228,658,888,"Delhi (5), Mumbai (5), Jaipur (5), Telangana (4), Ahmedabad (4)",overspeeding,overspeeding
+2026-07,others,"factory manufacturing (37), unspecified (25), sewer sanitation (3), electrical (1)",67,437,41,"Saharanpur (3), Chhattisgarh (3), Pune (3), Mumbai (3), Ahmedabad (2)",explosion blast,firecracker_unit
+2026-07,old structure collapse,,60,109,4,"Pune (5), Mumbai (3), Kalyan (3), Thane (2), Moshi (2)",structural failure,structural_failure
+2026-07,train,,50,77,0,"Delhi (3), Ghaziabad (2), Darbhanga (2), Baharampur (2), Ulhasnagar (2)",fire short circuit,
+2026-07,aviation,,23,280,0,"Ahmedabad (9), Mumbai (1)","Due to the negligence of the bus driver, the youth going abroad missed his flight, now","Due to the negligence of the bus driver, the youth going abroad missed his flight, now"
+2026-07,construction ongoing,,9,39,0,"Delhi (1), Hamirpur (1), Pune (1), Kottayam (1)",under construction,under_construction
 2026-07,port maritime,,5,9,0,"Bhiwandi (2), Pimpri (1), Pune (1)",hit stationary vehicle,hit_stationary_vehicle
 2026-07,industrial,,1,0,0,not identified,not reported,
-2026-06,roadway,,180,604,679,"Delhi (7), Gujarat (6), Mumbai (4), Surat (3), Mainaguri (3)",overspeeding,overspeeding
-2026-06,others,"unspecified (36), factory manufacturing (25), fire (4), chemical refinery (3)",69,419,44,"Gujarat (4), Ahmedabad (3), Ludhiana (2), Visakhapatnam (2), Pune (1)",gas leak,gas_leak
-2026-06,aviation,,32,508,0,"Assam (6), Ahmedabad (4), Jorhat (2), Aligarh (2), Meghaninagar (1)",fire short circuit,fire_short_circuit
-2026-06,old structure collapse,,30,18,7,"Delhi (3), Kolkata (2), Siliguri (1), Lucknow (1), Kolhapur (1)",structural failure,structural_failure
-2026-06,train,,27,325,80,"Morena (4), Bareilly (1), Agra (1), Ghazipur (1), Rishikesh (1)",fell from train,fell_from_train
+2026-06,roadway,,163,549,669,"Gujarat (6), Delhi (5), Mumbai (5), Mainaguri (4), Chamba (3)",overspeeding,overspeeding
+2026-06,others,"unspecified (43), factory manufacturing (34), chemical refinery (4), fire (3)",85,473,46,"Gujarat (4), Ahmedabad (3), Ludhiana (2), Pune (2), Delhi (2)",gas leak,gas_leak
+2026-06,aviation,,33,508,0,"Assam (6), Ahmedabad (4), Jorhat (2), Aligarh (2), Meghaninagar (1)",fire short circuit,fire_short_circuit
+2026-06,old structure collapse,,31,26,7,"Delhi (3), Kolkata (2), Siliguri (1), Lucknow (1), Kolhapur (1)",structural failure,structural_failure
+2026-06,train,,28,323,80,"Morena (3), Udaipur (2), Bareilly (1), Agra (1), Ghazipur (1)",fell from train,fell_from_train
 2026-06,industrial,,8,0,76,Delhi (1),gas leak,gas_leak
+2026-06,construction ongoing,,7,15,21,"Visakhapatnam (2), Kolkata (1), Jaipur (1), Idukki (1)",under construction,under_construction
 2026-06,port maritime,,3,2,19,"Daulatdia Ferry (1), Rajgad (1)",structural failure,structural_failure
-2026-06,construction ongoing,,3,4,18,"Kolkata (1), Idukki (1)",under construction,under_construction
-2026-05,roadway,,113,251,328,"Gujarat (4), Ahmedabad (3), Delhi (2), Howrah (2), Pune (2)",structural failure,structural_failure
-2026-05,others,"unspecified (20), factory manufacturing (13), lift elevator (2), fire (1)",37,139,7,"Dewas (5), Gujarat (4), Indore (3), Araria (2), Bengaluru (2)",firecracker unit,firecracker_unit
-2026-05,old structure collapse,,37,19,19,"Delhi (2), Bhagalpur (1), Eastern University (1), Visakhapatnam (1), Anand (1)",structural failure,structural_failure
-2026-05,train,,15,0,0,"Rishikesh (2), Ujjain (1), Madhubani (1), Erode (1), Gujarat (1)",structural failure; under construction,structural_failure; under_construction
-2026-05,construction ongoing,,13,13,0,not identified,under construction,under_construction
-2026-05,aviation,,9,0,0,"Ahmedabad (2), Maharashtra (1), Baramati (1)",After Ajit Pawar plane accident,After Ajit Pawar plane accident
+2026-05,roadway,,99,229,348,"Gujarat (4), Ahmedabad (3), Howrah (2), Mumbai (2), Surat (2)",fire short circuit,fire_short_circuit
+2026-05,others,"unspecified (25), factory manufacturing (19), lift elevator (2), fire (1)",48,158,7,"Dewas (4), Gujarat (4), Indore (3), Araria (2), Ghaziabad (2)",firecracker unit,firecracker_unit
+2026-05,old structure collapse,,37,16,9,"Bhagalpur (2), Delhi (1), Bahadurgarh (1), Eastern University (1), Visakhapatnam (1)",structural failure,structural_failure
+2026-05,train,,16,0,0,"Rishikesh (2), Ujjain (1), Madhubani (1), Erode (1), Gujarat (1)",structural failure; under construction,structural_failure; under_construction
+2026-05,construction ongoing,,10,8,0,Kanpur (1),structural failure; under construction,structural_failure; under_construction
+2026-05,aviation,,10,0,0,"Ahmedabad (2), Maharashtra (1), Baramati (1), Leh (1)",After Ajit Pawar plane accident,After Ajit Pawar plane accident
 2026-05,port maritime,,6,29,25,"Unnao (2), Madhya Pradesh (1)",structural failure,structural_failure
 2026-05,industrial,,2,0,0,not identified,not reported,
-2026-04,roadway,,57,680,225,"Punjab (3), Jammu (2), Madhya Pradesh (2), Gujarat (2), Ahmedabad (2)",overspeeding,overspeeding
-2026-04,others,"factory manufacturing (21), unspecified (12), fireworks explosives (3), fire (2)",39,257,76,"Tamil Nadu (4), Chhattisgarh (2), Keralam (1), Thrissur (1), Kerala (1)",explosion blast,explosion_blast
+2026-04,roadway,,58,671,207,"Punjab (4), Jammu (2), Madhya Pradesh (2), Gujarat (2), Ahmedabad (2)",overspeeding,overspeeding
+2026-04,others,"factory manufacturing (21), unspecified (13), fireworks explosives (3), fire (2)",40,257,57,"Tamil Nadu (4), Chhattisgarh (2), Keralam (1), Thrissur (1), Kerala (1)",explosion blast,explosion_blast
 2026-04,old structure collapse,,9,11,13,"Amravati (1), Kozhikode (1), Madhya Pradesh (1), Bathinda (1), Bengaluru (1)",structural failure,structural_failure
-2026-04,train,,7,18,4,"Mumbai (2), Prayagraj (2), Morelganj (1), Nashik (1), Bhopal (1)",overspeeding,overspeeding
+2026-04,train,,8,18,4,"Mumbai (2), Prayagraj (2), Morelganj (1), Nashik (1), Bhopal (1)",overspeeding,overspeeding
 2026-04,industrial,,5,3,0,not identified,firecracker unit,firecracker_unit
 2026-04,aviation,,4,0,0,"Ahmedabad (1), Chhattisgarh (1)",not reported,
 2026-04,construction ongoing,,2,0,0,not identified,structural failure,structural_failure
-2026-03,roadway,,43,233,211,"Salem (4), Gujarat (4), Bengaluru (2), Abohar (2), Delhi (1)",structural failure; under construction,structural_failure; under_construction
-2026-03,others,"unspecified (10), factory manufacturing (9)",19,390,36,"Nagpur (2), Chhattisgarh (2), Delhi (2), Ludhiana (1), Baramati (1)",explosion blast,explosion_blast
+2026-03,roadway,,41,233,203,"Salem (4), Gujarat (4), Bengaluru (2), Abohar (2), Delhi (1)",fire short circuit,fire_short_circuit
+2026-03,others,"unspecified (11), factory manufacturing (8)",19,390,36,"Delhi (3), Nagpur (2), Chhattisgarh (2), Baramati (1), Ludhiana (1)",explosion blast,explosion_blast
 2026-03,old structure collapse,,12,8,0,"Delhi (1), Hyderabad (1), Khammam (1), Punjab (1), Vadodara (1)",structural failure,structural_failure
 2026-03,train,,4,8,0,"Bhopal (1), Karur (1), Bajana Railway (1)",not reported,
-2026-03,construction ongoing,,2,0,0,"Gopalganj (1), Bihar (1)",structural failure; under construction,structural_failure; under_construction
+2026-03,construction ongoing,,4,0,8,"Gopalganj (2), Bihar (2), Bhopal (1)",structural failure; under construction,structural_failure; under_construction
 2026-03,aviation,,2,0,0,not identified,not reported,
 2026-03,industrial,,1,0,0,not identified,not reported,
-2026-02,roadway,,43,227,77,"Mumbai (2), Pune (2), Bengaluru (2), Tamil Nadu (2), Rajasthan (2)",hit divider barrier,hit_divider_barrier
-2026-02,others,"unspecified (13), factory manufacturing (2), fire (1)",16,514,0,"Bengaluru (2), Pune (2), Rajasthan (1), Karnataka (1), Jharkhand (1)",explosion blast,explosion_blast
-2026-02,old structure collapse,,9,22,18,"Mumbai (1), Rajasthan (1), Iran (1), Karachi (1)",structural failure,structural_failure
-2026-02,aviation,,8,0,2,"Ahmedabad (2), Delhi (1)",not reported,
+2026-02,roadway,,42,224,77,"Mumbai (2), Bengaluru (2), Tamil Nadu (2), Rajasthan (2), Bihar (2)",hit divider barrier,hit_divider_barrier
+2026-02,others,"unspecified (15), factory manufacturing (2), fire (1)",18,520,0,"Pune (3), Bengaluru (2), Rajasthan (1), Karnataka (1), Jharkhand (1)",explosion blast,explosion_blast
+2026-02,aviation,,9,0,2,"Ahmedabad (3), Delhi (2)",not reported,
+2026-02,old structure collapse,,8,21,4,"Mumbai (1), Rajasthan (1), Karachi (1)",structural failure,structural_failure
 2026-02,train,,4,5,3,"Chennai (1), Bengaluru (1), Chhattisgarh (1)",not reported,
 2026-02,construction ongoing,,1,0,0,Dima Hasao (1),under construction,
-2026-01,roadway,,34,91,93,"Ahmedabad (3), Gujarat (2), Jodhpur (2), Bengaluru (1), Budaun (1)",structural failure,structural_failure
-2026-01,others,"unspecified (13), factory manufacturing (7), agriculture (1)",21,104,10,"Belagavi (1), Madhyamgram (1), Bardhaman (1), Maharashtra (1), Palghar (1)",explosion blast,explosion_blast
+2026-01,roadway,,33,88,93,"Ahmedabad (3), Gujarat (2), Jodhpur (2), Bengaluru (1), Bardhaman (1)",structural failure,structural_failure
+2026-01,others,"unspecified (14), factory manufacturing (6), agriculture (1)",21,107,10,"Mumbai (2), Belagavi (1), Budaun (1), Madhyamgram (1), Maharashtra (1)",explosion blast,explosion_blast
 2026-01,aviation,,5,0,0,"Kanpur (1), Maharashtra (1), Baramati (1)",not reported,
 2026-01,old structure collapse,,2,0,4,"Amritsar (1), Cooch Behar (1)",not reported,
 2026-01,train,,1,0,0,"Jharkhand (1), Asansol (1), Howrah (1), Gonda (1), Patna (1)",not reported,
 2026-01,industrial,,1,0,0,Kolhapur (1),not reported,
-2025-12,roadway,,25,360,25,"Pune (2), Punjab (2), Bengaluru (1), Mumbai (1), Chitradurga (1)",fog poor visibility,fog_poor_visibility
-2025-12,train,,11,12,0,"Howrah (2), Delhi (2), Patna (1), Jashpur (1)",head on collision,head_on_collision
-2025-12,others,"unspecified (7), gas cylinder (1), factory manufacturing (1)",9,103,14,"Bengaluru (1), Maharashtra (1), Beed (1), Tamil Nadu (1), Batala (1)",overspeeding,"Due to cylinder explosion in Batala, 5 people were present in the house, there was screaming"
-2025-12,old structure collapse,,2,7,0,"Tiruthani (1), Madhya Pradesh (1)",wall slab roof collapse,wall_slab_roof_collapse
-2025-12,construction ongoing,,2,0,8,Aurangabad (1),structural failure,structural_failure
+2025-12,roadway,,25,360,25,"Punjab (2), Bengaluru (1), Mumbai (1), Pune (1), Chitradurga (1)",fog poor visibility,fog_poor_visibility
+2025-12,train,,11,12,0,"Howrah (3), Delhi (3), Patna (2), Jashpur (1)",head on collision,head_on_collision
+2025-12,others,"unspecified (8), gas cylinder (1), factory manufacturing (1)",10,103,14,"Pune (1), Bengaluru (1), Maharashtra (1), Beed (1), Tamil Nadu (1)",overspeeding,"Due to cylinder explosion in Batala, 5 people were present in the house, there was screaming"
+2025-12,old structure collapse,,3,9,0,"Tiruthani (1), Madhya Pradesh (1)",wall slab roof collapse,wall_slab_roof_collapse
 2025-12,industrial,,1,0,0,Bhopal (1),not reported,
+2025-12,construction ongoing,,1,0,4,Aurangabad (1),structural failure,structural_failure
 2025-12,aviation,,1,0,0,not identified,not reported,
-2025-11,roadway,,18,87,3,"Gurgaon (1), Rajasthan (1), Tenkasi (1), Tenkasi Daily (1), Uttar Pradesh (1)",explosion blast,explosion_blast
+2025-11,roadway,,17,45,3,"Gurgaon (1), Rajasthan (1), Tenkasi (1), Tenkasi Daily (1), Uttar Pradesh (1)",explosion blast,explosion_blast
 2025-11,others,"unspecified (4), factory manufacturing (3), fire (1)",8,32,15,"Patancheru (1), Howrah (1), Mumbai (1), Jodhpur (1)",fire short circuit,
 2025-11,train,,5,25,20,Bilaspur (2),not reported,
 2025-11,old structure collapse,,2,0,0,Bihar (1),not reported,
 2025-11,aviation,,1,0,0,not identified,not reported,
 2025-10,roadway,,14,22,18,"Delhi (1), Nashik (1), Gangaim (1), Phagwara (1), Trichy (1)",not reported,
-2025-10,others,"unspecified (6), fire (2), factory manufacturing (1)",9,24,10,"Nashik (1), Vadodara (1), Gujarat (1)",fire short circuit,fire_short_circuit
+2025-10,others,"unspecified (6), factory manufacturing (3), fire (2)",11,30,10,"Andhra Pradesh (1), Mirpur (1), Mirpur Daily (1), Nashik (1), Vadodara (1)",fire short circuit,fire_short_circuit
 2025-10,train,,4,0,0,not identified,not reported,
 2025-10,old structure collapse,,4,0,6,"Narasannapeta (1), Eenadu Narasannapeta (1), Agra (1), Bhavnagar (1), Gujarat (1)",not reported,
-2025-10,industrial,,4,6,0,"Andhra Pradesh (1), Mirpur (1), Mirpur Daily (1)",not reported,
+2025-10,industrial,,2,0,0,not identified,not reported,
 2025-10,aviation,,2,0,0,Farrukhabad (1),not reported,
 2025-09,roadway,,11,27,0,"Tamil Nadu (2), Crimson Organic (1), Chipgat (1), Sipkot (1), Cuddalore (1)",overspeeding,overspeeding
 2025-09,others,"unspecified (5), factory manufacturing (1)",6,63,3,"Haryana (1), Kerala (1), Ahmedabad (1)",not reported,
-2025-09,old structure collapse,,2,99,99,Adilabad (1),not reported,
+2025-09,old structure collapse,,1,0,0,Adilabad (1),not reported,
 2025-09,construction ongoing,,1,2,0,not identified,crane failure,crane_failure
-2025-08,roadway,,12,484,1,"Bihar (1), Panaveli Junction (1), Kochi (1), Maharashtra (1)",overspeeding; driver fatigue,overspeeding; driver_fatigue
+2025-08,roadway,,13,501,1,"Bihar (1), Panaveli Junction (1), Kochi (1), Maharashtra (1)",overspeeding; driver fatigue,overspeeding; driver_fatigue
 2025-08,old structure collapse,,6,7,0,"Thrissur (1), Delhi (1), Pathankot (1), Hyderabad (1), Telangana (1)",wall slab roof collapse,wall_slab_roof_collapse
 2025-08,others,"unspecified (2), factory manufacturing (1), chemical refinery (1), gas cylinder (1)",5,17,0,"Durgapur (1), Jalandhar (1), Bhiwandi (1), Punjab (1)",gas leak,gas_leak
 2025-08,train,,4,0,0,Dhanbad (1),not reported,
 2025-08,industrial,,1,0,0,not identified,not reported,
 2025-08,construction infra,,1,0,0,"Gujarat (1), Patna (1)",not reported,
-2025-07,old structure collapse,,14,8,4,"Delhi (1), Mumbai (1), Kadammanitta (1), Mathrubhumi (1), Kottayam (1)",wall slab roof collapse,wall_slab_roof_collapse
+2025-07,old structure collapse,,14,8,4,"Kottayam (2), Delhi (1), Mumbai (1), Kadammanitta (1), Mathrubhumi (1)",wall slab roof collapse,wall_slab_roof_collapse
 2025-07,others,"unspecified (8), factory manufacturing (2)",10,196,3,"Adel (1), Satara (1), Maharashtra (1), Nagpur (1)",Trying to save turtle on I-95 in Indian River County,Trying to save turtle on I-95 in Indian River County
 2025-07,roadway,,7,34,3,"Mehsana (1), Kollam (1)",overspeeding,overspeeding
+2025-07,train,,1,0,0,not identified,not reported,
 2025-07,industrial,,1,0,0,not identified,not reported,
 2025-07,construction ongoing,,1,0,0,Malappuram (1),under construction,under_construction
 2025-06,others,"factory manufacturing (7), unspecified (2)",9,77,34,"Hyderabad (2), Tamil Nadu (1), Telangana (1)",explosion blast,explosion_blast
+2025-06,train,,3,0,1,Delhi (1),not reported,
 2025-06,old structure collapse,,3,0,0,Kozhikode (1),not reported,
-2025-06,train,,2,0,1,Delhi (1),not reported,
 2025-06,roadway,,2,2,0,"Beed (1), Faridkot (1)",not reported,
 2025-06,aviation,,1,0,0,not identified,not reported,
 2025-05,roadway,,4,32,9,Rajkot (1),While 5 crore are injured Lokmat,While 5 crore are injured Lokmat
 2025-05,others,"unspecified (3), factory manufacturing (1)",4,8,0,Mangaluru (1),not reported,
 2025-05,train,,1,0,0,"Haryana (1), Delhi (1)",not reported,
 2025-05,old structure collapse,,1,0,0,"Ernakulam (1), Kerala (1)",not reported,
-2025-04,others,factory manufacturing (3),3,21,0,"Munshiganj (1), Deesa (1), Gujarat (1)",firecracker unit,firecracker_unit
+2025-04,others,factory manufacturing (3),3,21,0,"Deesa (1), Ahmedpur (1), Budhlada News (1), Gujarat (1)",firecracker unit,firecracker_unit
 2025-04,roadway,,2,10,0,Tamil Nadu (1),not reported,
 2025-04,old structure collapse,,2,4,0,"Delhi (1), Pennadham (1), Pennadham Dinakaran (1)",not reported,
-2025-04,industrial,,1,0,0,"Ahmedpur (1), Budhlada News (1)",fire short circuit,fire_short_circuit
-2025-03,old structure collapse,,4,1,0,"Bhadradri (1), Andhrajyothy Bhadrachalam (1), Eenadu Bhadrachalam (1)",under construction,under_construction
 2025-03,roadway,,3,10,0,"Chandigarh (1), Mohali (1)",not reported,
+2025-03,old structure collapse,,3,1,0,"Bhadradri (1), Andhrajyothy Bhadrachalam (1), Eenadu Bhadrachalam (1)",not reported,
 2025-03,train,,1,1,30,not identified,rail signal track fault,rail_signal_track_fault
 2025-03,others,unspecified (1),1,0,0,not identified,not reported,
+2025-03,construction ongoing,,1,0,0,not identified,under construction,under_construction
 2025-02,roadway,,7,31,0,"Chennai (1), Prayagraj (1), Dang (1), Punjabi Jagran (1), Surendranagar (1)",explosion blast,explosion_blast
 2025-02,train,,1,0,0,not identified,head on collision,head_on_collision
-2025-01,old structure collapse,,6,10,50,"Delhi (2), Uttar Pradesh (1), Eenadu (1), Madhya Pradesh (1)",structural failure,structural_failure
-2025-01,roadway,,4,9,8,Dina (1),explosion blast,explosion_blast
-2025-01,others,unspecified (3),3,3,3,"Telangana (1), Kerala (1)",not reported,
-2025-01,train,,1,0,0,Jalgaon (1),not reported,
-2025-01,industrial,,1,5,0,Maharashtra (1),explosion blast,explosion_blast
+2025-01,roadway,,5,18,8,Dina (1),explosion blast,explosion_blast
+2025-01,old structure collapse,,5,10,50,"Delhi (2), Eenadu (1), Madhya Pradesh (1)",structural failure,structural_failure
+2025-01,others,"unspecified (3), factory manufacturing (1)",4,8,3,"Maharashtra (1), Telangana (1), Kerala (1)",explosion blast,explosion_blast
+2025-01,train,,2,0,0,"Uttar Pradesh (1), Jalgaon (1)",not reported,
 2024-12,roadway,,7,85,0,"Gujarat (2), Tamil Nadu (1), Vadodara (1)",explosion blast,explosion_blast
 2024-12,others,"unspecified (3), agriculture (1), gas cylinder (1)",5,400,0,"Raigad (1), Solapur (1), Bhopal (1)","After 40 years, toxic waste from Bhopal gas accident to be burnt","After 40 years, toxic waste from Bhopal gas accident to be burnt"
 2024-12,old structure collapse,,3,1,0,"Mumbai (1), Salalah (1), Mohali (1)",not reported,
@@ -124,32 +124,33 @@ Month,Accident Type,Sector (for Others),Number of Accidents,People Killed,People
 2024-11,others,unspecified (1),1,1,0,"Paravada Pharmacy (1), Visakha District (1)",not reported,
 2024-10,train,,5,351,19,not identified,not reported,
 2024-10,old structure collapse,,3,13,0,Bengaluru (2),not reported,
-2024-10,roadway,,2,19,15,"Madhya Pradesh (1), Mexico (1)",explosion blast,explosion_blast
 2024-10,others,unspecified (2),2,10,0,"Bhopal (1), Mumbai (1)",not reported,
+2024-10,roadway,,1,0,15,Madhya Pradesh (1),explosion blast,explosion_blast
 2024-10,construction infra,,1,0,0,not identified,not reported,
 2024-09,roadway,,7,147,20,"Kerala (1), Gurdaspur (1), Batala (1), Hathras (1), Gujarat (1)",brake failure,brake_failure
+2024-09,others,factory manufacturing (3),3,4,0,"Pune (1), Tata (1), Maharashtra (1), Bhopal (1)",explosion blast,
 2024-09,train,,2,0,0,Kanpur (1),not reported,
-2024-09,others,factory manufacturing (2),2,4,0,"Pune (1), Tata (1)",explosion blast,
 2024-09,old structure collapse,,2,7,0,Lucknow (1),not reported,
 2024-09,industrial,,1,0,0,Bhopal (1),gas leak,gas_leak
-2024-08,roadway,,8,51,0,"Tamil Nadu (1), Andhra Pradesh (1), Zira (1), Kapurthala (1), Dasuha (1)",not reported,
+2024-08,roadway,,7,10,0,"Tamil Nadu (1), Andhra Pradesh (1), Zira (1), Kapurthala (1), Dasuha (1)",not reported,
 2024-08,others,"unspecified (4), factory manufacturing (1)",5,34,4,"Pharma City (1), Kalyan (1), Achyutapuram Pharma (1), Achyutapuram (1)",explosion blast,
 2024-08,train,,4,0,0,not identified,not reported,
 2024-08,old structure collapse,,1,0,0,Delhi (1),not reported,
 2024-08,industrial,,1,0,0,Essentia Chemical (1),not reported,
-2024-07,train,,11,8,55,"Mumbai (2), Howrah (1), Samastipur (1), Bihar (1), Chandigarh (1)",not reported,
-2024-07,old structure collapse,,7,23,0,"Delhi (2), Mumbai (2), Verna (1)",not reported,
-2024-07,roadway,,5,9,0,"Andhra Pradesh (1), Qatar (1), Qatar Media (1), Jammu and Kashmir (1), Anantnag (1)",boiler blast; explosion blast,boiler_blast; explosion_blast
+2024-07,train,,11,6,20,"Chandigarh (2), Dibrugarh (2), Mumbai (2), Howrah (1), Samastipur (1)",not reported,
+2024-07,old structure collapse,,6,23,0,"Delhi (2), Mumbai (2), Verna (1)",not reported,
+2024-07,roadway,,4,9,0,"Andhra Pradesh (1), Jammu and Kashmir (1), Anantnag (1), Jammu (1), Udaipur (1)",boiler blast; explosion blast,boiler_blast; explosion_blast
 2024-07,others,"factory manufacturing (1), unspecified (1)",2,1,0,Cement Factory (1),not reported,
+2024-07,construction ongoing,,1,0,0,not identified,not reported,
 2024-06,train,,3,329,0,not identified,not reported,
 2024-06,roadway,,3,7,7,Shimla (1),not reported,
 2024-06,others,"factory manufacturing (1), fire (1), unspecified (1)",3,21,0,"Delhi (1), Kakkalur Chipgat (1), Punjab (1)",fire short circuit,fire_short_circuit
+2024-05,roadway,,2,15,0,"Sathyamangalam (1), Shahjahanpur (1)","Due to a truck overturning on a bus, 11 pilgrims died","Due to a truck overturning on a bus, 11 pilgrims died"
 2024-05,train,,1,0,0,not identified,not reported,
-2024-05,roadway,,1,4,0,Sathyamangalam (1),not reported,
 2024-05,port maritime,,1,0,0,not identified,not reported,
 2024-05,others,factory manufacturing (1),1,0,0,not identified,not reported,
-2024-04,others,"factory manufacturing (3), fire (1)",4,6,1,"Sangareddy (1), Khanna (1)",fire short circuit,"After the accident, ACP and Gunman died"
-2024-04,roadway,,2,20,20,"Gurugram (1), Pala (1)",not reported,
+2024-04,roadway,,4,23,21,"Gurugram (1), Pala (1)",not reported,
+2024-04,others,"factory manufacturing (2), fire (1)",3,5,0,"Sangareddy (1), Khanna (1)",fire short circuit,"After the accident, ACP and Gunman died"
 2024-03,roadway,,2,1,0,"Mumbai (1), Punjab (1)",not reported,
 2024-03,industrial,,1,0,0,not identified,not reported,
 2024-02,roadway,,4,14,2,"Kummidipoondi (1), Makhu (1)",fire short circuit,fire_short_circuit
@@ -184,7 +185,6 @@ Month,Accident Type,Sector (for Others),Number of Accidents,People Killed,People
 2023-04,roadway,,3,3,0,"Madhuranthak (1), Madhuranthakam Daily (1), Nagpur (1)",not reported,
 2023-04,old structure collapse,,2,0,0,"Barimuna (1), Chennai (1)",not reported,
 2023-03,roadway,,2,4,0,Porbandar (1),not reported,
-2023-03,old structure collapse,,1,4,0,Qatar (1),not reported,
 2023-02,roadway,,3,18,0,"Kerala (2), Maharashtra (1), Patan (1)",lost control,lost_control
 2023-02,others,fire (1),1,0,0,Renigunta (1),fire short circuit,
 2023-02,old structure collapse,,1,0,0,not identified,not reported,
@@ -209,8 +209,8 @@ Month,Accident Type,Sector (for Others),Number of Accidents,People Killed,People
 2022-04,others,"factory manufacturing (1), fire (1)",2,6,13,Eluru (2),not reported,
 2022-04,old structure collapse,,1,0,0,Delhi (1),not reported,
 2022-04,industrial,,1,0,0,not identified,not reported,
-2022-03,roadway,,1,2,3,Muvatupuzha Maradi (1),not reported,
-2022-03,others,factory manufacturing (1),1,2,0,Zirakpur (1),not reported,
+2022-03,roadway,,2,10,3,"Muvatupuzha Maradi (1), Karnataka (1)",not reported,
+2022-03,old structure collapse,,1,2,0,Zirakpur (1),not reported,
 2022-02,others,"factory manufacturing (1), unspecified (1)",2,0,0,not identified,not reported,
 2022-02,roadway,,1,8,0,not identified,not reported,
 2022-01,others,"unspecified (1), fire (1)",2,0,0,"Mosali Char (1), Gandhidham (1), Puri (1)",overtaking,While overtaking near Mosali Char Road Divya Bhaskar
@@ -225,11 +225,12 @@ Month,Accident Type,Sector (for Others),Number of Accidents,People Killed,People
 2021-05,roadway,,1,4,0,not identified,not reported,
 2021-03,others,factory manufacturing (1),1,4,0,Anantapur (1),not reported,
 2021-03,old structure collapse,,1,0,0,not identified,not reported,
+2021-02,others,fire (1),1,0,0,Jalandhar (1),fire short circuit,
 2021-02,old structure collapse,,1,0,0,Telangana (1),wall slab roof collapse,wall_slab_roof_collapse
 2020-12,old structure collapse,,1,0,0,not identified,not reported,
 2020-11,others,factory manufacturing (1),1,2,6,not identified,not reported,
 2020-10,train,,1,0,0,not identified,not reported,
-2020-10,old structure collapse,,1,0,0,Namakkal (1),not reported,
+2020-10,construction ongoing,,1,0,0,Namakkal (1),not reported,
 2020-09,roadway,,1,4,0,Valsad (1),not reported,
 2020-08,others,"fire (1), unspecified (1)",2,1,0,"Telangana (1), Nandyala (1)",not reported,
 2020-07,train,,1,0,0,Amritsar (1),not reported,
@@ -237,7 +238,6 @@ Month,Accident Type,Sector (for Others),Number of Accidents,People Killed,People
 2020-03,others,factory manufacturing (1),1,2,0,not identified,not reported,
 2020-01,roadway,,1,0,0,Tamil Nadu (1),not reported,
 2019-11,old structure collapse,,1,1,5,Sivakasi (1),not reported,
-2019-09,old structure collapse,,1,57,57,"Nairobi (1), Kenya (1)",not reported,
 2019-08,old structure collapse,,1,30,0,Solan (1),not reported,
 2019-07,old structure collapse,,1,14,0,Mumbai (1),not reported,
 2019-06,roadway,,1,0,0,Aruvangadu Explosive (1),explosion blast,explosion_blast
@@ -247,7 +247,7 @@ Month,Accident Type,Sector (for Others),Number of Accidents,People Killed,People
 2018-07,old structure collapse,,1,0,0,Noida (1),not reported,
 2018-06,others,unspecified (1),1,0,0,not identified,not reported,
 2018-05,roadway,,1,0,0,not identified,not reported,
-2018-02,old structure collapse,,1,4,0,Bengaluru (1),under construction,under_construction
+2018-02,construction ongoing,,1,4,0,Bengaluru (1),under construction,under_construction
 2018-01,roadway,,1,10,0,not identified,not reported,
 2017-10,roadway,,1,2,0,Kanpur (1),explosion blast,
 2017-08,old structure collapse,,1,3,0,Mumbai (1),not reported,
@@ -258,8 +258,10 @@ Month,Accident Type,Sector (for Others),Number of Accidents,People Killed,People
 2016-12,train,,1,0,0,not identified,not reported,
 2016-11,roadway,,1,0,0,West Bengal (1),not reported,
 2016-11,old structure collapse,,1,0,0,not identified,not reported,
+2016-10,roadway,,1,0,0,not identified,not reported,
 2016-08,roadway,,1,0,0,Musiri (1),not reported,
-2016-05,old structure collapse,,3,6,0,"Mumbai (1), Bihar (1), Kenya (1)",not reported,
+2016-05,old structure collapse,,2,6,0,"Mumbai (1), Bihar (1)",not reported,
 2016-05,roadway,,1,10,0,Mumbai (1),boiler blast; explosion blast,boiler_blast; explosion_blast
 2014-07,others,unspecified (1),1,10,0,not identified,not reported,
+2014-06,old structure collapse,,1,1,0,Chennai (1),not reported,
 2014-03,others,unspecified (1),1,0,0,Bhopal (1),not reported,
