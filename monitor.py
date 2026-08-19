@@ -44,6 +44,7 @@ Standard library only. No pip install. No paid services.
 """
 
 import csv
+import base64
 import hashlib
 import html
 import json
@@ -307,7 +308,7 @@ def extract_ages(text, limit=4):
     return "; ".join(str(x) for x in sorted(out))
 
 
-def _clean_for_numbers(text):
+def _clean_for_numbers(text, singular_fallback=True):
     """Prepare text for casualty extraction.
     Fixes found in field testing:
       * trailing ' - Source Name' contributed stray numbers (e.g. Bengali outlet
@@ -345,13 +346,14 @@ def _clean_for_numbers(text):
     t = re.sub(r"\b(?:a|one|an)\s+(person|man|woman|youth|girl|boy|child|labourer|laborer|"
                r"worker|student|driver|rider|pedestrian|villager|farmer|devotee|passenger)\b",
                r" 1 \1 ", t)
+    if not singular_fallback:
+        return _words_to_digits(t)
     # a single victim named without any number: "man died", "youth dies",
     # "woman killed" -> one fatality (ages have already been stripped above)
     t = re.sub(r"\b(person|man|woman|youth|girl|boy|child|labourer|laborer|worker|student|"
-               r"driver|rider|pedestrian|villager|farmer|devotee|passenger|jawan|constable|"
-               r"official|officer|engineer|teacher|doctor|soldier|cop|biker|son|daughter|"
-               r"employee|businessman|techie|resident|conductor|cyclist|motorcyclist)\s+"
-               r"(?=(?:dies|died|killed|dead|is dead|was killed))", r" 1 \1 ", t)
+               r"man|woman|youth|girl|boy|child|labourer|laborer|worker|student|driver|rider|pedestrian|villager|farmer|devotee|passenger|jawan|constable|official|officer|engineer|teacher|doctor|soldier|cop|biker|son|daughter|employee|businessman|techie|resident|conductor|cyclist|motorcyclist|inspector|grandmother|grandfather|granddaughter|grandson|mother|father|wife|husband|brother|sister|uncle|aunt|nurse|guard|cleaner|helper|mechanic|vendor|shopkeeper|trader|pilot|crew|nationals?|tourists?|pilgrims?|devotees?|minor|toddler|infant|baby|elderly)\s+"
+               r"(?=(?:dies|died|killed|dead|is dead|was killed|injured|hurt|wounded))",
+               r" 1 \1 ", t)
     return _words_to_digits(t)
 
 
@@ -371,9 +373,23 @@ def _plausible(val):
 
 
 def extract_counts(text):
-    t = _clean_for_numbers(text)
+    """Try to read explicit numbers first. Only if none are found do we fall back
+    to inferring a single victim from wording like "youth dies" - otherwise
+    "9 Nationals Killed" would be reduced to 1."""
+    d, i = _extract_counts_from(_clean_for_numbers(text, singular_fallback=False))
+    if d is None and i is None:
+        return _extract_counts_from(_clean_for_numbers(text, singular_fallback=True))
+    d2, i2 = _extract_counts_from(_clean_for_numbers(text, singular_fallback=True))
+    if d is None:
+        d = d2
+    if i is None:
+        i = i2
+    return d, i
 
-    def near(cues, window=22):
+
+def _extract_counts_from(t):
+
+    def near(cues, window=34):
         best = None
         for cue in cues:
             start = 0
@@ -651,6 +667,8 @@ FOREIGN_PLACES = [
  "melbourne","auckland","kuala lumpur","bangkok","hanoi","seoul","tokyo","osaka","beijing",
  "shanghai","guangzhou","moscow","kyiv","warsaw","budapest","vienna","athens","lisbon",
  "addis ababa","ethiopian","malta","maltese","cyprus","kabul","dhaka bd","male maldives",
+ "apache","chinook","black hawk","f-16","f-35","boeing 737 max crash","us army","u.s. army",
+ "us navy","us air force","royal air force","nato","pentagon","idf","israeli army",
  "colombo lk","zimbabwe","zambia","sudan","somalia","libya","tunisia","angola","mozambique",
  # Bangladeshi upazilas/towns seen in field testing
  "sitakunda","kaliakore","kaliakair","osmaninagar","ishwardi","puthia","bhaluka","hatibandha",
@@ -710,7 +728,20 @@ POLICY_RE = re.compile(
     r"compensation|summit|conference|meeting|awareness|campaign|training|workshop|"
     r"measures to prevent|advice|warns|assures|survey|study finds|report says|"
     r"export|import|exim|trade|gateway|operations begin|commission\w*|"
-    r"anniversary|remember\w*|tribute|memorial)\b", re.I)
+    r"anniversary|remember\w*|tribute|memorial|"
+    r"compensation|ex-gratia|ex gratia|relief (?:fund|amount|cheque)|financial (?:aid|help|assistance)|"
+    r"insurance claim|claim settled|cheque (?:handed|distributed)|solatium|"
+    r"drug test|dope test|breathalyser|breathalyzer|alcohol test|medical test|"
+    r"licence suspended|license suspended|grounded|suspended pilot|de-?rostered|"
+    r"safety audit|mock drill|inspection|awareness drive|road safety week|"
+    r"traffic rules|challan|fine imposed|penalty imposed|helmet drive|"
+    r"exercise|drill|war games|test flight|trial run|airshow|air show|"
+    r"editorial|opinion|analysis|explainer|questions? (?:on|again)|spotlight|"
+    r"demands?\s+\w*\s*(?:technical|probe|hearing|action|inquiry)|black day|protest|closure of|"
+    r"investigation:|probe:|organi[sz]ation demands|association demands|"
+    r"handles \d+ flights|first day|inaugural flight|new terminal|"
+    r"safety record|long history|cooperation in|summoned|stake in|"
+    r"why does|why did|what happened|do we know|mystery|even after \d+ years)\b", re.I)
 
 INCIDENT_RE = re.compile(
     r"\b(killed|kills|dead|died|dies|death toll|injur\w*|overturn\w*|collid\w*|collision|"
@@ -721,10 +752,30 @@ INCIDENT_RE = re.compile(
     r"ಅಪಘಾತ|ಸಾವು|അപകടം|മരണം|અકસ્માત|મોત|ਹਾਦਸਾ|ਮੌਤ)", re.I)
 
 
+
+# Some items mention a real crash but are ABOUT the aftermath, not the event:
+# investigations, demands, editorials, compensation, drug tests. The presence of
+# the word "crash" must not rescue them.
+STRONG_POLICY_RE = re.compile(
+    r"\b(?:investigation|investigating|probe|inquiry|enquiry|hearing|"
+    r"demands?|editorial|opinion piece|analysis:|explainer|spotlight|"
+    r"safety record|questions? (?:on|again|raised)|why (?:does|did|is)|"
+    r"compensation|ex-?gratia|solatium|relief (?:fund|amount)|"
+    r"drug test|dope test|breathalyser|breathalyzer|"
+    r"protest|black day|closure of|summoned|"
+    r"anniversary|years? (?:after|ago|of)|mystery|do we know)\b", re.I)
+
+
+def is_aftermath(text):
+    return bool(text and STRONG_POLICY_RE.search(text))
+
+
 def is_non_incident(text):
     """True when the item talks ABOUT accidents rather than reporting one."""
     if not text:
         return True
+    if is_aftermath(text):
+        return True                        # about the aftermath, not the event
     if INCIDENT_RE.search(text):
         return False                       # a real incident is described
     return bool(POLICY_RE.search(text))
@@ -1129,6 +1180,35 @@ def extract_cause_detail(text, max_words=60):
     return out[0].upper() + out[1:] if out else ""
 
 
+
+CATEGORY_ALLOWED_TAGS = {
+    "aviation": {"technical_snag_aviation", "runway_excursion", "fire_short_circuit",
+                 "explosion_blast", "overloading", "fog_poor_visibility", "lost_control"},
+    "train": {"rail_signal_track_fault", "crossing_railway_track", "fell_from_train",
+              "unmanned_crossing", "overcrowding_footboard", "fire_short_circuit",
+              "explosion_blast", "structural_failure", "fog_poor_visibility"},
+    "port_maritime": {"overloading", "fell_into_water", "fire_short_circuit", "explosion_blast",
+                      "technical_snag_aviation", "lost_control"},
+    "construction_ongoing": {"trench_excavation_collapse", "structural_failure",
+                             "scaffolding_failure", "crane_failure", "wall_slab_roof_collapse",
+                             "under_construction", "illegal_construction", "load_beam_fall",
+                             "lift_elevator", "fell_from_height", "machinery_entrapment"},
+    "old_structure_collapse": {"structural_failure", "wall_slab_roof_collapse",
+                               "illegal_construction", "lift_elevator", "fell_from_height",
+                               "gas_leak", "explosion_blast", "fire_short_circuit"},
+}
+
+
+def filter_tags_for_category(tags, category):
+    """A cause tag that cannot apply to the category is a mis-tag, not a finding.
+    Roadway/others keep everything; the specific modes keep only what fits."""
+    if not tags or category not in CATEGORY_ALLOWED_TAGS:
+        return tags
+    allowed = CATEGORY_ALLOWED_TAGS[category]
+    kept = [t.strip() for t in tags.split(";") if t.strip() in allowed]
+    return "; ".join(kept)
+
+
 def derive_cause_tags(text, phrase=""):
     """Short tags kept ONLY so repeated causes can be counted month to month.
     Derived from the phrase where possible, else from the whole text."""
@@ -1299,6 +1379,7 @@ _LOC_STOPWORDS = {"India","Indian","National","State","Highway","Expressway","Ro
  "Breaking","News","Live","Report","After","Before","During","While","Several","Many","Three",
  "Four","Five","Vehicle","Truck","Lorry","Factory","Building","Bridge","Flyover","Tunnel",
  "Accident","Crash","Collapse","Death","Deaths","Killed","Injured","People","Workers","Family",
+ "Google","News","Comprehensive","Sources","World","Coverage","Aggregated","Titles",
  "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday","January","February",
  "March","April","May","June","July","August","September","October","November","December",
  "Stellar","Terrible","Horrific","Horrible","Tragic","Massive","Major","Huge","Serious","Fatal",
@@ -1472,7 +1553,7 @@ def parse_feed(xml_bytes, language, query, prefilter=False):
     except ElementTree.ParseError:
         return out
     for item in root.iter("item"):
-        title = (item.findtext("title") or "").strip()
+        title = _dedupe_title((item.findtext("title") or "").strip())
         if not title:
             continue
         description = item.findtext("description") or ""
@@ -1510,6 +1591,25 @@ def parse_date(pub_raw):
     return now.timestamp(), now.strftime("%Y-%m-%d")
 
 
+
+def _dedupe_title(t):
+    """Google News sometimes returns the headline twice in one string. Keep the
+    first complete version so the Title column is not a doubled mess."""
+    if not t:
+        return t
+    t = re.sub(r"\s+", " ", t.replace("\n", " ")).strip()
+    # if the second half restates the first, cut it
+    half = len(t) // 2
+    for cut in range(max(20, half - 30), min(len(t) - 15, half + 30)):
+        a, b = t[:cut].strip(), t[cut:].strip()
+        if len(b) > 12 and (a.lower().startswith(b.lower()[:18]) or b.lower().startswith(a.lower()[:18])):
+            return a
+    m_ = re.match(r"^(.{25,}?)\s*[-\u2013]\s*[^-\u2013]{2,30}\s+\1", t, re.I)
+    if m_:
+        return m_.group(1).strip()
+    return t
+
+
 def normalize_title(title):
     t = title.lower()
     t = re.sub(r"\s+-\s+[^-]+$", "", t)
@@ -1531,14 +1631,58 @@ _PARA = re.compile(r"<p[^>]*>(.*?)</p>", re.I | re.S)
 _TAG = re.compile(r"<[^>]+>")
 
 
+
+GOOGLE_BOILERPLATE = [
+    "comprehensive up-to-date news coverage",
+    "aggregated from sources all over the world by google news",
+    "read full articles, watch videos, browse thousands of titles",
+    "google news",
+]
+
+
+def _looks_like_boilerplate(text):
+    if not text or len(text) < 40:
+        return True
+    low = text.lower()
+    return any(b in low for b in GOOGLE_BOILERPLATE)
+
+
+def resolve_google_news_url(url):
+    """Google News RSS links point at a redirect stub, not the article. Fetching
+    the stub returns Google's own page, so the body text is useless. Try to
+    recover the publisher URL from the encoded link; return "" if not possible."""
+    if "news.google.com" not in url:
+        return url
+    m_ = re.search(r"/articles/([A-Za-z0-9_\-]+)", url)
+    if not m_:
+        return ""
+    token = m_.group(1)
+    try:
+        pad = token + "=" * (-len(token) % 4)
+        raw = base64.urlsafe_b64decode(pad.encode("ascii"), )
+        found = re.search(rb"https?://[^\x00-\x20\"'<>]{10,}", raw)
+        if found:
+            cand = found.group(0).decode("utf-8", "ignore")
+            if "google.com" not in cand:
+                return cand
+    except Exception:                                             # noqa: BLE001
+        pass
+    return ""
+
+
 def fetch_article_text(url, max_chars=1200):
     """Download the article page and return its opening text.
     The headline alone rarely says WHY an accident happened or exactly WHERE;
     the first few paragraphs usually do. Returns "" on any failure."""
-    data, final = http_get(url, timeout=ENRICH_TIMEOUT, retries=1)
+    real = resolve_google_news_url(url)
+    if not real:
+        return "", "", ""          # Google stub we cannot resolve - skip it
+    data, final = http_get(real, timeout=ENRICH_TIMEOUT, retries=1)
     if not data:
         return "", "", ""
     page = data.decode("utf-8", "ignore")
+    if "news.google.com" in (final or ""):
+        return "", "", ""          # still on Google - no article to read
     img = _OG_IMG.search(page) or _OG_IMG_R.search(page)
     desc = _OG_DESC.search(page) or _OG_DESC_R.search(page)
     parts = []
@@ -1553,6 +1697,8 @@ def fetch_article_text(url, max_chars=1200):
         if sum(len(x) for x in parts) > max_chars:
             break
     body = " ".join(parts)[:max_chars]
+    if _looks_like_boilerplate(body):
+        return (final or ""), "", ""
     return (final or ""), (html.unescape(img.group(1)) if img else ""), body
 
 
@@ -1765,7 +1911,7 @@ def store(conn, articles, enrich_budget, translate_budget):
                  or extract_how_phrase(english_text or native))
         # a cause that merely restates the headline tells us nothing
         cause = clean_cause(cause, a["title"], title_en)
-        cause_tags = derive_cause_tags(combined, cause)
+        cause_tags = filter_tags_for_category(derive_cause_tags(combined, cause), category)
         sector = detect_sector(combined) if category == "others" else ""
         tod = extract_time_of_day(combined)
         gender = extract_gender(english or native)
@@ -1976,7 +2122,9 @@ def export_unique_events_csv(conn, path="EVENTS_unique.csv"):
         w = csv.writer(f)
         w.writerow(["Date", "Accident Type", "Sector (others only)", "Cities", "Highways",
                     "Killed", "Injured", "Reported Cause (detail)", "Cause Tags",
-                    "Times Reported", "Reported By", "Headline", "Headline (English)", "Link"])
+                    "Times Reported", "Reported By", "Time of Day", "Victim Gender",
+                    "Victim Age(s)", "Severity", "First Reported", "Last Updated",
+                    "Headline", "Headline (English)", "Link"])
         out = []
         for g, members in groups.items():
             best = max(members, key=score)
@@ -2039,6 +2187,66 @@ def export_articles_csv(conn, path="articles.csv"):
             w.writerow(r)
     return len(rows)
 
+
+
+
+def export_master_summary_csv(conn, path="SUMMARY.csv", confirmed_only=False):
+    """The summary sheet: one row per city per accident type, with the number of
+    accidents, how many were near misses, and the people killed and injured.
+
+    confirmed_only=False -> everything collected, including events whose location
+        or severity could not be determined (rows marked "Not identified" /
+        "unspecified"). This is the complete picture.
+    confirmed_only=True  -> ONLY events where the facts are actually known: a
+        named place, a defined sector, and a known outcome. Smaller and
+        certainly an undercount, but every row is a real, identified accident.
+    """
+    agg = {}
+    for city_field, cat, sector, sev, d, i in conn.execute(
+            """SELECT cities, category, sector, severity, deaths, injured
+               FROM articles WHERE is_duplicate=0"""):
+        places = [c.strip() for c in (city_field or "").split(";") if c.strip()]
+        place = places[0] if places else "Not identified"
+        cat_label = (cat or "").replace("_", " ")
+        sector_label = (sector or "").replace("_", " ")
+
+        if confirmed_only:
+            if not places:
+                continue                        # location unknown
+            if not cat_label:
+                continue                        # type unknown
+            if cat == "others" and sector_label in ("", "unspecified"):
+                continue                        # sector undefined
+            if sev in ("", "Not stated", None):
+                continue                        # outcome unknown
+            if sev in ("Fatal",) and not d:
+                continue                        # said fatal but no figure
+            if sev in ("Injury only",) and not i:
+                continue
+
+        key = (place, cat_label, sector_label)
+        a = agg.setdefault(key, {"events": 0, "near": 0, "fatal": 0, "inj_only": 0,
+                                 "killed": 0, "injured": 0})
+        a["events"] += 1
+        if sev == "Near miss":
+            a["near"] += 1
+        elif sev == "Fatal":
+            a["fatal"] += 1
+        elif sev == "Injury only":
+            a["inj_only"] += 1
+        a["killed"] += d or 0
+        a["injured"] += i or 0
+
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f)
+        w.writerow(["City", "Accident Type", "Sector (others only)", "Number of Accidents",
+                    "Near Misses", "Fatal Accidents", "Injury-only Accidents",
+                    "People Killed", "People Injured"])
+        for (place, cat, sector), a in sorted(
+                agg.items(), key=lambda kv: (-kv[1]["killed"], -kv[1]["events"], kv[0][0])):
+            w.writerow([place, cat, sector, a["events"], a["near"], a["fatal"],
+                        a["inj_only"], a["killed"], a["injured"]])
+    return len(agg)
 
 
 def export_simple_summary_csv(conn, path="SUMMARY_simple.csv"):
@@ -2411,18 +2619,10 @@ def run():
 
     export_unique_events_csv(conn)
     n = export_articles_csv(conn)
-    export_summary_csv(conn, "%Y-%m", "monthly_summary.csv")
-    export_summary_csv(conn, "%Y", "yearly_summary.csv")
-    export_simple_summary_csv(conn)
-    export_month_by_type_csv(conn)
-    export_weekly_summary_csv(conn)
-    export_casualties_monthly_csv(conn)
-    export_cause_histogram_csv(conn)
-    export_others_sector_csv(conn)
-    export_city_summary_csv(conn)
-    export_cause_phrases_csv(conn)
-    export_cause_summary_csv(conn)
-    export_cause_trend_csv(conn)
+    export_master_summary_csv(conn, "SUMMARY_all.csv", confirmed_only=False)
+    export_master_summary_csv(conn, "SUMMARY_confirmed.csv", confirmed_only=True)
+    export_month_by_type_csv(conn)           # monthly trend (kept for charting)
+    export_cause_phrases_csv(conn)           # what the reports actually said
     export_dashboard(conn)
     conn.close()
     print(f"\nDone. {total_new} new this run. {n} records total. "
