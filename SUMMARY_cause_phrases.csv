@@ -1,5 +1,5 @@
 ﻿Accident Type,Reported Cause (as written in the report),Times Reported
-roadway,overspeeding,14
+roadway,overspeeding,12
 old structure collapse,structural_failure,12
 construction ongoing,under_construction,7
 roadway,hit_divider_barrier,7
@@ -16,8 +16,6 @@ roadway,pothole_bad_road,5
 roadway,gorge_valley_plunge,3
 roadway,explosion_blast,3
 roadway,trench_excavation_collapse; gorge_valley_plunge,3
-roadway,hit_stationary_vehicle,2
-roadway,tyre_burst,2
 construction ongoing,crane_failure,2
 port maritime,structural_failure,2
 construction ongoing,structural_failure; under_construction,2
@@ -25,6 +23,7 @@ train,crossing_railway_track,2
 train,fell_from_train,2
 train,fire_short_circuit,2
 old structure collapse,fog_poor_visibility,1
+roadway,hit_stationary_vehicle,1
 industrial,gas_leak,1
 old structure collapse,structural_failure; fire_short_circuit,1
 others,trench_excavation_collapse,1
@@ -56,6 +55,7 @@ roadway,"Mafia don's younger son tragically dies in a road accident Gujarat Firs
 roadway,drunk_driving; hit_divider_barrier,1
 others,electrocution,1
 roadway,drunk_driving,1
+roadway,tyre_burst,1
 train,"Gautamnagar faces traffic chaos due to a railway level crossing, but a proposed underpass offers hope for relief.",1
 port maritime,"Speed wreaks havoc in Pithoria's Bucha Valley: Truck crushes car and three bikes, two killed - ETV Bharat Speed wreaks havoc in Pithoria's Bucha Valley: Truck crushes car and three bikes, two killed ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,slippery_wet_road,1
@@ -66,41 +66,33 @@ port maritime,hit_stationary_vehicle,1
 old structure collapse,structural_failure; wall_slab_roof_collapse,1
 others,Caused By Drunk Drivers,1
 others,After Air India crash killed 260: Do we know what happened?,1
-aviation,"After wedding, Indian-origin pilot killed in US chopper crash, wife survives",1
 others,"A person who was out for a walk from home died in an accident: Hit by an unknown vehicle in Rohtak, deceased found lying on the roadside - Dainik Bhaskar A person who was out for a walk from home died in an accident: Hit by an unknown vehicle in Rohtak, deceased found lying on the roadside Dainik Bhaskar Comprehensive",1
 roadway,"Two policemen died in a horrific collision between a tanker and a car in Shimla, police engaged in investigation - ETV Bharat Two policemen died in a horrific collision between a tanker and a car in Shimla, police engaged in investigation.",1
 others,"Chapra News: Accident on Gorakhpur-Kushinagar road: Car fell into water filled drain, father and son died - Hindustan Chapra News: Accident on Gorakhpur-Kushinagar road: Car fell into water filled drain, father and son died.",1
 others,"Shimla Accident: Tata Nexon car fell into a ditch in Chaupal, youth died on the spot; Police started investigation - Amar Ujala Shimla Accident: Tata Nexon car fell into a ditch in Chaupal, youth died on the spot; Police started investigation Amar Ujala Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,"Sambhal: Father and son killed in collision with roadways bus on Meerut-Badayun highway, chaos in the family - Jagran Sambhal: Father and son killed in collision with roadways bus on Meerut-Badaun highway, chaos in the family Jagran Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 others,Due to the driver's intervention,1
 others,When their car hit a tree in Kannur Chalo,1
 others,When the accident was only half an hour before reaching home,1
 others,After falling into open drain in Mumbai #Mumbai #gutter #drowning #death,1
+others,While driving a car,1
 others,Residents in Electronics City Phase 2 protest for better roads and civic infrastructure following a young woman's tragic death in a road accident.,1
-others,"IPS officer's mother found murdered in Ambedkar Nagar, with missing jewellery; police investigation ongoing amidst concerns over safety.",1
 others,"Two people escape unharmed as their car catches fire in Vellore, possibly due to an electrical short circuit.",1
 others,A 72-year-old man died after falling from the 18th floor of his Bengaluru apartment while cleaning glass shards.,1
 others,Caused by an electrical short circuit,1
 old structure collapse,"After four-storey building collapses near Mumbai, rescue ops on",1
-others,After Car Falls Into Drain In Delhi,1
 roadway,After Van Collides With Truck On Punjab Highway,1
 others,"After Air India AI171 crash, families grapple with loss and unanswered questions",1
 roadway,"Disabled paan seller dies due to collision with truck in Kanpur, stunt bikers trample engineer in Bithoor - ETV Bharat Disabled paan seller dies due to collision with truck in Kanpur, stunt bikers trample engineer in Bithoor ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,"Horrific road accident during postal bomb service in Bihar, 3 killed - ETV Bharat Horrific road accident during postal bomb service in Bihar, 3 dead ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,"Police will tell the story of families destroyed in road accidents, 193 people died in road accidents in Palamu in 2026 - ETV Bharat Police will tell the story of families destroyed in road accidents, 193 people died in road accidents in Palamu in 2026 ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google",1
-roadway,"Direct collision between two bikes on Khunti-Chaibasa road, one youth died on the spot - ETV Bharat Direct collision between two bikes on Khunti-Chaibasa road, one youth died on the spot ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,3 killed after being crushed by a speeding truck in Aligarh: UP Police Inspector among the dead; Couple not identified - road accident in Aligarh three killed include up police sup inspector and couple - Jagran 3 killed after being crushed by a speeding truck in Aligarh: UP Police Inspector among the dead; Couple not identified - road accident in,1
 roadway,"Hardoi's uncle and nephew died in a road accident in Bulandshahr: The car overturned while returning to the village from Noida, in the funeral... - Dainik Bhaskar Hardoi's uncle and nephew died in a road accident in Bulandshahr: Car overturned while returning to the village from Noida, in the funeral...",1
 roadway,"Uproar by blocking the highway in Ghaziabad: Demand for compensation-arrest of the accused driver, husband and wife died in a road accident... - Dainik Bhaskar Uproar by blocking the highway in Ghaziabad: Demand for compensation-arrest of the accused driver, husband and wife died in a road accident...",1
-roadway,"Madhepura: Cyclist dies due to collision with speeding bike, compensation... - Prabhat Khabar Madhepura: Cyclist dies due to collision with speeding bike, compensation...",1
-roadway,"Road accident in Banka, death in Bhagalpur: Workers were returning home after finishing work, ran away after being hit by an unknown vehicle - Dainik Bhaskar Road accident in Banka, death in Bhagalpur: Workers were returning home after finishing work, ran away after being hit by an unknown vehicle Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over",1
 others,"Youth injured in pickup collision dies in Pilibhit: Haridwar was about to fill with water, police engaged in investigation - Dainik Bhaskar Youth injured in pickup collision in Pilibhit dies: Haridwar was about to fill with water, police engaged in investigation Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 others,"Prince Sharma died due to accident in Gonda: Accusation of murder on friends is wrong, PM report says it was accidental... - Dainik Bhaskar Prince Sharma died due to accident in Gonda: Accusation of murder on friends wrong, PM report finds accidental death...",1
 others,"Pickup full of devotees overturns in Jhunjhunu, one dead, 20 injured - ETV Bharat Pickup full of devotees overturns in Jhunjhunu, one dead, 20 injured ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-others,"Youth dies in head-on collision between cars in Deoria, seven people seriously injured - Jagran Youth dies, seven seriously injured in head-on collision between cars in Deoria Jagran Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,"Driver injured in road accident in Etah dies: Family members accuse truck owner of not getting treatment - Dainik Bhaskar Driver injured in road accident in Etah dies: Family members accuse truck owner of not getting treatment Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,"Odisha: Bus coming from Daringbadi to Bhubaneswar fell 20 feet on Nayagarh bypass, 40 passengers injured - Jagran Odisha: Bus coming from Daringbadi to Bhubaneswar fell 20 feet on Nayagarh bypass, 40 passengers injured Jagran Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,"Accident on Lucknow Expressway: Bus overturns after driver dozes off, one passenger from Kanpur killed, 20 injured - agra accident bus goes kanpur to gurugram overturned after hitting the divider agra lucknow expressway 10 passengers injured - Jagran Accident on Lucknow Expressway: Bus overturns after driver dozes off, one passenger from Kanpur killed, 20 injured - agra accident bus goes",1
 roadway,"After the collision of two trucks, both the vehicles burst into flames, the driver trapped in",1
 train,"Woman killed after being hit by train in Mau: Accident happened at Paligarh halt, had left home to graze buffalo - Dainik Bhaskar Woman killed after being hit by train in Mau: Accident happened at Paligarh halt, had left home to graze buffalo Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 train,"Mother and daughter die after being hit by a train in Prayagraj: Accident happened while going to get medicine in Umapurkala, Manda - Dainik Bhaskar Mother and daughter died after being hit by a train in Prayagraj: Accident happened while going to get medicine in Umapurkala, Manda Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world",1
@@ -115,9 +107,7 @@ others,Scores of Trinamool leaders arrested on charges of extortion have been su
 roadway,The police issued a lookout notice for a man accused of sexually harassing a female student and exposing himself inside a KSRTC bus near Kondotty.,1
 old structure collapse,After building collapses in Kolkata,1
 roadway,After Speeding SUV Rams Truck In Madhya Pradesh's Maihar,1
-roadway,"Horrific road accident in Bulandshahr, brother and sister died due to collision with unknown vehicle - Jagran Horrific road accident in Bulandshahr, brother and sister killed in collision with unknown vehicle Jagran Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 port maritime,"Auto-bike collision on Unnao road: One youth dead, two injured; Auto driver absconding - Dainik Bhaskar Auto-bike collision on Unnao road: One youth dead, two injured; Auto driver absconding Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,"Two Kanwadis died in a road accident in Hardoi: Eight days later, the second youth died, hit by a tractor-trolley... - Dainik Bhaskar Two Kanwadis died in a road accident in Hardoi: Eight days later, the second youth died, hit by a tractor-trolley...",1
 roadway,"Home guard's brother dies in Yamunanagar road accident: Car hits bike, father of two children; In the hospital... - Dainik Bhaskar Home guard's brother dies in Yamunanagar road accident: Car hits bike, father of two children; In the hospital...",1
 roadway,"Shamli: Bike riding financier dies in collision with tractor, tragic accident while returning home, chaos among family members - Amar Ujala Shamli: Bike riding financier dies in collision with tractor, tragic accident while returning home, chaos among family members Amar Ujala Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,"Pickup collides with truck in MP's Bhind, 8 dead: 23 injured, were returning from Gwalior to UP; To save cows on the highway... - Dainik Bhaskar Pickup collides with truck in MP's Bhind, 8 dead: 23 injured, were returning from Gwalior to UP; To save cows on the highway...",1
@@ -139,12 +129,11 @@ aviation,17 Injured as Passengers Hit the Roof and Are Thrown into the Aisle Aft
 others,Air India crash: The infamous ‘cockpit conversation’ that became a global fact without evidence - Alt News Air India crash: The infamous ‘cockpit conversation’ that became a global fact without evidence &nbsp;&nbsp; Alt News,1
 others,"A year after deadly Air India crash, families await answers - RFI A year after deadly Air India crash, families await answers &nbsp;&nbsp; RFI",1
 others,"On eve of AI171 crash anniversary, pilots' body seeks judicial probe; engine analysis continues - Telegraph India On eve of AI171 crash anniversary, pilots' body seeks judicial probe; engine analysis continues &nbsp;&nbsp; Telegraph India",1
-aviation,5 Indian Air Force personnel killed as transport plane crashes - The Business Standard 5 Indian Air Force personnel killed as transport plane crashes &nbsp;&nbsp; The Business Standard,1
 roadway,"Questions on the death of the young man, police said it was a road accident: Family accused of murder in Gonda, 1 KM away from the village... - Dainik Bhaskar Questions on the death of the young man, police said it was a road accident: Family accused of murder in Gonda, 1 KM away from the village...",1
-roadway,"Horrific accident on Panipat GT Road, two youths died in bike-Activa collision - Jagran Horrific accident on Panipat GT Road, two youth died in bike-Activa collision Jagran Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,"Bike rider dies after hitting tree in Mirzapur: Accident happened during heavy rain on Lalganj-Halia road - Dainik Bhaskar Bike rider dies after hitting tree in Mirzapur: Accident happened during heavy rain on Lalganj-Halia road Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,"Dumper crushed four girls riding on the same bike in Maharajganj, all four including two real brothers died - Jagran Dumper crushed four girls riding on the same bike in Maharajganj, all four including two real brothers died.",1
 train,"A trailer full of coal overturned on a mother and son riding a bike in Chittorgarh, both died, dead bodies were removed by calling for a crane - etvbharat.com A trailer full of coal overturned on a mother and son riding a bike in Chittorgarh, both died, dead bodies were removed by calling for a crane etvbharat.com Comprehensive up-to-date news",1
+roadway,"Bihar: Tragic accident on Chhapra-Patna NH-19, woman dies due to collision with speeding bike; Villagers blocked the highway - Amar Ujala Bihar: Tragic accident on Chhapra-Patna NH-19, woman dies due to collision with speeding bike; Villagers blocked the highway Amar Ujala Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 others,"Three-wheeler collides with a tree, one dead: 6 people injured on Sidhpura-Amapur road in Kasganj, referred to district hospital - Dainik Bhaskar Three-wheeler collides with a tree, one dead: 6 people injured on Sidhpura-Amapur road in Kasganj, referred to district hospital Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 port maritime,"Accident while overtaking truck on Mohan-Miyaganj road of Unnao, bike collides with pole, two friends died - Jagran Accident while overtaking truck on Mohan-Miyaganj road of Unnao, bike collides with pole, two friends die Jagran Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,"Collision between school bus and pickup on Thakurganj road in Kishanganj; 4 people including 2 girl students injured, accident happened near Value Plus - kishanganj school bus pickup collision 4 injured in thakurganj - Jagran Collision between school bus and pickup on Thakurganj road in Kishanganj; 4 people including 2 girl students injured, accident happened near Value Plus - kishanganj",1
@@ -173,6 +162,7 @@ roadway,"A bus overturned on Bhakarapet Ghat road in Tirupati district, 40 peopl
 others,The driver was inexperienced and did not rest; Bengaluru's KSRTC accident blamed on violation of road rules - Manorama Online The driver was inexperienced and did not rest; Bengaluru's KSRTC accident caused by violation of rules Manorama Online,1
 roadway,"KSRTC buses collide in Wayanad Panamaram, several injured - Mathrubhumi KSRTC buses collide in Wayanad Panamaram, many injured in Mathrubhumi",1
 others,Bengal hotel fire claims nine lives; two owners arrested as inspections reveal multiple safety violations in local hotels.,1
-others,"9 Bangladeshi Nationals Killed In Kolkata Hotel Fire, AC Blast Suspected Initial reports suggest the fire may have been triggered by an air-conditioner explosion, though the exact cause is yet to be confirmed.",1
 roadway,"UP Woman Kills Truck Driver, Sets Vehicle On Fire Over Blackmail; Arrested The body of truck driver Balwinder Singh was recovered in a charred condition inside his burnt truck on July 10 in the Puranpur Kotwali area.",1
 others,"5 Injured After Ferris Wheel Cabin Crashes At Lucknow Fair, 2 Critical The incident took place at the Indiranagar Sawan Mahotsav being held in Lucknow's Ghazipur police station area.",1
+roadway,TGSRTC addresses bus stop additions and navigation challenges due to KBR Park traffic restrictions to enhance passenger connectivity.,1
+others,"After accused Samarth Singh and his mother Giribala Singh came to know about this, they allegedly pressured her to transfer the money.",1
