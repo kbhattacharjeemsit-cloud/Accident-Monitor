@@ -110,7 +110,7 @@ STRICT_NATURAL_EXCLUSION = True
 INDIA_ONLY = True                     # drop accidents occurring outside India       # True: drop ANY item mentioning a calamity
 # images
 ENRICH = True
-MAX_ENRICH_PER_RUN = 80
+MAX_ENRICH_PER_RUN = 400        # article pages fetched per run (builds up daily)
 ENRICH_TIMEOUT = 12
 # dedup
 TITLE_DUP_THRESHOLD = 0.92
@@ -528,10 +528,48 @@ def is_foreign(text, source=""):
     return _hit(FOREIGN_PLACE_PATTERNS, text, text.lower())
 
 
+
+# ===========================================================================
+# NON-INCIDENT FILTER
+# Policy statements, court rulings, ministerial announcements and port/trade
+# news use the same vocabulary as accidents ("port", "hanging", "deaths") and
+# were leaking into the dataset. An item is kept only if it reports an actual
+# incident, not talk ABOUT incidents.
+# ===========================================================================
+POLICY_RE = re.compile(
+    r"\b(supreme court|high court|plea\b|petition|verdict|hearing|tribunal|"
+    r"minister|chief minister|governor|mla\b|mp\b|assembly|parliament|"
+    r"flags off|inaugurat\w*|launch(?:es|ed)?\b|reviews\b|demand\w*|urges|appeals|"
+    r"announce\w*|scheme|policy|guidelines|bill\b|budget|tender|project approved|"
+    r"compensation|summit|conference|meeting|awareness|campaign|training|workshop|"
+    r"measures to prevent|advice|warns|assures|survey|study finds|report says|"
+    r"export|import|exim|trade|gateway|operations begin|commission\w*|"
+    r"anniversary|remember\w*|tribute|memorial)\b", re.I)
+
+INCIDENT_RE = re.compile(
+    r"\b(killed|kills|dead|died|dies|death toll|injur\w*|overturn\w*|collid\w*|collision|"
+    r"crash\w*|derail\w*|capsiz\w*|collaps\w*|ramm\w*|hit by|run over|mowed down|"
+    r"burnt|burned|electrocut\w*|drown\w*|trapp\w*|crush\w*|explos\w*|blast|"
+    r"caught fire|fire broke|swept away|buried|skidded|plunged|fell into|"
+    r"मौत|घायल|हादसा|दुर्घटना|নিহত|আহত|দুর্ঘটনা|விபத்து|உயிரிழ|ప్రమాదం|మృతి|"
+    r"ಅಪಘಾತ|ಸಾವು|അപകടം|മരണം|અકસ્માત|મોત|ਹਾਦਸਾ|ਮੌਤ)", re.I)
+
+
+def is_non_incident(text):
+    """True when the item talks ABOUT accidents rather than reporting one."""
+    if not text:
+        return True
+    if INCIDENT_RE.search(text):
+        return False                       # a real incident is described
+    return bool(POLICY_RE.search(text))
+
+
 def classify(combined, source=""):
     """Return an in-scope category, or None if it should be dropped."""
     if INDIA_ONLY and is_foreign(combined, source):
         return None                      # accident in another country
+    if is_non_incident(combined):
+        return None                      # policy / court / announcement, not an accident
     cat = detect_category(combined)
     if cat is None:
         return None
@@ -714,6 +752,91 @@ def extract_cause_phrase(text, max_words=16):
     return phrase[0].upper() + phrase[1:] if phrase else ""
 
 
+
+# Many headlines never say "after"/"due to" but still describe HOW it happened
+# ("bus overturns losing control", "car collides with tanker", "wall collapses
+# on labourers"). This second pass lifts that descriptive clause so the cause
+# column is populated far more often, still using the report's own words.
+_HOW_RE = re.compile(
+    r"\b(?:overturn\w*|collid\w*|collision|ramm\w*|hit(?:s|ting)?\b|crash\w*|"
+    r"skidd\w*|derail\w*|capsiz\w*|collaps\w*|fell\b|fall\w*|plung\w*|"
+    r"caught fire|fire broke out|explod\w*|blast\w*|leak\w*|short circuit|"
+    r"electrocut\w*|drown\w*|crush\w*|trapp\w*|buried|swept away|run over|"
+    r"mowed down|lost control|toppl\w*|burst\w*|gave way|caved in)\b", re.I)
+
+
+def extract_how_phrase(text, max_words=16):
+    """Descriptive clause explaining how the accident happened."""
+    if not text:
+        return ""
+    t = re.sub(r"\s+", " ", text).strip()
+    m = _HOW_RE.search(t)
+    if not m:
+        return ""
+    # start a few words before the verb so the subject is included
+    start = t.rfind(" ", 0, max(0, m.start() - 40))
+    start = 0 if start < 0 else start + 1
+    tail = t[start:]
+    cut = _CAUSE_STOP.search(tail, (m.start() - start) + 1)
+    phrase = tail[:cut.start()] if cut else tail
+    words = phrase.split()
+    if len(words) < 3:
+        return ""
+    phrase = " ".join(words[:max_words]).strip(" ,-:")
+    return phrase[0].upper() + phrase[1:] if phrase else ""
+
+
+
+def extract_cause_detail(text, max_words=60):
+    """Return a DETAILED, readable explanation of how/why the accident happened -
+    up to a few sentences taken from the report itself, so it can be interpreted
+    later. Prefers sentences that actually explain something (causal words or a
+    description of the sequence) over generic ones."""
+    if not text:
+        return ""
+    t = re.sub(r"\s+", " ", text).strip()
+    t = re.sub(r"\s+-\s+[A-Za-z0-9 .]{2,30}$", " ", t)          # trailing " - Publisher"
+    t = re.sub(r"\b[A-Z][A-Z ]{2,20}:\s*", "", t)               # "SHIMLA: " dateline
+    # split into sentences
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+|\u0964", t) if len(s.strip()) > 25]
+    if not sentences:
+        sentences = [t]
+    scored = []
+    for idx, s in enumerate(sentences[:12]):
+        score = 0
+        if _CAUSE_TRIGGER_RE.search(s):
+            score += 3                       # says why
+        if _HOW_RE.search(s):
+            score += 2                       # says how
+        if re.search(r"\b(police|driver|officials?|witness|eyewitness|investigat\w*|"
+                     r"probe|prima facie|reportedly|allegedly|suspect\w*)\b", s, re.I):
+            score += 2                       # attribution
+        if re.search(r"\b(speed\w*|brake|tyre|tire|fog|rain|slipp\w*|overload\w*|"
+                     r"drunk|asleep|fatigue|maintenance|negligen\w*|violat\w*|signal|"
+                     r"wrong side|overtak\w*|pothole|curve|bend|slope|gradient)\b", s, re.I):
+            score += 2                       # a specific factor
+        if score:
+            score += max(0, 3 - idx) * 0.3   # earlier sentences carry the summary
+            scored.append((score, idx, s))
+    if not scored:
+        return ""
+    scored.sort(key=lambda x: (-x[0], x[1]))
+    chosen, used, total = [], set(), 0
+    for _, idx, s in scored:
+        if idx in used:
+            continue
+        words = s.split()
+        if total + len(words) > max_words and chosen:
+            break
+        chosen.append((idx, s)); used.add(idx); total += len(words)
+        if total >= max_words * 0.7:
+            break
+    chosen.sort(key=lambda x: x[0])
+    out = " ".join(s for _, s in chosen)
+    out = " ".join(out.split()[:max_words]).strip(" ,-:;")
+    return out[0].upper() + out[1:] if out else ""
+
+
 def derive_cause_tags(text, phrase=""):
     """Short tags kept ONLY so repeated causes can be counted month to month.
     Derived from the phrase where possible, else from the whole text."""
@@ -866,9 +989,18 @@ _HIGHWAY_PATTERNS = [
 # phrasings - "in Sangrur", "near Chikhli", "Bhiwandi district". This catches
 # places absent from the gazetteer.
 _LOC_PATTERNS = [
-    re.compile(r"\b(?:in|at|near|outside)\s+([A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{3,})?)"),
-    re.compile(r"\b([A-Z][a-z]{3,})\s+(?:district|taluka|tehsil|mandal|village|town|city)\b"),
-    re.compile(r"\b([A-Z][a-z]{3,})\s*[-,]\s*(?:based|bound)\b"),
+    # "in Sangrur", "near Chikhli", "at Bhiwandi"
+    re.compile(r"\b(?:in|at|near|outside|from)\s+([A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{3,})?)"),
+    # "Bhiwandi district", "Sangrur taluka"
+    re.compile(r"\b([A-Z][a-z]{3,})\s+(?:district|taluka|tehsil|mandal|village|town|city|block)\b"),
+    # headline prefix: "Bhind: Horrific road accident" / "Gwalior - 8 killed"
+    re.compile(r"^([A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{3,})?)\s*[:\-\u2013]"),
+    # "MP: Gwalior..." style after a state abbreviation
+    re.compile(r"^[A-Z]{2}\s*:\s*([A-Z][a-z]{3,})"),
+    # "... of Kanpur", "... near the Kanpur highway"
+    re.compile(r"\bof\s+([A-Z][a-z]{3,})\s+(?:district|city|town)\b"),
+    # "Kanpur News:", "Dehradun News"
+    re.compile(r"\b([A-Z][a-z]{3,})\s+News\b"),
 ]
 _LOC_STOPWORDS = {"India","Indian","National","State","Highway","Expressway","Road","Bus","Train",
  "Police","Court","Hospital","Government","Ministry","Chief","Minister","Video","Watch","Update",
@@ -876,7 +1008,13 @@ _LOC_STOPWORDS = {"India","Indian","National","State","Highway","Expressway","Ro
  "Four","Five","Vehicle","Truck","Lorry","Factory","Building","Bridge","Flyover","Tunnel",
  "Accident","Crash","Collapse","Death","Deaths","Killed","Injured","People","Workers","Family",
  "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday","January","February",
- "March","April","May","June","July","August","September","October","November","December"}
+ "March","April","May","June","July","August","September","October","November","December",
+ "Stellar","Terrible","Horrific","Horrible","Tragic","Massive","Major","Huge","Serious","Fatal",
+ "Young","Elderly","Woman","Women","Child","Children","Student","Students","Driver","Constable",
+ "Husband","Wife","Daughter","Father","Mother","Brother","Sister","Family","Couple","Youth",
+ "Separate","Another","Total","Special","General","Local","Heavy","Speeding","Moving","Private",
+ "Public","National","Central","Chief","Deputy","Senior","Junior","Late","Early","Morning",
+ "Evening","Night","Today","Tomorrow","Yesterday","Assembly","Parliament","Court","Hospital"}
 
 
 def extract_generic_places(text, limit=3):
@@ -884,8 +1022,8 @@ def extract_generic_places(text, limit=3):
     found, seen = [], set()
     for pat in _LOC_PATTERNS:
         for m in pat.findall(text):
-            name = m.strip()
-            if name in _LOC_STOPWORDS or name.split()[0] in _LOC_STOPWORDS:
+            name = re.sub(r"\s+(?:News|Accident|Update|Live)$", "", m.strip())
+            if not name or name in _LOC_STOPWORDS or name.split()[0] in _LOC_STOPWORDS:
                 continue
             if name.lower() in seen:
                 continue
@@ -893,6 +1031,41 @@ def extract_generic_places(text, limit=3):
             if len(found) >= limit:
                 return found
     return found
+
+
+# Additional route to place names: Indian reports almost always attach a place
+# to a road, police station, district or dateline. These structural patterns
+# work for towns that appear in no list at all.
+_PLACE_STRUCT = [
+    # "Mumbai-Pune expressway", "Hajipur-Mukerian road"
+    re.compile(r"\b([A-Z][a-z]{3,})\s*[-\u2013]\s*[A-Z][a-z]{3,}\s+(?:road|highway|expressway|marg)\b"),
+    # "Kotwali police station area", "Sadar police station"
+    re.compile(r"\b([A-Z][a-z]{3,})\s+police\s+station\b", re.I),
+    # dateline: "PUNE: Two killed" or "NEW DELHI: ..."
+    re.compile(r"^([A-Z][A-Z\s]{3,25}?)\s*:"),
+    # "on the outskirts of Nagpur", "in the Bhiwandi area"
+    re.compile(r"\bthe\s+([A-Z][a-z]{3,})\s+(?:area|region|belt|sector|bypass|ghat|road)\b"),
+    # "resident of Sangrur", "hailing from Chikhli"
+    re.compile(r"\b(?:resident of|hailing from|belonged to|native of)\s+([A-Z][a-z]{3,})"),
+    # "Toland village under X block"
+    re.compile(r"\b([A-Z][a-z]{3,})\s+(?:village|chowk|crossing|bypass|ghat|nagar|puram|pur)\b"),
+]
+
+
+def extract_structural_places(text, limit=3):
+    found, seen = [], set()
+    for pat in _PLACE_STRUCT:
+        for mm in pat.findall(text):
+            name = mm.strip().title() if mm.isupper() else mm.strip()
+            if not name or name in _LOC_STOPWORDS or name.split()[0] in _LOC_STOPWORDS:
+                continue
+            if len(name) < 4 or name.lower() in seen:
+                continue
+            found.append(name); seen.add(name.lower())
+            if len(found) >= limit:
+                return found
+    return found
+
 
 def extract_locations(text):
     if not text:
@@ -921,6 +1094,11 @@ def extract_locations(text):
         for name in extract_generic_places(text):
             if name.lower() not in seen:
                 cities.append(name); seen.add(name.lower())
+    if not cities:
+        # last resort: structural patterns (roads, police stations, datelines)
+        for name in extract_structural_places(text):
+            if name.lower() not in seen:
+                cities.append(name); seen.add(name.lower())
     return "; ".join(cities), "; ".join(highways)
 
 
@@ -939,7 +1117,7 @@ COLUMNS = OrderedDict([
     ("id", "TEXT PRIMARY KEY"), ("title", "TEXT"), ("title_en", "TEXT"), ("url", "TEXT"),
     ("resolved_url", "TEXT"), ("source", "TEXT"), ("published", "TEXT"), ("published_ts", "REAL"),
     ("category", "TEXT"), ("sector", "TEXT"), ("language", "TEXT"), ("query", "TEXT"), ("title_norm", "TEXT"),
-    ("snippet", "TEXT"), ("image_url", "TEXT"), ("cities", "TEXT"), ("highways", "TEXT"),
+    ("snippet", "TEXT"), ("article_text", "TEXT"), ("image_url", "TEXT"), ("cities", "TEXT"), ("highways", "TEXT"),
     ("deaths", "INTEGER"), ("injured", "INTEGER"), ("cause", "TEXT"), ("cause_tags", "TEXT"), ("fetched_at", "TEXT"),
     ("is_duplicate", "INTEGER DEFAULT 0"), ("dup_group", "TEXT"), ("translated", "INTEGER DEFAULT 0"),
 ])
@@ -1050,6 +1228,85 @@ def normalize_title(title):
 # ===========================================================================
 _OG_IMG = re.compile(r'<meta[^>]+(?:property|name)=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', re.I)
 _OG_IMG_R = re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']og:image["\']', re.I)
+
+
+
+_OG_DESC = re.compile(r'<meta[^>]+(?:property|name)=["\'](?:og:description|description)["\'][^>]+content=["\']([^"\']+)["\']', re.I)
+_OG_DESC_R = re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:description|description)["\']', re.I)
+_PARA = re.compile(r"<p[^>]*>(.*?)</p>", re.I | re.S)
+_TAG = re.compile(r"<[^>]+>")
+
+
+def fetch_article_text(url, max_chars=1200):
+    """Download the article page and return its opening text.
+    The headline alone rarely says WHY an accident happened or exactly WHERE;
+    the first few paragraphs usually do. Returns "" on any failure."""
+    data, final = http_get(url, timeout=ENRICH_TIMEOUT, retries=1)
+    if not data:
+        return "", "", ""
+    page = data.decode("utf-8", "ignore")
+    img = _OG_IMG.search(page) or _OG_IMG_R.search(page)
+    desc = _OG_DESC.search(page) or _OG_DESC_R.search(page)
+    parts = []
+    if desc:
+        parts.append(html.unescape(desc.group(1)).strip())
+    for p in _PARA.findall(page)[:12]:
+        txt = html.unescape(_TAG.sub(" ", p)).strip()
+        txt = re.sub(r"\s+", " ", txt)
+        if len(txt) > 60 and not txt.lower().startswith(("subscribe", "follow us", "copyright",
+                                                         "also read", "read more", "advertisement")):
+            parts.append(txt)
+        if sum(len(x) for x in parts) > max_chars:
+            break
+    body = " ".join(parts)[:max_chars]
+    return (final or ""), (html.unescape(img.group(1)) if img else ""), body
+
+
+def backfill_article_text(conn, budget):
+    """Fetch article bodies for rows that do not have one yet, then re-derive the
+    cause, location and casualty figures from the fuller text. Runs a slice each
+    day so coverage builds up without hammering any publisher."""
+    if budget <= 0:
+        return 0
+    rows = conn.execute(
+        """SELECT id,url,title,title_en,language FROM articles
+           WHERE (article_text IS NULL OR article_text='') AND url!=''
+           ORDER BY published_ts DESC LIMIT ?""", (budget,)).fetchall()
+    done = 0
+    for rid, url, title, ten, lang in rows:
+        _, img, body = fetch_article_text(url)
+        if not body:
+            conn.execute("UPDATE articles SET article_text='-' WHERE id=?", (rid,))
+            continue
+        body_en = body
+        if lang != "English" and TRANSLATE_BACKEND != "none":
+            tx = translate_to_en(body[:1500])
+            if tx:
+                body_en = tx
+        full_en = (ten or "") + " " + body_en
+        full_any = (title or "") + " " + (ten or "") + " " + body + " " + body_en
+        # the body alone gives the cleanest explanation; fall back progressively
+        cause = (extract_cause_detail(body_en) or extract_cause_detail(body)
+                 or extract_cause_detail(full_en) or extract_cause_phrase(full_en)
+                 or extract_how_phrase(full_en))
+        cities, highways = extract_locations(full_en + " " + (title or ""))
+        deaths, injured = extract_counts(full_any)
+        conn.execute("""UPDATE articles SET article_text=?, image_url=CASE WHEN image_url='' THEN ?
+                        ELSE image_url END,
+                        cause=CASE WHEN ?!='' THEN ? ELSE cause END,
+                        cause_tags=?,
+                        cities=CASE WHEN ?!='' THEN ? ELSE cities END,
+                        highways=CASE WHEN ?!='' THEN ? ELSE highways END,
+                        deaths=COALESCE(deaths,?), injured=COALESCE(injured,?)
+                        WHERE id=?""",
+                     (body[:1200], img, cause, cause, derive_cause_tags(full_any, cause),
+                      cities, cities, highways, highways, deaths, injured, rid))
+        done += 1
+        time.sleep(0.5)
+    conn.commit()
+    if done:
+        print(f"[article-text] fetched and re-analysed {done} articles")
+    return done
 
 
 def enrich_image(url):
@@ -1178,7 +1435,9 @@ def store(conn, articles, enrich_budget, translate_budget):
         deaths, injured = extract_counts(native + " " + english)
         cities, highways = extract_locations(combined)
         english_text = (english or "") if english else (native if a["language"] == "English" else "")
-        cause = extract_cause_phrase(english_text or native)
+        cause = (extract_cause_detail(english_text or native)
+                 or extract_cause_phrase(english_text or native)
+                 or extract_how_phrase(english_text or native))
         cause_tags = derive_cause_tags(combined, cause)
         sector = detect_sector(combined) if category == "others" else ""
         a.update({"category": category, "deaths": deaths, "injured": injured,
@@ -1255,10 +1514,10 @@ def recompute_counts(conn, limit=6000):
     """Re-run casualty extraction over stored rows. Needed after extraction bugs
     are fixed, so old rows get corrected instead of keeping bad numbers."""
     fixed = 0
-    for rid, title, ten, snip, d0, i0 in conn.execute(
-            "SELECT id,title,title_en,snippet,deaths,injured FROM articles LIMIT ?",
+    for rid, title, ten, snip, d0, i0, body in conn.execute(
+            "SELECT id,title,title_en,snippet,deaths,injured,article_text FROM articles LIMIT ?",
             (limit,)).fetchall():
-        text = (title or "") + " " + (ten or "") + " " + (snip or "")
+        text = (title or "") + " " + (ten or "") + " " + (snip or "") + " " + (body or "")
         d, i = extract_counts(text)
         if d != d0 or i != i0:
             conn.execute("UPDATE articles SET deaths=?,injured=? WHERE id=?", (d, i, rid))
@@ -1371,7 +1630,7 @@ def export_unique_events_csv(conn, path="EVENTS_unique.csv"):
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["Date", "Accident Type", "Sector (others only)", "Cities", "Highways",
-                    "Killed", "Injured", "Reported Cause (phrase)", "Cause Tags",
+                    "Killed", "Injured", "Reported Cause (detail)", "Cause Tags",
                     "Times Reported", "Reported By", "Headline", "Headline (English)", "Link"])
         out = []
         for g, members in groups.items():
@@ -1401,14 +1660,15 @@ def export_articles_csv(conn, path="articles.csv"):
                   CASE WHEN title_en IS NULL OR title_en='' THEN
                        (CASE WHEN language='English' THEN title ELSE '' END)
                        ELSE title_en END,
-                  cities,highways,deaths,injured,image_url,url,is_duplicate,dup_group
+                  cities,highways,deaths,injured,image_url,url,is_duplicate,dup_group,
+                  article_text
            FROM articles ORDER BY published_ts DESC""").fetchall()
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["Date", "Language", "Accident Type", "Sector (others only)",
-                    "Reported Cause (phrase)", "Cause Tags", "Source", "Title",
+                    "Reported Cause (detail)", "Cause Tags", "Source", "Title",
                     "Title (English)", "Cities", "Highways", "Killed", "Injured",
-                    "Image URL", "Link", "Is Duplicate", "Event Group"])
+                    "Image URL", "Link", "Is Duplicate", "Event Group", "Article Text"])
         for r in rows:
             r = list(r)
             r[2] = (r[2] or "").replace("_", " ")
@@ -1696,6 +1956,7 @@ def run():
 
     purge_foreign(conn)
     remap_categories(conn)
+    backfill_article_text(conn, MAX_ENRICH_PER_RUN)
     backfill_translations(conn, tbudget)
     recompute_counts(conn)
     rededupe(conn)
