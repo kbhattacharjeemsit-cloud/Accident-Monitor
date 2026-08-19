@@ -107,14 +107,18 @@ TRANSLATE_BACKEND = "builtin"         # "builtin" | "none"
 MAX_TRANSLATE_PER_RUN = 4000
 # natural-calamity exclusion
 STRICT_NATURAL_EXCLUSION = True
-INDIA_ONLY = True                     # drop accidents occurring outside India       # True: drop ANY item mentioning a calamity
+INDIA_ONLY = True                     # drop accidents occurring outside India
+# Only keep articles published on/after this date. Older items are dropped on
+# arrival and purged from the database, which keeps the collection small enough
+# to fully process every article each run. Change the date to widen the window.
+MIN_DATE = "2026-06-01"       # True: drop ANY item mentioning a calamity
 # images
 ENRICH = True
-MAX_ENRICH_PER_RUN = 400        # article pages fetched per run (builds up daily)
+MAX_ENRICH_PER_RUN = 1200       # article pages per run (backlog clears in ~2 days)
 ENRICH_TIMEOUT = 12
 # dedup
 TITLE_DUP_THRESHOLD = 0.92
-EVENT_SIM_THRESHOLD = 0.75
+EVENT_SIM_THRESHOLD = 0.72   # within the 70-80% band; false-merge tests score 0.67
 EVENT_DATE_WINDOW_DAYS = 2
 
 DB_PATH = "accidents.db"
@@ -159,7 +163,8 @@ def _digit_map():
 
 DIGIT_TRANS = _digit_map()
 
-DEATH_CUES = ["killed", "dead", "death", "died", "die ", "deceased", "toll", "lives lost", "perished",
+DEATH_CUES = ["killed", "kills", "dead", "death", "deaths", "died", "dies", "die ", "deceased",
+              "toll", "lives lost", "perished", "loses life", "lost life",
               "मौत", "मृत", "मरे", "मृत्यु", "निधन", "ठार", "নিহত", "মৃত", "মৃত্যু",
               "இறந்த", "உயிரிழ", "பலி", "మృతి", "మృత్యు", "మరణ", "చనిపో", "ಸಾವು", "ಮೃತ", "ಬಲಿ",
               "മരണം", "മരിച്ച", "കൊല്ല", "મોત", "મૃત્યુ", "મૃત", "ਮੌਤ", "ਮਰੇ"]
@@ -194,9 +199,113 @@ _WORDNUM_SORTED = sorted(WORD_NUMBERS.items(), key=lambda kv: len(kv[0]), revers
 
 def _words_to_digits(t):
     for word, val in _WORDNUM_SORTED:
-        if word in t:
+        if word not in t:
+            continue
+        if word.isascii():
+            # whole words only: "two-wheeler" must NOT become "2-wheeler"
+            t = re.sub(r"\b" + re.escape(word) + r"\b(?![-\w])", f" {val} ", t)
+        else:
             t = t.replace(word, f" {val} ")
     return t
+
+
+# ===========================================================================
+# TIME OF DAY, VICTIM GENDER, VICTIM AGE
+# ===========================================================================
+_CLOCK_RE = re.compile(r"\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b", re.I)
+_CLOCK24_RE = re.compile(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\s*(?:hrs|hours)?\b")
+NIGHT_CUES = ["night", "midnight", "late night", "after midnight", "wee hours", "pre-dawn",
+              "early hours", "overnight", "dark",
+              "रात", "देर रात", "आधी रात", "रातो", "রাত", "গভীর রাতে", "இரவு", "நள்ளிரவு",
+              "రాత్రి", "అర్ధరాత్రి", "ರಾತ್ರಿ", "രാത്രി", "રાત", "ਰਾਤ"]
+DAY_CUES = ["morning", "afternoon", "noon", "daytime", "midday", "early morning", "evening",
+            "सुबह", "दोपहर", "दिन", "शाम", "সকাল", "দুপুর", "বিকেল", "காலை", "மதியம்", "மாலை",
+            "ఉదయం", "మధ్యాహ్నం", "సాయంత్రం", "ಬೆಳಿಗ್ಗೆ", "ಮಧ್ಯಾಹ್ನ", "ಸಂಜೆ",
+            "രാവിലെ", "ഉച്ചയ്ക്ക്", "വൈകുന്നേരം", "સવારે", "બપોરે", "સાંજે", "ਸਵੇਰ", "ਦੁਪਹਿਰ", "ਸ਼ਾਮ"]
+_EVENING_CUES = ["evening", "शाम", "বিকেল", "மாலை", "సాయంత్రం", "ಸಂಜೆ", "വൈകുന്നേരം", "સાંજે", "ਸ਼ਾਮ"]
+
+
+def extract_time_of_day(text):
+    """Return 'Night', 'Day' or '' . Night = 18:00-06:00."""
+    if not text:
+        return ""
+    low = text.lower()
+    m = _CLOCK_RE.search(text)
+    if m:
+        hr = int(m.group(1)) % 12
+        if m.group(3).lower().startswith("p"):
+            hr += 12
+        return "Night" if (hr >= 18 or hr < 6) else "Day"
+    m = _CLOCK24_RE.search(text)
+    if m:
+        hr = int(m.group(1))
+        return "Night" if (hr >= 18 or hr < 6) else "Day"
+    for cue in NIGHT_CUES:
+        if cue in low:
+            return "Night"
+    for cue in _EVENING_CUES:
+        if cue in low:
+            return "Night"          # evening treated as after 18:00
+    for cue in DAY_CUES:
+        if cue in low:
+            return "Day"
+    return ""
+
+
+_MALE_RE = re.compile(r"\b(?:man|men|male|males|boy|boys|father|husband|son|sons|brother|"
+                      r"uncle|grandfather|youth|jawan|constable|driver|labourer|farmer)\b", re.I)
+_FEMALE_RE = re.compile(r"\b(?:woman|women|female|females|girl|girls|mother|wife|daughter|"
+                        r"sister|aunt|grandmother|lady|ladies|bride|widow)\b", re.I)
+_MALE_NATIVE = ["पुरुष", "युवक", "पिता", "पति", "बेटा", "भाई", "लड़का",
+                "পুরুষ", "যুবক", "ছেলে", "স্বামী", "ஆண்", "இளைஞர்", "மகன்",
+                "పురుషుడు", "యువకుడు", "కుమారుడు", "ಪುರುಷ", "ಯುವಕ", "പുരുഷ", "യുവാവ്",
+                "પુરુષ", "યુવક", "ਪੁਰਸ਼", "ਨੌਜਵਾਨ"]
+_FEMALE_NATIVE = ["महिला", "युवती", "मां", "पत्नी", "बेटी", "बहन", "लड़की",
+                  "মহিলা", "নারী", "যুবতী", "স্ত্রী", "মেয়ে", "பெண்", "மனைவி", "மகள்",
+                  "మహిళ", "స్త్రీ", "భార్య", "కుమార్తె", "ಮಹಿಳೆ", "ಪತ್ನಿ", "സ്ത്രീ", "ഭാര്യ",
+                  "મહિલા", "પત્ની", "ਔਰਤ", "ਮਹਿਲਾ"]
+
+
+def extract_gender(text):
+    """'Male', 'Female', 'Both' or '' - based on how the victims are described."""
+    if not text:
+        return ""
+    male = bool(_MALE_RE.search(text)) or any(w in text for w in _MALE_NATIVE)
+    female = bool(_FEMALE_RE.search(text)) or any(w in text for w in _FEMALE_NATIVE)
+    if male and female:
+        return "Both"
+    if male:
+        return "Male"
+    if female:
+        return "Female"
+    return ""
+
+
+_AGE_RES = [
+    re.compile(r"\b(\d{1,3})\s*[-\u2013]?\s*(?:year|yr|yrs|years)\s*[-\u2013]?\s*old\b", re.I),
+    re.compile(r"\b(?:aged|age)\s*(\d{1,3})\b", re.I),
+    re.compile(r"\b(?:man|woman|youth|boy|girl|person|student|worker|driver)\s*,\s*(\d{1,3})\s*,", re.I),
+    re.compile(r"\b(\d{1,3})\s*(?:साल|वर्ष|বছর|வயது|సంవత్సరాల|ವರ್ಷ|വയസ്സ|વર્ષ|ਸਾਲ)\b"),
+]
+
+
+def extract_ages(text, limit=4):
+    """Ages of those involved, where the report gives them."""
+    if not text:
+        return ""
+    out, seen = [], set()
+    for pat in _AGE_RES:
+        for val in pat.findall(text):
+            try:
+                v = int(val)
+            except (TypeError, ValueError):
+                continue
+            if 0 < v <= 110 and v not in seen:
+                out.append(v); seen.add(v)
+                if len(out) >= limit:
+                    return "; ".join(str(x) for x in sorted(out))
+    return "; ".join(str(x) for x in sorted(out))
+
 
 def _clean_for_numbers(text):
     """Prepare text for casualty extraction.
@@ -207,9 +316,43 @@ def _clean_for_numbers(text):
     """
     t = text.translate(DIGIT_TRANS)
     t = re.sub(r"\|\s*\d+\s*$", " ", t)            # trailing |1271497 article ids
+    # Strip identifiers whose digits are NOT casualties. Field testing found
+    # "bridge under construction on NH-107" recorded as 107 deaths, and road
+    # numbers are extremely common in Indian accident headlines.
+    t = re.sub(r"\b(?:nh|sh|mdr|national highway|state highway|ring road|route)\s*[-\u2013]?\s*\d+[a-z]?\b", " ", t, flags=re.I)
+    t = re.sub(r"\b(?:ward|sector|plot|flat|room|gate|platform|coach|bogie|pillar|km|kilometre|kilometer)\s*(?:no\.?|number)?\s*\d+\b", " ", t, flags=re.I)
+    t = re.sub(r"\b\d+\s*(?:km|kms|kilometre|kilometer|metre|meter|mtr|feet|ft|storey|storeys|story|floor|floors|lane|lanes|year|years|yr|yrs|month|months|am|pm|hrs|hours|o\'clock)\b", " ", t, flags=re.I)
+    t = re.sub(r"\b(?:rs|inr|usd|crore|lakh)\.?\s*\d+", " ", t, flags=re.I)
+    # AGES are the single biggest source of false casualty counts in Indian
+    # headlines ("70-yr-old killed", "24 year old youth dies", "200-year-old
+    # building collapses"). Remove them before looking for casualty numbers.
+    t = re.sub(r"\b\d{1,3}\s*[-\u2013]?\s*(?:year|yr|yrs|years)\s*[-\u2013]?\s*old\b", " ", t, flags=re.I)
+    t = re.sub(r"\b(?:aged|age)\s*\d{1,3}\b", " ", t, flags=re.I)
+    t = re.sub(r"\b(man|woman|youth|boy|girl|person|student|worker|driver|official|officer|"
+               r"engineer|teacher|doctor|soldier|jawan|constable|cop|biker|rider|son|daughter|"
+               r"employee|businessman|techie|farmer|labourer|laborer|resident|native|"
+               r"[A-Z][a-z]+)\s*,\s*\d{1,3}\s*,", r" \1 ", t, flags=re.I)
+    t = re.sub(r"\b\d{1,3}\s*[x\u00d7]\s*\d{1,2}\b", " ", t)      # channel names like 24x7
+    t = re.sub(r"\b\d{1,3}\s*(?:saal|varsh|barsh)\b", " ", t, flags=re.I)
+    # percentages and shares are not counts
+    t = re.sub(r"\b\d+(?:\.\d+)?\s*(?:%|per\s*cent\b|percent\b|pc\b)", " ", t, flags=re.I)
+    # durations
+    t = re.sub(r"\b\d+\s*(?:minute|minutes|min|mins|second|seconds|sec|secs|day|days|week|weeks)\b", " ", t, flags=re.I)
     t = re.sub(r"\s+-\s+[^-]{0,40}$", " ", t)       # trailing ' - Publisher'
     t = re.sub(r"(?<=\d)[,\.](?=\d{3}\b)", "", t)  # 37,000 -> 37000
-    return _words_to_digits(t.lower())
+    t = t.lower()
+    # "death of a person", "one man died" -> a single fatality
+    t = re.sub(r"\b(?:a|one|an)\s+(person|man|woman|youth|girl|boy|child|labourer|laborer|"
+               r"worker|student|driver|rider|pedestrian|villager|farmer|devotee|passenger)\b",
+               r" 1 \1 ", t)
+    # a single victim named without any number: "man died", "youth dies",
+    # "woman killed" -> one fatality (ages have already been stripped above)
+    t = re.sub(r"\b(person|man|woman|youth|girl|boy|child|labourer|laborer|worker|student|"
+               r"driver|rider|pedestrian|villager|farmer|devotee|passenger|jawan|constable|"
+               r"official|officer|engineer|teacher|doctor|soldier|cop|biker|son|daughter|"
+               r"employee|businessman|techie|resident|conductor|cyclist|motorcyclist)\s+"
+               r"(?=(?:dies|died|killed|dead|is dead|was killed))", r" 1 \1 ", t)
+    return _words_to_digits(t)
 
 
 def _plausible(val):
@@ -485,7 +628,15 @@ FOREIGN_PLACES = [
  "মৌলভীবাজার","সুনামগঞ্জ","নেত্রকোনা","জামালপুর","শেরপুর","কুড়িগ্রাম","নীলফামারী","পঞ্চগড়",
  "ঠাকুরগাঁও","গাইবান্ধা","চাঁপাইনবাবগঞ্জ","বান্দরবান","খাগড়াছড়ি","পটুয়াখালী","শরীয়তপুর",
  "রাজবাড়ী","নরসিংদী","ফতুল্লা","সাভার","নারায়ণগঞ্জ","কেরানীগঞ্জ","টঙ্গী","আশুলিয়া",
- "ਹੰਗਰੀ","ਯੂਗਾਂਡਾ","uganda","tanzania",
+ "ਹੰਗਰੀ","ਯੂਗਾਂਡਾ","uganda","tanzania","poland","polish","bahamas","algeria","algerian",
+ "lahore","karachi","islamabad","rawalpindi","peshawar","quetta","multan","faisalabad",
+ "kathmandu bd","pokhara","chittagong hill","yangon","phnom penh","jakarta","manila",
+ "riyadh","jeddah","doha","muscat","kuwait city","tehran","baghdad","cairo","lagos","nairobi",
+ "johannesburg","sao paulo","lima","bogota","santiago","buenos aires","toronto","sydney",
+ "melbourne","auckland","kuala lumpur","bangkok","hanoi","seoul","tokyo","osaka","beijing",
+ "shanghai","guangzhou","moscow","kyiv","warsaw","budapest","vienna","athens","lisbon",
+ "addis ababa","ethiopian","malta","maltese","cyprus","kabul","dhaka bd","male maldives",
+ "colombo lk","zimbabwe","zambia","sudan","somalia","libya","tunisia","angola","mozambique",
  # Bangladeshi upazilas/towns seen in field testing
  "sitakunda","kaliakore","kaliakair","osmaninagar","ishwardi","puthia","bhaluka","hatibandha",
  "daganbhuiyan","daganbhuan","sundarganj","pakundia","kotalipara","gouripur","trishal",
@@ -564,12 +715,74 @@ def is_non_incident(text):
     return bool(POLICY_RE.search(text))
 
 
+
+# Statistical round-ups ("416 killed in road accidents in July") and
+# anniversary / follow-up pieces about older crashes are not new incidents.
+# Left in, they add huge phantom casualty figures to the current month.
+AGGREGATE_RE = re.compile(
+    r"\b(?:killed|deaths?|died|fatalit\w*|accidents?)\b[^.]{0,40}\b(?:in|during|over|across)\b"
+    r"[^.]{0,30}\b(?:january|february|march|april|may|june|july|august|september|october|"
+    r"november|december|last year|this year|past year|last month|this month|the year|"
+    r"\d{4}|first half|second half|financial year|quarter|decade)\b", re.I)
+AGGREGATE_HINTS = re.compile(
+    r"\b(?:per day|every day|each day|per year|every year|annually|on average|average of|"
+    r"statistics|data shows|data reveals|figures show|report reveals|as per data|"
+    r"according to (?:the )?(?:data|report|ncrb|morth)|total of \d+|tally|"
+    r"toll (?:for|in) (?:the )?(?:year|month)|road accidents in \d{4}|"
+    r"in the past (?:era|years?|decade)|past era|in \d{1,3} years|"
+    r"\d+ deaths and \d+ injured|figures revealed|scary figures|"
+    r"roads are becoming|deaths? (?:per|a) (?:day|year|month)|"
+    r"in (?:one|a|the last|the past|only|first)\s+\d{0,3}\s*(?:month|months|year|years|day|days|week|weeks)|"
+    r"in \d{1,3}\s*(?:months|years|days|weeks)|first \d{1,2}\s*months|"
+    r"across the (?:country|state|district)|govt informs|government informs|"
+    r"assembly told|house told|so far this (?:year|month)|every (?:hour|minute|day|week|month|year)|(?:per|an) hour)", re.I)
+RETROSPECTIVE_RE = re.compile(
+    r"\b\d{1,3}\s*(?:years?|yrs?)\s+(?:of|since|after|ago|on)\b|"
+    r"\b(?:back in|way back|in the year)\s+(?:19|20)\d{2}\b|"
+    r"\b(?:still shiver\w*|still haunt\w*|tragedy still|history of|worst \w+ (?:accidents?|tragedies))\b|"
+    r"\b(?:a year after|one year after|years after|year(?:s)? ago|anniversary|"
+    r"remembering|looking back|final report|probe report|investigation report|"
+    r"draft report|aaib report|still awaits|even after a year|what happened)\b", re.I)
+
+
+
+ANIMAL_RE = re.compile(
+    r"\b(?:sheep|goats?|cattle|cows?|buffalo(?:e?s)?|oxen|bulls?|dogs?|cats?|"
+    r"elephants?|monkeys?|birds?|hens?|chickens?|pigs?|horses?|camels?|donkeys?|"
+    r"livestock|animals?|strays?)\b", re.I)
+
+
+def is_animal_casualty(text):
+    """'70 sheep killed in train collision' is not 70 human deaths."""
+    if not text:
+        return False
+    m = re.search(r"\b(?:killed|dead|died|deaths?)\b", text, re.I)
+    if not m:
+        return False
+    window = text[max(0, m.start() - 60): m.end() + 40]
+    if not ANIMAL_RE.search(window):
+        return False
+    # if people are ALSO mentioned near the cue, keep the record
+    return not re.search(r"\b(?:people|persons?|passengers?|men|women|children|"
+                         r"workers?|labourers?|driver|villagers?|students?)\b", window, re.I)
+
+
+def is_aggregate_or_retrospective(text):
+    """True for statistical round-ups and anniversary/follow-up articles."""
+    if not text:
+        return False
+    return bool(AGGREGATE_RE.search(text) or AGGREGATE_HINTS.search(text)
+                or RETROSPECTIVE_RE.search(text) or is_animal_casualty(text))
+
+
 def classify(combined, source=""):
     """Return an in-scope category, or None if it should be dropped."""
     if INDIA_ONLY and is_foreign(combined, source):
         return None                      # accident in another country
     if is_non_incident(combined):
         return None                      # policy / court / announcement, not an accident
+    if is_aggregate_or_retrospective(combined):
+        return None                      # statistics round-up or anniversary piece
     cat = detect_category(combined)
     if cat is None:
         return None
@@ -815,6 +1028,15 @@ def extract_cause_detail(text, max_words=60):
                      r"drunk|asleep|fatigue|maintenance|negligen\w*|violat\w*|signal|"
                      r"wrong side|overtak\w*|pothole|curve|bend|slope|gradient)\b", s, re.I):
             score += 2                       # a specific factor
+        # Sentences that also carry WHEN it happened and WHO was involved make the
+        # cause far more interpretable later, so prefer them. Uses text already in
+        # hand - no extra fetching, no extra runtime.
+        if extract_time_of_day(s):
+            score += 1.5
+        if extract_ages(s):
+            score += 1.5
+        if extract_gender(s):
+            score += 1
         if score:
             score += max(0, 3 - idx) * 0.3   # earlier sentences carry the summary
             scored.append((score, idx, s))
@@ -1118,7 +1340,7 @@ COLUMNS = OrderedDict([
     ("resolved_url", "TEXT"), ("source", "TEXT"), ("published", "TEXT"), ("published_ts", "REAL"),
     ("category", "TEXT"), ("sector", "TEXT"), ("language", "TEXT"), ("query", "TEXT"), ("title_norm", "TEXT"),
     ("snippet", "TEXT"), ("article_text", "TEXT"), ("image_url", "TEXT"), ("cities", "TEXT"), ("highways", "TEXT"),
-    ("deaths", "INTEGER"), ("injured", "INTEGER"), ("cause", "TEXT"), ("cause_tags", "TEXT"), ("fetched_at", "TEXT"),
+    ("deaths", "INTEGER"), ("injured", "INTEGER"), ("cause", "TEXT"), ("cause_tags", "TEXT"), ("time_of_day", "TEXT"), ("victim_gender", "TEXT"), ("victim_age", "TEXT"), ("fetched_at", "TEXT"),
     ("is_duplicate", "INTEGER DEFAULT 0"), ("dup_group", "TEXT"), ("translated", "INTEGER DEFAULT 0"),
 ])
 
@@ -1193,6 +1415,8 @@ def parse_feed(xml_bytes, language, query, prefilter=False):
         src_el = item.find("source")
         source = src_el.text.strip() if src_el is not None and src_el.text else ""
         ts, iso = parse_date(pub_raw)
+        if MIN_DATE and iso < MIN_DATE:
+            continue                      # older than the collection window
         out.append({
             "id": hashlib.sha1(normalize_title(title).encode("utf-8")).hexdigest(),
             "title": title, "url": link, "source": source, "published": iso, "published_ts": ts,
@@ -1297,12 +1521,15 @@ def backfill_article_text(conn, budget):
                         cause_tags=?,
                         cities=CASE WHEN ?!='' THEN ? ELSE cities END,
                         highways=CASE WHEN ?!='' THEN ? ELSE highways END,
-                        deaths=COALESCE(deaths,?), injured=COALESCE(injured,?)
+                        deaths=COALESCE(deaths,?), injured=COALESCE(injured,?),
+                        time_of_day=CASE WHEN time_of_day='' OR time_of_day IS NULL THEN ? ELSE time_of_day END,
+                        victim_gender=CASE WHEN victim_gender='' OR victim_gender IS NULL THEN ? ELSE victim_gender END,
+                        victim_age=CASE WHEN victim_age='' OR victim_age IS NULL THEN ? ELSE victim_age END
                         WHERE id=?""",
                      (body[:1200], img, cause, cause, derive_cause_tags(full_any, cause),
-                      cities, cities, highways, highways, deaths, injured, rid))
+                      cities, cities, highways, highways, deaths, injured, tod, gender, ages, rid))
         done += 1
-        time.sleep(0.5)
+        time.sleep(0.25)
     conn.commit()
     if done:
         print(f"[article-text] fetched and re-analysed {done} articles")
@@ -1339,10 +1566,27 @@ def content_words(text):
 def event_similarity(a, b):
     parts, weights = [], []
     strong = False
+
+    # Work out the corroborating signals first, because they change how much a
+    # casualty-count difference should matter.
+    ca_, cb_ = _set(a["cities"]), _set(b["cities"])
+    ha_, hb_ = _hwset(a["highways"]), _hwset(b["highways"])
+    loc_match = bool((ca_ and cb_ and ca_ & cb_) or (ha_ and hb_ and ha_ & hb_))
+    ea_, eb_ = a.get("en_words") or set(), b.get("en_words") or set()
+    ov_ = len(ea_ & eb_) / max(1, min(len(ea_), len(eb_))) if ea_ and eb_ else 0.0
+
     da, db = a["deaths"], b["deaths"]
     if da is not None and db is not None:
-        parts.append(1.0 if da == db else (0.5 if abs(da - db) <= 1 else 0.0)); weights.append(0.40)
-        strong = strong or da == db
+        if da == db:
+            parts.append(1.0); weights.append(0.40); strong = True
+        elif abs(da - db) <= 1:
+            parts.append(0.5); weights.append(0.40)
+        elif loc_match and ov_ >= 0.45:
+            # Same place and same story, but the tolls differ - this is normal
+            # while a death toll is still rising, so it must not veto the match.
+            parts.append(0.5); weights.append(0.15)
+        else:
+            parts.append(0.0); weights.append(0.40)
     ia, ib = a["injured"], b["injured"]
     if ia is not None and ib is not None:
         parts.append(1.0 if ia == ib else (0.5 if abs(ia - ib) <= 2 else 0.0)); weights.append(0.20)
@@ -1370,6 +1614,11 @@ def event_similarity(a, b):
         if overlap >= 0.45:
             parts.append(overlap); weights.append(0.35)
         if overlap >= 0.55 and len(ea & eb) >= 4:
+            strong = True
+        # Same place AND clearly the same story: treat as one event even if the
+        # reported tolls differ (they commonly do while a toll is still rising).
+        if loc_match and overlap >= 0.55 and len(ea & eb) >= 5:
+            parts.append(1.0); weights.append(0.45)
             strong = True
     if not parts:
         return (overlap, True) if overlap >= 0.7 else (0.0, False)
@@ -1440,6 +1689,9 @@ def store(conn, articles, enrich_budget, translate_budget):
                  or extract_how_phrase(english_text or native))
         cause_tags = derive_cause_tags(combined, cause)
         sector = detect_sector(combined) if category == "others" else ""
+        tod = extract_time_of_day(combined)
+        gender = extract_gender(english or native)
+        ages = extract_ages(combined)
         a.update({"category": category, "deaths": deaths, "injured": injured,
                   "cities": cities, "highways": highways})
 
@@ -1451,13 +1703,13 @@ def store(conn, articles, enrich_budget, translate_budget):
         conn.execute(
             """INSERT OR IGNORE INTO articles
                (id,title,title_en,url,resolved_url,source,published,published_ts,category,language,
-                query,title_norm,snippet,image_url,cities,highways,deaths,injured,cause,cause_tags,sector,fetched_at,
+                query,title_norm,snippet,image_url,cities,highways,deaths,injured,cause,cause_tags,time_of_day,victim_gender,victim_age,sector,fetched_at,
                 is_duplicate,dup_group,translated)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (a["id"], a["title"], title_en, a["url"], resolved_url, a["source"], a["published"],
              a["published_ts"], category, a["language"], a["query"], a["title_norm"],
              a.get("snippet", ""), a["image_url"], cities, highways, deaths, injured,
-             cause, cause_tags, sector, a["fetched_at"], is_dupe, dup_group, translated))
+             cause, cause_tags, tod, gender, ages, sector, a["fetched_at"], is_dupe, dup_group, translated))
         new += 1
     conn.commit()
     return new, enrich_budget, translate_budget
@@ -1491,6 +1743,19 @@ def remap_categories(conn):
     if changed:
         print(f"[remap] re-classified {changed} rows into the new categories")
     return changed
+
+
+def purge_old(conn):
+    """Delete rows published before MIN_DATE so the working set stays small and
+    every remaining article can be fully fetched and analysed each run."""
+    if not MIN_DATE:
+        return 0
+    n = conn.execute("SELECT COUNT(*) FROM articles WHERE published < ?", (MIN_DATE,)).fetchone()[0]
+    if n:
+        conn.execute("DELETE FROM articles WHERE published < ?", (MIN_DATE,))
+        conn.commit()
+        print(f"[date-purge] removed {n} rows published before {MIN_DATE}")
+    return n
 
 
 def purge_foreign(conn):
@@ -1610,7 +1875,8 @@ def export_unique_events_csv(conn, path="EVENTS_unique.csv"):
     groups = {}
     for row in conn.execute(
             """SELECT dup_group,published,category,sector,cause,cause_tags,source,title,title_en,
-                      cities,highways,deaths,injured,url,language
+                      cities,highways,deaths,injured,url,language,published_ts,
+                      time_of_day,victim_gender,victim_age
                FROM articles ORDER BY published_ts DESC"""):
         g = row[0]
         groups.setdefault(g, []).append(row)
@@ -1637,18 +1903,31 @@ def export_unique_events_csv(conn, path="EVENTS_unique.csv"):
             best = max(members, key=score)
             outlets = sorted({(m[6] or "").strip() for m in members if (m[6] or "").strip()})
             # take the highest casualty figures seen across the reports of this event
-            deaths = max([m[11] for m in members if m[11] is not None], default=None)
-            injured = max([m[12] for m in members if m[12] is not None], default=None)
+            # use the representative record's figures; taking the maximum across
+            # reports let one mis-extracted number inflate the whole event
+            # A developing story is reported repeatedly as the toll rises.
+            # Date  = the FIRST report (when the accident actually happened).
+            # Toll  = the LATEST report that carries a figure (the updated toll).
+            by_time = sorted(members, key=lambda x: x[15] or 0)
+            first_date = by_time[0][1]
+            latest_d = next((x[11] for x in reversed(by_time) if x[11] is not None), None)
+            latest_i = next((x[12] for x in reversed(by_time) if x[12] is not None), None)
+            deaths = latest_d
+            injured = latest_i
+            tod = next((x[16] for x in members if x[16]), "")
+            gender = next((x[17] for x in members if x[17]), "")
+            ages = next((x[18] for x in members if x[18]), "")
             cities = best[9] or next((m[9] for m in members if m[9]), "")
             highways = best[10] or next((m[10] for m in members if m[10]), "")
             cause = best[4] or next((m[4] for m in members if m[4]), "")
             tags = best[5] or next((m[5] for m in members if m[5]), "")
             headline_en = best[8] or (best[7] if best[14] == "English" else "")
-            out.append([best[1], (best[2] or "").replace("_", " "), (best[3] or "").replace("_", " "),
+            out.append([first_date, (best[2] or "").replace("_", " "), (best[3] or "").replace("_", " "),
                         cities, highways, deaths if deaths is not None else "",
                         injured if injured is not None else "", cause,
                         (tags or "").replace("_", " "), len(members),
-                        "; ".join(outlets[:6]), best[7], headline_en, best[13]])
+                        "; ".join(outlets[:6]), tod, gender, ages, first_date, by_time[-1][1],
+                        best[7], headline_en, best[13]])
         out.sort(key=lambda r: r[0], reverse=True)
         w.writerows(out)
     return len(groups)
@@ -1656,7 +1935,8 @@ def export_unique_events_csv(conn, path="EVENTS_unique.csv"):
 
 def export_articles_csv(conn, path="articles.csv"):
     rows = conn.execute(
-        """SELECT published,language,category,sector,cause,cause_tags,source,title,
+        """SELECT published,language,category,sector,cause,cause_tags,time_of_day,victim_gender,
+                  victim_age,source,title,
                   CASE WHEN title_en IS NULL OR title_en='' THEN
                        (CASE WHEN language='English' THEN title ELSE '' END)
                        ELSE title_en END,
@@ -1666,14 +1946,15 @@ def export_articles_csv(conn, path="articles.csv"):
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["Date", "Language", "Accident Type", "Sector (others only)",
-                    "Reported Cause (detail)", "Cause Tags", "Source", "Title",
+                    "Reported Cause (detail)", "Cause Tags", "Time of Day", "Victim Gender",
+                    "Victim Age(s)", "Source", "Title",
                     "Title (English)", "Cities", "Highways", "Killed", "Injured",
                     "Image URL", "Link", "Is Duplicate", "Event Group", "Article Text"])
         for r in rows:
             r = list(r)
             r[2] = (r[2] or "").replace("_", " ")
             r[3] = (r[3] or "").replace("_", " ")
-            r[5] = (r[5] or "").replace("_", " ")
+            r[5] = (r[5] or "").replace("_", " ")   # cause tags
             w.writerow(r)
     return len(rows)
 
@@ -1738,6 +2019,81 @@ def export_others_sector_csv(conn, path="SUMMARY_others_by_sector.csv"):
         for month, sector, n, k, inj in rows:
             w.writerow([month, (sector or "unspecified").replace("_", " "), n, k or 0, inj or 0])
     return len(rows)
+
+
+
+
+def export_casualties_monthly_csv(conn, path="SUMMARY_casualties_monthly.csv"):
+    """Killed and injured per month per category - the casualty view rather than
+    the event-count view. 'Events with a figure' tells you how much of the month
+    the totals actually rest on, so you can judge how solid they are."""
+    rows = conn.execute(
+        """SELECT strftime('%Y-%m',published) AS month, category,
+                  COUNT(*),
+                  SUM(CASE WHEN deaths IS NOT NULL THEN 1 ELSE 0 END),
+                  SUM(COALESCE(deaths,0)), SUM(COALESCE(injured,0)),
+                  MAX(COALESCE(deaths,0))
+           FROM articles WHERE is_duplicate=0 AND published!=''
+           GROUP BY month, category ORDER BY month DESC, 5 DESC""").fetchall()
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f)
+        w.writerow(["Month", "Accident Type", "Events", "Events with a figure",
+                    "People Killed", "People Injured", "Killed per event (avg)",
+                    "Largest single event (killed)"])
+        for month, cat, ev, withfig, killed, injured, worst in rows:
+            avg = round((killed or 0) / withfig, 1) if withfig else ""
+            w.writerow([month, (cat or "").replace("_", " "), ev, withfig,
+                        killed or 0, injured or 0, avg, worst or 0])
+    return len(rows)
+
+
+def export_cause_histogram_csv(conn, path="SUMMARY_cause_histogram.csv"):
+    """Histogram data: for each month and category, how often each cause appears
+    and how many people were killed/injured in accidents carrying that cause.
+    Sorted so the top causes per category per month come first."""
+    agg = {}
+    for month, cat, tags, d, i in conn.execute(
+            """SELECT strftime('%Y-%m',published), category, cause_tags, deaths, injured
+               FROM articles WHERE is_duplicate=0 AND published!=''"""):
+        labels = [t.strip() for t in (tags or "").split(";") if t.strip()] or ["not reported"]
+        for lab in labels:
+            key = (month, cat or "", lab)
+            a = agg.setdefault(key, [0, 0, 0])
+            a[0] += 1
+            a[1] += d or 0
+            a[2] += i or 0
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f)
+        w.writerow(["Month", "Accident Type", "Reported Cause", "Number of Accidents",
+                    "People Killed", "People Injured"])
+        for (month, cat, lab), (n, k, i) in sorted(
+                agg.items(), key=lambda kv: (kv[0][0], kv[0][1], -kv[1][0]), reverse=False):
+            w.writerow([month, cat.replace("_", " "), lab.replace("_", " "), n, k, i])
+    return len(agg)
+
+
+def export_weekly_summary_csv(conn, path="SUMMARY_weekly.csv"):
+    """Week-by-week counts per accident type. Weeks are ISO weeks starting Monday
+    and are labelled by their start date, so they sort correctly."""
+    data, cats = {}, set()
+    for wk, cat, n, killed, injured in conn.execute(
+            """SELECT date(published, 'weekday 0', '-6 days') AS wk, category, COUNT(*),
+                      SUM(COALESCE(deaths,0)), SUM(COALESCE(injured,0))
+               FROM articles WHERE is_duplicate=0 AND published!=''
+               GROUP BY wk, category"""):
+        data.setdefault(wk, {})[cat] = (n, killed or 0, injured or 0)
+        cats.add(cat)
+    cats = sorted(cats)
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f)
+        w.writerow(["Week Starting"] + [c.replace("_", " ") for c in cats] +
+                   ["TOTAL Accidents", "TOTAL Killed", "TOTAL Injured"])
+        for wk in sorted(data, reverse=True):
+            counts = [data[wk].get(c, (0, 0, 0))[0] for c in cats]
+            k = sum(v[1] for v in data[wk].values())
+            i = sum(v[2] for v in data[wk].values())
+            w.writerow([wk] + counts + [sum(counts), k, i])
+    return len(data)
 
 
 def export_month_by_type_csv(conn, path="SUMMARY_month_by_type.csv"):
@@ -1954,6 +2310,7 @@ def run():
         print(f"[PAPER {label}] {url}: {len(arts)} candidate items, {added} kept")
         time.sleep(1)
 
+    purge_old(conn)
     purge_foreign(conn)
     remap_categories(conn)
     backfill_article_text(conn, MAX_ENRICH_PER_RUN)
@@ -1967,6 +2324,9 @@ def run():
     export_summary_csv(conn, "%Y", "yearly_summary.csv")
     export_simple_summary_csv(conn)
     export_month_by_type_csv(conn)
+    export_weekly_summary_csv(conn)
+    export_casualties_monthly_csv(conn)
+    export_cause_histogram_csv(conn)
     export_others_sector_csv(conn)
     export_city_summary_csv(conn)
     export_cause_phrases_csv(conn)
