@@ -14,10 +14,10 @@ cities, highways and casualty counts, and writes monthly / yearly totals.
 
 CATEGORIES (each is a column in the summaries)
   construction_infra  buildings, bridges, flyovers, tunnels, ports, dams, cranes,
-                      scaffolding, walls/slabs, under-construction structures
+                      scaffolding, walls/slabs, columns, excavations, under-construction
   industrial          factory / boiler / gas-leak / plant / mine accidents
   pedestrian          people run over / hit while on foot
-  traffic             cars, two-wheelers, autos - general road accidents
+  traffic             cars, two-wheelers, cycles, bikes, autos - general road accidents
   bus                 bus accidents
   cargo               truck / lorry / tanker / trailer / goods-vehicle accidents
   train               train / rail / derailment
