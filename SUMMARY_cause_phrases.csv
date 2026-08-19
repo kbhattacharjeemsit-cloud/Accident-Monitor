@@ -1,39 +1,39 @@
 ﻿Accident Type,Reported Cause (as written in the report),Times Reported
-roadway,overspeeding,12
-old structure collapse,structural_failure,12
+roadway,overspeeding,15
+old structure collapse,structural_failure,10
+roadway,head_on_collision,9
+others,explosion_blast,8
 construction ongoing,under_construction,7
-roadway,hit_divider_barrier,7
-others,explosion_blast,7
-roadway,head_on_collision,6
-others,gas_leak,6
-others,firecracker_unit,6
+others,firecracker_unit,7
+roadway,hit_divider_barrier,6
 roadway,structural_failure,6
 others,fire_short_circuit,6
 roadway,lost_control,5
-roadway,brake_failure,5
-roadway,fire_short_circuit,5
-roadway,pothole_bad_road,5
-roadway,gorge_valley_plunge,3
+others,gas_leak,5
+roadway,gorge_valley_plunge,4
+roadway,brake_failure,4
 roadway,explosion_blast,3
-roadway,trench_excavation_collapse; gorge_valley_plunge,3
+roadway,pothole_bad_road,3
+roadway,hit_stationary_vehicle,2
 construction ongoing,crane_failure,2
 port maritime,structural_failure,2
 construction ongoing,structural_failure; under_construction,2
+roadway,trench_excavation_collapse; gorge_valley_plunge,2
+roadway,lost_control; hit_divider_barrier,2
 train,crossing_railway_track,2
 train,fell_from_train,2
+roadway,fire_short_circuit,2
 train,fire_short_circuit,2
-old structure collapse,fog_poor_visibility,1
-roadway,hit_stationary_vehicle,1
-industrial,gas_leak,1
+roadway,lost_control; hit_tree_pole,2
 old structure collapse,structural_failure; fire_short_circuit,1
 others,trench_excavation_collapse,1
 roadway,fell_into_water,1
+roadway,driver_fatigue,1
 roadway,slippery_wet_road; manhole_drain,1
-roadway,lost_control; hit_divider_barrier,1
 train,electrocution,1
 train,explosion_blast,1
 train,fell_into_water,1
-aviation,drunk_driving,1
+aviation,runway_excursion,1
 aviation,fire_short_circuit,1
 old structure collapse,wall_slab_roof_collapse,1
 others,suffocation_toxic_fumes,1
@@ -41,6 +41,7 @@ others,gas_leak; suffocation_toxic_fumes; septic_sewer_deaths,1
 others,suffocation_toxic_fumes; septic_sewer_deaths,1
 old structure collapse,structural_failure; explosion_blast; firecracker_unit,1
 others,gas_leak; septic_sewer_deaths,1
+roadway,hit_tree_pole,1
 train,hit_divider_barrier,1
 port maritime,head_on_collision,1
 others,pothole_bad_road,1
@@ -48,116 +49,116 @@ roadway,explosion_blast; firecracker_unit,1
 roadway,firecracker_unit,1
 roadway,boiler_blast; explosion_blast,1
 roadway,gas_leak,1
-roadway,"Daughter of female IPS died in Eenadu Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,"Army jawan dies as car hits wrong route NTV Telugu Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,overspeeding; lost_control,1
 train,overspeeding,1
-roadway,"Mafia don's younger son tragically dies in a road accident Gujarat First Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,drunk_driving; hit_divider_barrier,1
 others,electrocution,1
+roadway,overtaking,1
 roadway,drunk_driving,1
 roadway,tyre_burst,1
-train,"Gautamnagar faces traffic chaos due to a railway level crossing, but a proposed underpass offers hope for relief.",1
 port maritime,"Speed wreaks havoc in Pithoria's Bucha Valley: Truck crushes car and three bikes, two killed - ETV Bharat Speed wreaks havoc in Pithoria's Bucha Valley: Truck crushes car and three bikes, two killed ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,slippery_wet_road,1
+others,overspeeding; fog_poor_visibility,1
 train,lost_control; hit_tree_pole,1
-train,"Sitamarhi News: Youth dies after being hit by train, police engaged in investigation - Hindustan Sitamarhi News: Youth dies after being hit by train, police engaged in investigation Hindustan Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 train,Crisis escalates in North Kerala as rail service shortages leave passengers struggling during peak travel times ahead of Onam.,1
 port maritime,hit_stationary_vehicle,1
+train,"UP: Boy and girl die after being hit by train, accidents in Barhan; Both dead bodies found in different areas - Amar Ujala UP: Boy and girl die after being hit by train, accidents in Barhan; Both dead bodies found in different areas Amar Ujala Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 old structure collapse,structural_failure; wall_slab_roof_collapse,1
 others,Caused By Drunk Drivers,1
-others,After Air India crash killed 260: Do we know what happened?,1
+roadway,After hitting bridge railing,1
+others,After Fatal Accident in India,1
 others,"A person who was out for a walk from home died in an accident: Hit by an unknown vehicle in Rohtak, deceased found lying on the roadside - Dainik Bhaskar A person who was out for a walk from home died in an accident: Hit by an unknown vehicle in Rohtak, deceased found lying on the roadside Dainik Bhaskar Comprehensive",1
-roadway,"Two policemen died in a horrific collision between a tanker and a car in Shimla, police engaged in investigation - ETV Bharat Two policemen died in a horrific collision between a tanker and a car in Shimla, police engaged in investigation.",1
-others,"Chapra News: Accident on Gorakhpur-Kushinagar road: Car fell into water filled drain, father and son died - Hindustan Chapra News: Accident on Gorakhpur-Kushinagar road: Car fell into water filled drain, father and son died.",1
-others,"Shimla Accident: Tata Nexon car fell into a ditch in Chaupal, youth died on the spot; Police started investigation - Amar Ujala Shimla Accident: Tata Nexon car fell into a ditch in Chaupal, youth died on the spot; Police started investigation Amar Ujala Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"Woman walking on foot to visit Tridev Mahadev crushed by truck, dies - ETV Bharat Woman walking on foot to visit Tridev Mahadev crushed by truck, dies ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 others,Due to the driver's intervention,1
+roadway,While driving the bus,1
 others,When their car hit a tree in Kannur Chalo,1
-others,When the accident was only half an hour before reaching home,1
+others,While talking on a mobile phone 500 meters away from the accident site,1
 others,After falling into open drain in Mumbai #Mumbai #gutter #drowning #death,1
 others,While driving a car,1
-others,Residents in Electronics City Phase 2 protest for better roads and civic infrastructure following a young woman's tragic death in a road accident.,1
+others,Due to getting stuck in the machine,1
 others,"Two people escape unharmed as their car catches fire in Vellore, possibly due to an electrical short circuit.",1
-others,A 72-year-old man died after falling from the 18th floor of his Bengaluru apartment while cleaning glass shards.,1
 others,Caused by an electrical short circuit,1
 old structure collapse,"After four-storey building collapses near Mumbai, rescue ops on",1
 roadway,After Van Collides With Truck On Punjab Highway,1
-others,"After Air India AI171 crash, families grapple with loss and unanswered questions",1
 roadway,"Disabled paan seller dies due to collision with truck in Kanpur, stunt bikers trample engineer in Bithoor - ETV Bharat Disabled paan seller dies due to collision with truck in Kanpur, stunt bikers trample engineer in Bithoor ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,"Horrific road accident during postal bomb service in Bihar, 3 killed - ETV Bharat Horrific road accident during postal bomb service in Bihar, 3 dead ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,"Police will tell the story of families destroyed in road accidents, 193 people died in road accidents in Palamu in 2026 - ETV Bharat Police will tell the story of families destroyed in road accidents, 193 people died in road accidents in Palamu in 2026 ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google",1
-roadway,3 killed after being crushed by a speeding truck in Aligarh: UP Police Inspector among the dead; Couple not identified - road accident in Aligarh three killed include up police sup inspector and couple - Jagran 3 killed after being crushed by a speeding truck in Aligarh: UP Police Inspector among the dead; Couple not identified - road accident in,1
-roadway,"Hardoi's uncle and nephew died in a road accident in Bulandshahr: The car overturned while returning to the village from Noida, in the funeral... - Dainik Bhaskar Hardoi's uncle and nephew died in a road accident in Bulandshahr: Car overturned while returning to the village from Noida, in the funeral...",1
-roadway,"Uproar by blocking the highway in Ghaziabad: Demand for compensation-arrest of the accused driver, husband and wife died in a road accident... - Dainik Bhaskar Uproar by blocking the highway in Ghaziabad: Demand for compensation-arrest of the accused driver, husband and wife died in a road accident...",1
-others,"Youth injured in pickup collision dies in Pilibhit: Haridwar was about to fill with water, police engaged in investigation - Dainik Bhaskar Youth injured in pickup collision in Pilibhit dies: Haridwar was about to fill with water, police engaged in investigation Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-others,"Prince Sharma died due to accident in Gonda: Accusation of murder on friends is wrong, PM report says it was accidental... - Dainik Bhaskar Prince Sharma died due to accident in Gonda: Accusation of murder on friends wrong, PM report finds accidental death...",1
-others,"Pickup full of devotees overturns in Jhunjhunu, one dead, 20 injured - ETV Bharat Pickup full of devotees overturns in Jhunjhunu, one dead, 20 injured ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,"Driver injured in road accident in Etah dies: Family members accuse truck owner of not getting treatment - Dainik Bhaskar Driver injured in road accident in Etah dies: Family members accuse truck owner of not getting treatment Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"Bike ran without driver, live video of accident - ndtv.in Death in 5 seconds! Bike ran without driver, live video of accident ndtv.in Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"Student going to appear for exam dies in road accident, drunk container driver runs away with collision - Prabhat Khabar Girl student going to appear for exam dies in road accident, drunken container driver runs away with collision Prabhat Khabar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+others,"Small elephant collides with auto, driver dies: Accident on Baraut-Budhana road, case registered against unknown driver - Dainik Bhaskar Small elephant collides with auto, driver dies: Accident on Baraut-Budhana road, case registered against unknown driver Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,"Odisha: Bus coming from Daringbadi to Bhubaneswar fell 20 feet on Nayagarh bypass, 40 passengers injured - Jagran Odisha: Bus coming from Daringbadi to Bhubaneswar fell 20 feet on Nayagarh bypass, 40 passengers injured Jagran Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+aviation,"Due to the negligence of the bus driver, the youth going abroad missed his flight, now",1
 roadway,"After the collision of two trucks, both the vehicles burst into flames, the driver trapped in",1
 train,"Woman killed after being hit by train in Mau: Accident happened at Paligarh halt, had left home to graze buffalo - Dainik Bhaskar Woman killed after being hit by train in Mau: Accident happened at Paligarh halt, had left home to graze buffalo Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+train,Two girl students injured due to train shock in Navgachia: This happened while passing by the track side due to the railway gate being closed... - Dainik Bhaskar Two girl students injured due to train shock in Navgachia: This happened while passing by the track side due to the railway gate being closed...,1
 train,"Mother and daughter die after being hit by a train in Prayagraj: Accident happened while going to get medicine in Umapurkala, Manda - Dainik Bhaskar Mother and daughter died after being hit by a train in Prayagraj: Accident happened while going to get medicine in Umapurkala, Manda Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world",1
 train,"While boarding train at Barabanki railway station: dies, wife seriously injured",1
 aviation,"Vehicle collides with plane at Jaipur airport: Pilot and trainee NCC cadet were sitting, both safe; The plane is on the runway... - Dainik Bhaskar Vehicle collides with plane at Jaipur airport: Pilot and trainee NCC cadet were sitting, both safe; Plane on runway...",1
 aviation,"Accident averted at Jaipur airport, vehicle collides with aircraft - ABP News Accident averted at Jaipur airport, vehicle collides with aircraft ABP News Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-others,"Spark came out while filling gunpowder in kiosk, employee got burnt: Accident in Ordnance Factory of Jabalpur; For investigation... - Dainik Bhaskar Spark came out while filling gunpowder in kiosk, employee got burnt: Accident in Ordnance Factory of Jabalpur; For investigation...",1
-roadway,"Terrible accident in Gondia, three youths died on the spot after being hit by a vehicle - Webdunia Marathi Terrible accident in Gondia, three youths died on the spot after being hit by a vehicle Webdunia Marathi Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+others,"Accident in Jabalpur Ordnance Factory, employee's hand burnt while making bomb - ETV Bharat Accident in Jabalpur Ordnance Factory, employee's hand burnt while making bomb ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"Content creator killed in road accident while making video - NPB News Content creator killed in road accident while making video NPB News Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"Another Best Bus accident; As soon as the handbrake was released, six vehicles collided, three injured - Loksatta Another Best Bus accident; As soon as the handbrake was released, six vehicles collided, three were injured Loksatta Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,When an ST bus moved forward without a driver,1
-roadway,After Being Hit by Trailer,1
+roadway,"Private bus collides with truck near Kanchipuram: Over 25 workers injured - Daily Thanthi Private bus collides with truck near Kanchipuram: Over 25 workers injured Daily Thanthi Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"RTC bus collides with lorry near Kondagattu - 25 injured including 5 children - ETV Bharat RTC bus collides with lorry near Kondagattu - 25 injured including 5 children ETV Bharat Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"Tourist bus overturns in Valparai; 20 injured - News Malayalam 24x7 Tourist bus overturns in Valparai; 20 injured News Malayalam 24x7 Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"Mini bus overturned accident in Valpara; 20 tourists injured - suprabhaatham.com Mini bus overturned accident in Valpara; 20 tourists injured suprabhaatham.com Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 others,Scores of Trinamool leaders arrested on charges of extortion have been subjected to humiliation and mob violence while being produced in courts or taken into custody.,1
 roadway,The police issued a lookout notice for a man accused of sexually harassing a female student and exposing himself inside a KSRTC bus near Kondotty.,1
 old structure collapse,After building collapses in Kolkata,1
 roadway,After Speeding SUV Rams Truck In Madhya Pradesh's Maihar,1
 port maritime,"Auto-bike collision on Unnao road: One youth dead, two injured; Auto driver absconding - Dainik Bhaskar Auto-bike collision on Unnao road: One youth dead, two injured; Auto driver absconding Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,"Home guard's brother dies in Yamunanagar road accident: Car hits bike, father of two children; In the hospital... - Dainik Bhaskar Home guard's brother dies in Yamunanagar road accident: Car hits bike, father of two children; In the hospital...",1
-roadway,"Shamli: Bike riding financier dies in collision with tractor, tragic accident while returning home, chaos among family members - Amar Ujala Shamli: Bike riding financier dies in collision with tractor, tragic accident while returning home, chaos among family members Amar Ujala Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,"Pickup collides with truck in MP's Bhind, 8 dead: 23 injured, were returning from Gwalior to UP; To save cows on the highway... - Dainik Bhaskar Pickup collides with truck in MP's Bhind, 8 dead: 23 injured, were returning from Gwalior to UP; To save cows on the highway...",1
+others,"Devotees' car collides with a tree, three die tragically - Amar Ujala MP News: The joy of Nag Panchami turned into mourning! Devotees' car collides with a tree, three die tragically Amar Ujala Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 train,"Kannauj: Bus going from Delhi to Rae Bareli collides with a parked vehicle, five injured including driver and seven year old girl - Amar Ujala Kannauj: Bus going from Delhi to Rae Bareli collides with a parked vehicle, five injured including driver and seven year old girl Amar Ujala Comprehensive up-to-date news coverage, aggregated from sources all over the world",1
-others,"After the Coromandel Express accident, screams echo in the air",1
-roadway,"3 killed in bus-truck collision in Gopalganj - CityNewsDhaka 3 killed in bus-truck collision in Gopalganj CityNewsDhaka Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"Accident on first day of Chalu, Pink bus hit by Balaka bus - Janobani Accident on first day of launch, Pink bus hit by Balaka bus Janobani Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+port maritime,Due to scrap ship carrying LNG without degassing: fire service ajkerpatrika,1
 others,"After being crushed under JCB in Daund taluka, the body was taken from the trunk of",1
 roadway,When an omni bus collided with a car near Samayapuram,1
-others,"West Bengal Police denies claims of brutal assault on CJP activist’s father, citing minor injury amid ongoing investigations.",1
+roadway,"MEO Ashanna dies after being injured in a road accident - prabhanews.com MEO Ashanna dies after being injured in a road accident prabhanews.com Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,Private bus overturns after losing control.. Private bus overturns after losing control..,1
+roadway,"24 people injured ..Accident in Kondagattu of Jagityala district - V6 Velugu RTC bus, lorry crash..",1
 train,"Railway Board approves MRTS merger with Chennai Metro Rail after 15 years, enhancing operational efficiency and transit services.",1
 others,"The Kakinada police have booked a shooting academy founder for murder over a July death, after a note left by a family that entered the Godavari.",1
-roadway,Keralam Home Minister Ramesh Chennithala clarifies that neither the government nor police requested Meta to remove news posts.,1
-others,Tamil Nadu government proposes ₹10 lakh compensation for families of three Tamils killed by Karnataka Forest personnel during an incident.,1
 others,Police said more than 240 personnel were injured during the Cockroach Janta Party's 'Chalo Sansad' march,1
 old structure collapse,3-year-old bridge collapse cuts off several villages in Maharashtra's Gadchiroli - deccanherald.com 3-year-old bridge collapse cuts off several villages in Maharashtra's Gadchiroli &nbsp;&nbsp; deccanherald.com,1
 old structure collapse,​​Narrow escape for 2 girls as retaining wall of flyover collapses in Nanded - The Times of India ​​Narrow escape for 2 girls as retaining wall of flyover collapses in Nanded &nbsp;&nbsp; The Times of India,1
+roadway,CRPF bunker vehicle overturns after truck collision in Qazigund - Awaz The Voice CRPF bunker vehicle overturns after truck collision in Qazigund &nbsp;&nbsp; Awaz The Voice,1
 roadway,Indian Truck Driver Behind Multi Vehicle Crash In US Gets 5 Years In Prison - NDTV Indian Truck Driver Behind Multi Vehicle Crash In US Gets 5 Years In Prison &nbsp;&nbsp; NDTV,1
+aviation,British couple on honeymoon die in helicopter crash on Greek island; pilot also killed - The Times of India British couple on honeymoon die in helicopter crash on Greek island; pilot also killed &nbsp;&nbsp; The Times of India,1
 aviation,17 Injured as Passengers Hit the Roof and Are Thrown into the Aisle After Flight Carrying 145 Hits Severe Turbulence - People.com 17 Injured as Passengers Hit the Roof and Are Thrown into the Aisle After Flight Carrying 145 Hits Severe Turbulence &nbsp;&nbsp; People.com,1
 others,Air India crash: The infamous ‘cockpit conversation’ that became a global fact without evidence - Alt News Air India crash: The infamous ‘cockpit conversation’ that became a global fact without evidence &nbsp;&nbsp; Alt News,1
-others,"A year after deadly Air India crash, families await answers - RFI A year after deadly Air India crash, families await answers &nbsp;&nbsp; RFI",1
-others,"On eve of AI171 crash anniversary, pilots' body seeks judicial probe; engine analysis continues - Telegraph India On eve of AI171 crash anniversary, pilots' body seeks judicial probe; engine analysis continues &nbsp;&nbsp; Telegraph India",1
-roadway,"Questions on the death of the young man, police said it was a road accident: Family accused of murder in Gonda, 1 KM away from the village... - Dainik Bhaskar Questions on the death of the young man, police said it was a road accident: Family accused of murder in Gonda, 1 KM away from the village...",1
-roadway,"Bike rider dies after hitting tree in Mirzapur: Accident happened during heavy rain on Lalganj-Halia road - Dainik Bhaskar Bike rider dies after hitting tree in Mirzapur: Accident happened during heavy rain on Lalganj-Halia road Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-roadway,"Dumper crushed four girls riding on the same bike in Maharajganj, all four including two real brothers died - Jagran Dumper crushed four girls riding on the same bike in Maharajganj, all four including two real brothers died.",1
+old structure collapse,"Part of 150 year old building collapsed in Posta, 7 people narrowly escaped - Sanmarg Hindi Daily Part of 150 year old building collapsed in Posta, 7 people narrowly escaped.",1
+old structure collapse,"Part of 200 year old dilapidated building collapsed in Jorabagan, woman died, 19 people saved - Sanmarg Hindi Daily Part of 200 year old dilapidated building collapses in Jorabagan, woman dies, 19 people rescued Sanmarg Hindi Daily Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"MP Accident: Hope of a few rupees and dead bodies lying on the roads, when will the bloody journey of migration from Terai stop? -Jagran MP Accident: Hope of a few rupees and dead bodies lying on the roads, when will the bloody journey of migration from Terai stop?",1
 train,"A trailer full of coal overturned on a mother and son riding a bike in Chittorgarh, both died, dead bodies were removed by calling for a crane - etvbharat.com A trailer full of coal overturned on a mother and son riding a bike in Chittorgarh, both died, dead bodies were removed by calling for a crane etvbharat.com Comprehensive up-to-date news",1
-roadway,"Bihar: Tragic accident on Chhapra-Patna NH-19, woman dies due to collision with speeding bike; Villagers blocked the highway - Amar Ujala Bihar: Tragic accident on Chhapra-Patna NH-19, woman dies due to collision with speeding bike; Villagers blocked the highway Amar Ujala Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
-others,"Three-wheeler collides with a tree, one dead: 6 people injured on Sidhpura-Amapur road in Kasganj, referred to district hospital - Dainik Bhaskar Three-wheeler collides with a tree, one dead: 6 people injured on Sidhpura-Amapur road in Kasganj, referred to district hospital Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 port maritime,"Accident while overtaking truck on Mohan-Miyaganj road of Unnao, bike collides with pole, two friends died - Jagran Accident while overtaking truck on Mohan-Miyaganj road of Unnao, bike collides with pole, two friends die Jagran Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"UP: Bus passengers were sleeping, eyes opened due to the blast, people drenched in blood on the expressway; The soul trembled after seeing such a scene - Amar Ujala UP: Bus passengers were sleeping, eyes opened due to the blast, people drenched in blood on the expressway; The soul trembled after seeing such a scene Amar Ujala Comprehensive up-to-date news",1
 roadway,"Collision between school bus and pickup on Thakurganj road in Kishanganj; 4 people including 2 girl students injured, accident happened near Value Plus - kishanganj school bus pickup collision 4 injured in thakurganj - Jagran Collision between school bus and pickup on Thakurganj road in Kishanganj; 4 people including 2 girl students injured, accident happened near Value Plus - kishanganj",1
-roadway,"Accident on Jammu-Srinagar Highway: Truck hits CRPF vehicle in Qazigund, 5 soldiers injured; Police engaged in investigation - Amar Ujala Accident on Jammu-Srinagar Highway: Truck hits CRPF vehicle in Qazigund, 5 soldiers injured; Police engaged in investigation Amar Ujala Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 roadway,"Violence broke out after a horrific road accident in Patna... Man crushed by bus, mob set fire to 3 police vehicles - AajTak Violence broke out after a horrific road accident in Patna... Man crushed by bus, mob set fire to 3 police vehicles AajTak",1
 roadway,"Bus of passengers returning from Amarnath overturned in Himachal, 57 people were on board - etvbharat.com Bus of passengers returning from Amarnath overturned in Himachal, 57 people were on board etvbharat.com",1
+roadway,"Horrific accident; Speeding car rams into truck parked on Kanpur-Prayagraj highway, 3 killed, 3 in critical condition - etvbharat.com Horrific accident; Speeding car rams into truck parked on Kanpur-Prayagraj highway, 3 killed, 3 in critical condition etvbharat.com",1
 roadway,"Uttarakhand: Truck fell into ditch on Tarsali-Fata road in Rudraprayag, two people died - Jagran Uttarakhand: Truck falls into ditch on Tarsali-Fata road in Rudraprayag, two people die Jagran",1
 roadway,"Road accident in Jashpur early in the morning, travel bus filled with more than 40 passengers overturned, more than 10 injured - etvbharat.com Road accident in Jashpur early in the morning, travel bus filled with more than 40 passengers overturned, more than 10 injured etvbharat.com",1
 train,"Brake on train accidents: Safety boundary wall completed in Bhopal division including Salamatpur - Dainik Bhaskar Brake on train accidents: Safety boundary wall completed in Bhopal division including Salamatpur Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+train,"B.Tech student dies after being hit by train: Accident while crossing railway track in Sakaldiha - Dainik Bhaskar B.Tech student dies after being hit by train: Accident while crossing the railway track in Sakaldiha Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 train,"Muzaffarpur- Retired captain died after being hit by a train: Went to offer namaz in the mosque adjacent to the junction, son died... - Dainik Bhaskar Muzaffarpur- Retired captain died after being hit by a train: Went to offer namaz in the mosque adjacent to the junction, son died...",1
 train,"Accident near Muri late Saturday night, passengers safe: Train collides with jackal; Coupling broken, engine and 3 coaches separated - Dainik Bhaskar Accident near Muri late Saturday night, passengers safe: Train collides with jackal; Coupling broken, engine and 3 coaches separated Dainik Bhaskar Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 train,"11000 volt overhead electric wire fell on the train, fire broke out, stampede, major accident at Dakshineswar railway station in Bengal - Navbharat Times 11000 volt overhead electric wire fell on the train, fire broke out, stampede, major accident at Dakshineswar railway station in Bengal Navbharat Times",1
-others,"Fire broke out in Gujarat's illegal firecracker factory 12 years ago, 10 workers died in the accident again - Jagran Fire broke out in Gujarat's illegal firecracker factory 12 years ago, 10 workers died in the accident again.",1
+train,"6 coaches of goods train derailed in Sahibabad, 125 trains affected; What was the reason for the accident? -Jagran 6 coaches of goods train derailed in Sahibabad, 125 trains affected; What was the reason for the accident?",1
 others,Youth from Nawabganj dies in Gujarat: Accident occurred due to falling in boiler in chemical factory - Dainik Bhaskar Youth from Nawabganj dies in Gujarat: Accident occurred due to falling into boiler in chemical factory Dainik Bhaskar,1
 train,"Youth riding a bike died due to collision with trailer: The accident happened in front of Gothra Cement Factory, due to lack of speed breaker... - Dainik Bhaskar Youth riding a bike died due to collision with trailer: The accident happened in front of Gothra Cement Factory, due to lack of speed breaker...",1
 old structure collapse,Maduro's son hopeful of rescuing survivors from collapsed building - banglatribune.com Maduro's son hopeful of rescuing survivors in collapsed building banglatribune.com,1
-roadway,"Haldia Bus Accident: Bus overturns on slippery road, 2 including teacher dead, more than 20 injured in Haldia - News18 Bengali Haldia Bus Accident: Bus overturns on back road, 2 dead including teacher, more than 20 injured in Haldia News18 Bengali Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,"Committee to investigate bus accident in EB - dailyadin.com Committee to Investigate Bus Accidents in EB dailyadin.com Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 train,"School Bus Accident: When a train opened the gate, it was crushed by a train coming from the opposite direction! Baharampur - ABP Ananda School Bus Accident: When a train opened the gate, it was crushed by a train coming from the opposite direction!",1
 train,"Murshidabad Train Accident: Tragic incident at seven in the morning, Pulkar was hit by a moving train in Murshidabad, dead... - TV9 Bangla Murshidabad Train Accident: Tragic incident at seven in the morning, Pulkar hit by train in Murshidabad, dead...",1
+roadway,"Women bus hit by accident on first day of operation in capital - Daily Azadi Women's bus hit by accident on first day of launch in capital Daily Azadi Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
 old structure collapse,Thane building balcony collapse : Gallery of 37 years old dangerous building collapsed in Dombivli - Pudhari News Thane building balcony collapse: Gallery of 37-year-old dangerous building collapses in Dombivli Pudhari News,1
+others,17-year-old dies after falling from running local; Accident near Kalwa station - lokmanthan.com 17-year-old dies after falling from running local; Accident near Kalwa station lokmanthan.com,1
 roadway,"Amravati : Terrible accident in Amravati, bus full of teachers overturned, shocking Photo - News18 Marathi Amravati : Terrible accident in Amravati, bus full of teachers overturned, Shocking Photo News18 Marathi",1
+roadway,"Amarnath pilgrims' bus falls into valley, many pilgrims injured, rescue operation on war footing - etvbharat.com Amarnath pilgrims' bus falls into valley, many pilgrims injured, rescue operation on war footing etvbharat.com",1
 train,"Train Accident: Bharuch Memu train from Virar slipped, traffic to Gujarat disrupted, what is the update of Dahanu local? - News18 Marathi Train Accident: Bharuch Memu train from Virar slipped, traffic to Gujarat disrupted, what is the update of Dahanu local?",1
 others,"Dadar, Andheri, Mankhurd incidents are due to human error; According to the BEST administration, the driver is guilty in all three accidents - Loksatta Dadar, Andheri, Mankhurd incidents are due to human error; Best administration information, drivers are guilty in all three accidents Loksatta",1
+roadway,Kadamba bus overturns while rescuing bike rider in Aajgaon - kokansadlive.com Kadamba bus overturns while rescuing bike rider in Aajgaon accident kokansadlive.com,1
 others,"Palghar Blast Tarapur: Terrible accident in Tarapur MIDC! 3 consecutive blasts in 'Viraj Profile'; 3 workers injured - Prahaar.in Palghar Blast Tarapur: Terrible accident in Tarapur MIDC! 3 consecutive blasts in 'Viraj Profile'; 3 workers injured Prahaar.in Comprehensive up-to-date news coverage, aggregated from sources all over the world by Google News.",1
+roadway,The driver lost control of the government express bus overturned on the Chengalpattu GST road. - Dinakaran The driver lost control of the government express bus overturned on the Chengalpattu GST road.,1
+roadway,"A month after the wedding, the new groom died in a road accident - Disha daily A month after the wedding, the new groom died in a road accident.",1
 roadway,"A bus overturned on Bhakarapet Ghat road in Tirupati district, 40 people lost their lives - v6velugu.com A bus overturned on Bhakarapet Ghat road in Tirupati district..",1
 others,The driver was inexperienced and did not rest; Bengaluru's KSRTC accident blamed on violation of road rules - Manorama Online The driver was inexperienced and did not rest; Bengaluru's KSRTC accident caused by violation of rules Manorama Online,1
 roadway,"KSRTC buses collide in Wayanad Panamaram, several injured - Mathrubhumi KSRTC buses collide in Wayanad Panamaram, many injured in Mathrubhumi",1
