@@ -1,49 +1,61 @@
 ﻿Accident Type,Reported Cause (tag),Number of Accidents
-aviation,unstated,125
-construction infra,unstated,2
-construction ongoing,unstated,41
-construction ongoing,under construction,3
-industrial,unstated,38
-old structure collapse,unstated,283
-old structure collapse,structural failure,2
-old structure collapse,wall slab roof collapse,1
-others,unstated,477
-others,explosion blast,14
-others,fire short circuit,13
-others,gorge valley plunge,5
-others,overspeeding,4
-others,hit divider barrier,3
-others,pothole bad road,3
-others,gas leak,3
-others,firecracker unit,3
-others,head on collision,2
-others,hit and run,2
+aviation,unstated,65
+aviation,drunk driving,1
+construction ongoing,unstated,18
+construction ongoing,under construction,1
+industrial,unstated,13
+old structure collapse,unstated,105
+old structure collapse,structural failure,6
+old structure collapse,wall slab roof collapse,2
+others,unstated,169
+others,explosion blast,9
+others,fire short circuit,7
+others,firecracker unit,6
+others,trench excavation collapse,3
+others,head on collision,3
+others,gorge valley plunge,3
+others,pothole bad road,2
 others,manhole drain,2
-others,trench excavation collapse,2
 others,hit tree pole,2
-others,electrocution,2
-others,overtaking,1
-port maritime,unstated,33
+others,gas leak,2
+others,suffocation toxic fumes,1
+others,hit divider barrier,1
+others,overspeeding,1
+others,electrocution,1
+port maritime,unstated,19
+port maritime,structural failure,1
+port maritime,head on collision,1
+port maritime,hit stationary vehicle,1
 port maritime,overtaking,1
-roadway,unstated,1174
-roadway,overspeeding,7
-roadway,hit divider barrier,3
-roadway,fog poor visibility,3
-roadway,firecracker unit,3
-roadway,fire short circuit,2
-roadway,lost control,2
-roadway,pothole bad road,1
+roadway,unstated,474
+roadway,overspeeding,11
+roadway,gorge valley plunge,6
+roadway,lost control,5
+roadway,hit divider barrier,4
+roadway,head on collision,4
+roadway,structural failure,4
+roadway,trench excavation collapse,4
+roadway,pothole bad road,4
+roadway,brake failure,3
+roadway,slippery wet road,3
+roadway,firecracker unit,2
+roadway,fog poor visibility,2
+roadway,hit stationary vehicle,2
+roadway,fell into water,1
+roadway,manhole drain,1
+roadway,explosion blast,1
 roadway,hit and run,1
 roadway,driver fatigue,1
-roadway,explosion blast,1
-roadway,head on collision,1
-roadway,hit stationary vehicle,1
 roadway,hit tree pole,1
-roadway,trench excavation collapse,1
-roadway,gorge valley plunge,1
-train,unstated,293
-train,fire short circuit,3
+train,unstated,122
+train,fire short circuit,4
+train,crossing railway track,2
+train,electrocution,1
+train,hit divider barrier,1
+train,overspeeding,1
+train,lost control,1
+train,hit tree pole,1
+train,fell from train,1
 train,hit stationary vehicle,1
 train,wall slab roof collapse,1
-train,crossing railway track,1
 train,speed breaker,1

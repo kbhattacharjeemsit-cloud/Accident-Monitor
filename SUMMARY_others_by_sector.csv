@@ -1,117 +1,18 @@
 ﻿Month,Sector,Number of Accidents,People Killed,People Injured
-2026-08,unspecified,60,431,345
-2026-08,factory manufacturing,10,29,2
-2026-08,fire,5,9,2
-2026-08,electrical,3,12,0
+2026-08,unspecified,45,56,326
+2026-08,factory manufacturing,6,20,0
+2026-08,fire,4,2,2
+2026-08,electrical,2,7,0
 2026-08,stampede crowd,1,0,0
-2026-08,sewer sanitation,1,0,0
+2026-08,sewer sanitation,1,1,0
 2026-08,agriculture,1,4,0
-2026-07,factory manufacturing,41,391,24
-2026-07,unspecified,26,39,17
-2026-07,sewer sanitation,3,24,0
+2026-07,factory manufacturing,32,390,21
+2026-07,unspecified,20,31,9
+2026-07,sewer sanitation,3,5,0
 2026-07,electrical,1,2,0
-2026-07,agriculture,1,0,0
-2026-06,unspecified,47,359,15
-2026-06,factory manufacturing,35,75,29
+2026-07,agriculture,1,1,0
+2026-06,unspecified,45,327,11
+2026-06,factory manufacturing,35,59,24
 2026-06,chemical refinery,4,47,0
 2026-06,fire,3,2,2
 2026-06,fireworks explosives,1,0,0
-2026-05,unspecified,25,101,6
-2026-05,factory manufacturing,19,57,0
-2026-05,lift elevator,2,0,0
-2026-05,fire,1,0,1
-2026-05,chemical refinery,1,0,0
-2026-04,factory manufacturing,21,139,38
-2026-04,unspecified,13,118,19
-2026-04,fireworks explosives,3,0,0
-2026-04,fire,2,0,0
-2026-04,chemical refinery,1,0,0
-2026-03,unspecified,11,352,0
-2026-03,factory manufacturing,8,38,36
-2026-02,unspecified,15,491,0
-2026-02,factory manufacturing,2,28,0
-2026-02,fire,1,1,0
-2026-01,unspecified,14,97,6
-2026-01,factory manufacturing,6,10,4
-2026-01,mining quarry,1,2,0
-2026-01,agriculture,1,0,0
-2025-12,unspecified,8,103,14
-2025-12,gas cylinder,1,0,0
-2025-12,factory manufacturing,1,0,0
-2025-11,unspecified,4,31,15
-2025-11,factory manufacturing,3,1,0
-2025-11,fire,1,0,0
-2025-10,unspecified,7,24,10
-2025-10,factory manufacturing,3,6,0
-2025-10,fire,2,0,0
-2025-09,unspecified,5,63,3
-2025-09,factory manufacturing,1,0,0
-2025-08,unspecified,2,15,0
-2025-08,gas cylinder,1,2,0
-2025-08,factory manufacturing,1,0,0
-2025-08,chemical refinery,1,0,0
-2025-07,unspecified,8,196,3
-2025-07,factory manufacturing,2,0,0
-2025-06,factory manufacturing,7,72,34
-2025-06,unspecified,2,5,0
-2025-05,unspecified,3,2,0
-2025-05,factory manufacturing,1,6,0
-2025-04,factory manufacturing,3,21,0
-2025-03,unspecified,1,0,0
-2025-01,unspecified,3,3,3
-2025-01,factory manufacturing,1,5,0
-2024-12,unspecified,3,400,0
-2024-12,gas cylinder,1,0,0
-2024-12,agriculture,1,0,0
-2024-11,unspecified,1,1,0
-2024-10,unspecified,3,10,0
-2024-09,factory manufacturing,3,4,0
-2024-08,unspecified,4,34,0
-2024-08,factory manufacturing,1,0,4
-2024-07,unspecified,1,0,0
-2024-07,factory manufacturing,1,1,0
-2024-06,unspecified,1,18,0
-2024-06,fire,1,3,0
-2024-06,factory manufacturing,1,0,0
-2024-05,factory manufacturing,1,0,0
-2024-04,factory manufacturing,2,5,0
-2024-04,fire,1,0,0
-2024-02,factory manufacturing,2,8,60
-2024-02,unspecified,1,3,0
-2023-12,factory manufacturing,2,1,7
-2023-12,unspecified,1,6,0
-2023-12,gas cylinder,1,0,0
-2023-11,unspecified,1,0,0
-2023-11,fire,1,0,0
-2023-09,unspecified,1,0,0
-2023-09,fire,1,0,0
-2023-07,unspecified,2,30,0
-2023-07,factory manufacturing,1,3,2
-2023-06,unspecified,1,10,0
-2023-05,agriculture,1,5,0
-2023-02,fire,1,0,0
-2022-12,unspecified,1,0,0
-2022-11,factory manufacturing,1,4,0
-2022-08,unspecified,2,3,0
-2022-08,factory manufacturing,2,2,0
-2022-08,electrical,1,2,10
-2022-04,fire,1,6,13
-2022-04,factory manufacturing,1,0,0
-2022-02,unspecified,2,0,6
-2022-02,factory manufacturing,1,0,0
-2022-01,unspecified,1,0,0
-2022-01,fire,1,0,0
-2021-12,unspecified,1,0,0
-2021-11,unspecified,1,6,0
-2021-08,factory manufacturing,1,0,0
-2021-03,factory manufacturing,1,4,0
-2021-02,fire,1,0,0
-2020-11,factory manufacturing,1,2,6
-2020-08,unspecified,1,1,0
-2020-08,fire,1,0,0
-2020-05,unspecified,1,0,0
-2020-05,gas cylinder,1,0,0
-2020-03,factory manufacturing,1,2,0
-2018-06,unspecified,1,0,0
-2014-07,unspecified,1,10,0
-2014-03,unspecified,1,0,0

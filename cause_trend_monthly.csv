@@ -1,175 +1,57 @@
 ﻿Month,Reported Cause (tag),Number of Accidents
-2026-08,manhole drain,1
+2026-08,under construction,1
+2026-08,fell into water,1
 2026-08,electrocution,1
+2026-08,drunk driving,1
+2026-08,suffocation toxic fumes,1
+2026-08,firecracker unit,1
+2026-08,fell from train,1
+2026-08,manhole drain,1
 2026-08,hit and run,1
 2026-08,driver fatigue,1
-2026-08,structural failure,1
-2026-08,lost control,1
 2026-08,hit stationary vehicle,1
-2026-08,firecracker unit,1
 2026-08,overtaking,1
-2026-08,wall slab roof collapse,1
-2026-08,crossing railway track,1
-2026-08,head on collision,2
-2026-08,hit divider barrier,2
-2026-08,trench excavation collapse,2
-2026-08,gorge valley plunge,2
+2026-08,brake failure,2
+2026-08,crossing railway track,2
+2026-08,wall slab roof collapse,2
+2026-08,slippery wet road,2
 2026-08,fog poor visibility,2
-2026-08,pothole bad road,2
-2026-08,explosion blast,2
-2026-08,hit tree pole,2
-2026-08,fire short circuit,3
-2026-08,overspeeding,3
-2026-08,unstated,523
+2026-08,hit tree pole,3
+2026-08,hit divider barrier,4
+2026-08,lost control,4
+2026-08,pothole bad road,4
+2026-08,explosion blast,4
+2026-08,fire short circuit,4
+2026-08,gorge valley plunge,6
+2026-08,trench excavation collapse,6
+2026-08,head on collision,6
+2026-08,structural failure,8
+2026-08,overspeeding,9
+2026-08,unstated,335
+2026-07,hit divider barrier,1
+2026-07,slippery wet road,1
+2026-07,brake failure,1
 2026-07,hit tree pole,1
-2026-07,manhole drain,1
-2026-07,structural failure,1
-2026-07,head on collision,1
-2026-07,lost control,1
-2026-07,hit stationary vehicle,1
 2026-07,wall slab roof collapse,1
 2026-07,trench excavation collapse,1
-2026-07,gorge valley plunge,1
 2026-07,speed breaker,1
 2026-07,electrocution,1
-2026-07,explosion blast,2
-2026-07,firecracker unit,2
-2026-07,overspeeding,3
+2026-07,head on collision,2
+2026-07,manhole drain,2
+2026-07,lost control,2
+2026-07,gorge valley plunge,2
+2026-07,pothole bad road,2
+2026-07,structural failure,3
+2026-07,hit stationary vehicle,3
+2026-07,overspeeding,4
+2026-07,explosion blast,4
 2026-07,fire short circuit,5
-2026-07,unstated,449
+2026-07,firecracker unit,6
+2026-07,unstated,306
 2026-06,hit divider barrier,1
 2026-06,gorge valley plunge,1
 2026-06,firecracker unit,1
 2026-06,fire short circuit,2
 2026-06,explosion blast,2
 2026-06,gas leak,2
-2026-06,unstated,361
-2026-05,hit and run,1
-2026-05,pothole bad road,1
-2026-05,hit divider barrier,1
-2026-05,overspeeding,1
-2026-05,gorge valley plunge,1
-2026-05,unstated,225
-2026-04,hit and run,1
-2026-04,explosion blast,2
-2026-04,unstated,126
-2026-03,hit divider barrier,1
-2026-03,gorge valley plunge,1
-2026-03,overspeeding,1
-2026-03,under construction,2
-2026-03,unstated,80
-2026-02,pothole bad road,1
-2026-02,overspeeding,1
-2026-02,fire short circuit,1
-2026-02,under construction,1
-2026-02,unstated,80
-2026-01,unstated,65
-2025-12,overspeeding,1
-2025-12,explosion blast,1
-2025-12,fog poor visibility,1
-2025-12,unstated,50
-2025-11,fire short circuit,1
-2025-11,unstated,32
-2025-10,unstated,38
-2025-09,overspeeding,1
-2025-09,unstated,18
-2025-08,unstated,30
-2025-07,unstated,34
-2025-06,explosion blast,1
-2025-06,unstated,17
-2025-05,unstated,10
-2025-04,unstated,7
-2025-03,unstated,9
-2025-02,unstated,9
-2025-01,unstated,16
-2024-12,unstated,16
-2024-11,unstated,11
-2024-10,unstated,14
-2024-09,explosion blast,1
-2024-09,gas leak,1
-2024-09,unstated,13
-2024-08,explosion blast,1
-2024-08,unstated,17
-2024-07,unstated,25
-2024-06,unstated,9
-2024-05,unstated,6
-2024-04,fire short circuit,1
-2024-04,unstated,6
-2024-03,unstated,3
-2024-02,unstated,8
-2024-01,unstated,5
-2023-12,unstated,7
-2023-11,unstated,4
-2023-10,unstated,7
-2023-09,unstated,6
-2023-08,unstated,4
-2023-07,explosion blast,1
-2023-07,unstated,11
-2023-06,unstated,6
-2023-05,unstated,5
-2023-04,unstated,5
-2023-03,unstated,2
-2023-02,fire short circuit,1
-2023-02,unstated,4
-2023-01,unstated,2
-2022-12,unstated,6
-2022-11,unstated,5
-2022-10,unstated,2
-2022-09,unstated,3
-2022-08,explosion blast,1
-2022-08,fire short circuit,1
-2022-08,unstated,3
-2022-07,fire short circuit,1
-2022-07,unstated,2
-2022-06,unstated,2
-2022-05,unstated,3
-2022-04,unstated,4
-2022-03,unstated,3
-2022-02,hit divider barrier,1
-2022-02,unstated,3
-2022-01,overtaking,1
-2022-01,fire short circuit,1
-2021-12,unstated,1
-2021-11,unstated,4
-2021-10,unstated,1
-2021-09,unstated,1
-2021-08,unstated,1
-2021-07,unstated,3
-2021-05,unstated,1
-2021-03,unstated,2
-2021-02,unstated,1
-2021-02,fire short circuit,1
-2020-12,unstated,1
-2020-11,unstated,1
-2020-10,unstated,2
-2020-09,unstated,1
-2020-08,unstated,2
-2020-07,unstated,1
-2020-05,unstated,2
-2020-03,unstated,1
-2020-01,unstated,1
-2019-11,unstated,1
-2019-08,unstated,1
-2019-07,unstated,1
-2019-06,unstated,1
-2019-04,unstated,1
-2018-08,unstated,1
-2018-07,unstated,2
-2018-06,unstated,1
-2018-05,unstated,1
-2018-02,unstated,1
-2018-01,unstated,1
-2017-10,explosion blast,1
-2017-10,firecracker unit,1
-2017-08,unstated,1
-2017-06,unstated,1
-2017-01,unstated,1
-2017-01,firecracker unit,1
-2016-12,unstated,3
-2016-11,unstated,2
-2016-10,unstated,1
-2016-08,unstated,1
-2016-05,unstated,3
-2014-07,unstated,1
-2014-06,unstated,1
-2014-03,unstated,1
+2026-06,unstated,344

@@ -1,0 +1,99 @@
+﻿Month,Accident Type,Reported Cause,Number of Accidents,People Killed,People Injured
+2026-06,aviation,not reported,29,522,0
+2026-06,construction ongoing,not reported,7,15,21
+2026-06,industrial,not reported,8,0,76
+2026-06,old structure collapse,not reported,34,33,13
+2026-06,others,not reported,80,407,36
+2026-06,others,fire short circuit,2,0,0
+2026-06,others,explosion blast,2,1,0
+2026-06,others,gas leak,2,19,0
+2026-06,others,hit divider barrier,1,2,1
+2026-06,others,gorge valley plunge,1,6,0
+2026-06,others,firecracker unit,1,1,0
+2026-06,port maritime,not reported,3,2,19
+2026-06,roadway,not reported,158,338,682
+2026-06,train,not reported,25,245,80
+2026-07,aviation,not reported,15,10,0
+2026-07,construction ongoing,not reported,9,10,0
+2026-07,industrial,not reported,1,0,0
+2026-07,old structure collapse,not reported,56,141,2
+2026-07,old structure collapse,structural failure,2,0,0
+2026-07,old structure collapse,wall slab roof collapse,1,1,2
+2026-07,others,not reported,45,292,29
+2026-07,others,firecracker unit,5,122,0
+2026-07,others,explosion blast,4,104,0
+2026-07,others,fire short circuit,3,12,0
+2026-07,others,overspeeding,1,3,0
+2026-07,others,hit tree pole,1,4,1
+2026-07,others,manhole drain,1,1,0
+2026-07,others,electrocution,1,3,0
+2026-07,port maritime,not reported,4,9,0
+2026-07,port maritime,hit stationary vehicle,1,1,0
+2026-07,roadway,not reported,135,364,413
+2026-07,roadway,overspeeding,3,7,14
+2026-07,roadway,head on collision,2,3,7
+2026-07,roadway,lost control,2,2,41
+2026-07,roadway,gorge valley plunge,2,2,0
+2026-07,roadway,pothole bad road,2,3,0
+2026-07,roadway,hit stationary vehicle,2,3,22
+2026-07,roadway,structural failure,1,0,0
+2026-07,roadway,hit divider barrier,1,1,26
+2026-07,roadway,slippery wet road,1,0,0
+2026-07,roadway,manhole drain,1,0,0
+2026-07,roadway,brake failure,1,0,26
+2026-07,roadway,firecracker unit,1,10,0
+2026-07,roadway,trench excavation collapse,1,2,0
+2026-07,train,not reported,41,71,0
+2026-07,train,fire short circuit,2,0,0
+2026-07,train,speed breaker,1,0,0
+2026-08,aviation,not reported,21,0,36
+2026-08,aviation,drunk driving,1,0,0
+2026-08,construction ongoing,not reported,2,1,0
+2026-08,construction ongoing,under construction,1,1,0
+2026-08,industrial,not reported,4,0,0
+2026-08,old structure collapse,not reported,15,64,22
+2026-08,old structure collapse,structural failure,4,0,0
+2026-08,old structure collapse,wall slab roof collapse,1,2,0
+2026-08,others,not reported,44,68,309
+2026-08,others,trench excavation collapse,3,3,4
+2026-08,others,explosion blast,3,0,0
+2026-08,others,head on collision,3,7,7
+2026-08,others,pothole bad road,2,0,0
+2026-08,others,gorge valley plunge,2,3,4
+2026-08,others,fire short circuit,2,7,2
+2026-08,others,suffocation toxic fumes,1,3,0
+2026-08,others,manhole drain,1,1,0
+2026-08,others,hit tree pole,1,1,6
+2026-08,port maritime,not reported,12,161,281
+2026-08,port maritime,structural failure,1,0,0
+2026-08,port maritime,head on collision,1,2,0
+2026-08,port maritime,overtaking,1,2,0
+2026-08,roadway,not reported,181,577,372
+2026-08,roadway,overspeeding,8,27,10
+2026-08,roadway,gorge valley plunge,4,4,22
+2026-08,roadway,hit divider barrier,3,21,20
+2026-08,roadway,structural failure,3,0,0
+2026-08,roadway,lost control,3,3,0
+2026-08,roadway,trench excavation collapse,3,4,0
+2026-08,roadway,brake failure,2,4,0
+2026-08,roadway,pothole bad road,2,1,0
+2026-08,roadway,head on collision,2,3,2
+2026-08,roadway,slippery wet road,2,6,20
+2026-08,roadway,fog poor visibility,2,1,0
+2026-08,roadway,fell into water,1,5,0
+2026-08,roadway,explosion blast,1,3,0
+2026-08,roadway,firecracker unit,1,3,0
+2026-08,roadway,hit and run,1,0,0
+2026-08,roadway,driver fatigue,1,20,20
+2026-08,roadway,hit tree pole,1,1,0
+2026-08,train,not reported,56,81,24
+2026-08,train,crossing railway track,2,0,0
+2026-08,train,fire short circuit,2,0,0
+2026-08,train,electrocution,1,0,0
+2026-08,train,hit divider barrier,1,0,0
+2026-08,train,overspeeding,1,0,0
+2026-08,train,lost control,1,0,13
+2026-08,train,hit tree pole,1,0,13
+2026-08,train,fell from train,1,0,10
+2026-08,train,hit stationary vehicle,1,0,5
+2026-08,train,wall slab roof collapse,1,0,0
