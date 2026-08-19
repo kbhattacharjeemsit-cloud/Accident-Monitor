@@ -14,10 +14,10 @@ cities, highways and casualty counts, and writes monthly / yearly totals.
 
 CATEGORIES (each is a column in the summaries)
   construction_infra  buildings, bridges, flyovers, tunnels, ports, dams, cranes,
-                      scaffolding, walls/slabs, columns, excavations, under-construction
+                      scaffolding, walls/slabs, under-construction structures
   industrial          factory / boiler / gas-leak / plant / mine accidents
   pedestrian          people run over / hit while on foot
-  traffic             cars, two-wheelers, cycles, bikes, autos - general road accidents
+  traffic             cars, two-wheelers, autos - general road accidents
   bus                 bus accidents
   cargo               truck / lorry / tanker / trailer / goods-vehicle accidents
   train               train / rail / derailment
@@ -667,6 +667,10 @@ FOREIGN_PLACES = [
  "melbourne","auckland","kuala lumpur","bangkok","hanoi","seoul","tokyo","osaka","beijing",
  "shanghai","guangzhou","moscow","kyiv","warsaw","budapest","vienna","athens","lisbon",
  "addis ababa","ethiopian","malta","maltese","cyprus","kabul","dhaka bd","male maldives",
+ "gaza","west bank","saudi","saudi arabia","jeddah","mecca","medina","dammam","riyadh",
+ "africa","african","east africa","west africa","south asia","middle east","gulf countries",
+ "mavatthagama","kurunegala","kandy","galle","jaffna","batticaloa","anuradhapura","matara",
+ "trincomalee","negombo","ratnapura","badulla","hambantota","polonnaruwa",
  "apache","chinook","black hawk","f-16","f-35","boeing 737 max crash","us army","u.s. army",
  "us navy","us air force","royal air force","nato","pentagon","idf","israeli army",
  "colombo lk","zimbabwe","zambia","sudan","somalia","libya","tunisia","angola","mozambique",
@@ -1472,6 +1476,7 @@ def extract_locations(text):
         for name in extract_structural_places(text):
             if name.lower() not in seen:
                 cities.append(name); seen.add(name.lower())
+    cities = [c for c in cities if c.lower() not in JUNK_PLACES]
     return "; ".join(cities), "; ".join(highways)
 
 
@@ -1968,6 +1973,104 @@ def remap_categories(conn):
     if changed:
         print(f"[remap] re-classified {changed} rows into the new categories")
     return changed
+
+
+
+# Place-like tokens that are never Indian locations. "Google" entered the
+# gazetteer output via Google News boilerplate; language names and continents
+# arrived through phrasing patterns.
+JUNK_PLACES = {
+    "google", "news", "comprehensive", "sources", "world", "coverage", "aggregated",
+    "titles", "video", "watch", "live", "update", "breaking", "exclusive",
+    # language names misread as places
+    "hindi", "bengali", "marathi", "tamil", "telugu", "kannada", "malayalam", "gujarati",
+    "punjabi", "urdu", "assamese", "odia", "maratha", "marathi news",
+    # continents / regions / foreign
+    "africa", "asia", "europe", "america", "gaza", "saudi", "gulf", "middle east",
+    "arab", "israel", "palestine",
+}
+
+
+def _drop_junk_places(value):
+    out = [p.strip() for p in (value or "").split(";")
+           if p.strip() and p.strip().lower() not in JUNK_PLACES]
+    return "; ".join(out)
+
+
+def cleanup_stored_data(conn):
+    """One-off repair of records written by earlier versions.
+
+    Rows already in the database keep whatever the pipeline produced at the time
+    they were stored, so a fix applied to the extractors does NOT correct history.
+    This pass re-derives the affected fields from the stored text and removes rows
+    that the current filters would now reject.
+    """
+    removed = boiler = retitled = relocated = 0
+
+    # 1. Google News boilerplate stored as article body
+    for rid, body in conn.execute(
+            "SELECT id, article_text FROM articles WHERE article_text IS NOT NULL AND article_text!=''"):
+        if _looks_like_boilerplate(body):
+            conn.execute("UPDATE articles SET article_text='-' WHERE id=?", (rid,))
+            boiler += 1
+
+    # 2. doubled headlines, junk locations, and re-application of the filters
+    for rid, title, ten, snip, body, cities, cat, src_name in conn.execute(
+            """SELECT id,title,title_en,snippet,article_text,cities,category,source
+               FROM articles""").fetchall():
+        clean_t = _dedupe_title(title or "")
+        clean_e = _dedupe_title(ten or "")
+        if clean_t != (title or "") or clean_e != (ten or ""):
+            conn.execute("UPDATE articles SET title=?, title_en=?, title_norm=? WHERE id=?",
+                         (clean_t, clean_e, normalize_title(clean_t), rid))
+            retitled += 1
+
+        combined = clean_t + " " + clean_e + " " + (snip or "")
+        if body and body != "-" and not _looks_like_boilerplate(body):
+            combined += " " + body
+
+        # would this record still be accepted today?
+        if (is_foreign(combined, src_name or "") or is_aftermath(combined)
+                or is_aggregate_or_retrospective(combined) or classify(combined, src_name or "") is None):
+            conn.execute("DELETE FROM articles WHERE id=?", (rid,))
+            removed += 1
+            continue
+
+        new_cities, new_hw = extract_locations(combined)
+        new_cities = _drop_junk_places(new_cities)
+        if new_cities != (cities or ""):
+            conn.execute("UPDATE articles SET cities=?, highways=? WHERE id=?",
+                         (new_cities, new_hw, rid))
+            relocated += 1
+
+    conn.commit()
+    print(f"[cleanup] boilerplate cleared {boiler}, titles fixed {retitled}, "
+          f"locations recomputed {relocated}, records removed {removed}")
+    return removed
+
+
+STALE_OUTPUTS = [
+    "SUMMARY.csv", "SUMMARY_simple.csv", "SUMMARY_month_by_type.csv", "SUMMARY_weekly.csv",
+    "SUMMARY_by_city.csv", "SUMMARY_casualties_monthly.csv", "SUMMARY_cause_histogram.csv",
+    "SUMMARY_others_by_sector.csv", "SUMMARY_cause_phrases.csv", "cause_summary.csv",
+    "cause_trend_monthly.csv", "monthly_summary.csv", "yearly_summary.csv",
+]
+
+
+def remove_stale_outputs():
+    """Delete summary files produced by earlier versions so the output folder
+    shows only the current set instead of accumulating obsolete sheets."""
+    import os
+    gone = []
+    for name in STALE_OUTPUTS:
+        if os.path.exists(name):
+            try:
+                os.remove(name)
+                gone.append(name)
+            except OSError:
+                pass
+    if gone:
+        print("[cleanup] removed obsolete output files:", ", ".join(gone))
 
 
 def purge_old(conn):
@@ -2601,7 +2704,8 @@ def run():
 
     # Each maintenance pass is isolated: if one fails, the run still finishes and
     # still writes the files, instead of losing everything to a single bad record.
-    for label, fn in (("purge_old", lambda: purge_old(conn)),
+    for label, fn in (("cleanup", lambda: cleanup_stored_data(conn)),
+                      ("purge_old", lambda: purge_old(conn)),
                       ("purge_foreign", lambda: purge_foreign(conn)),
                       ("remap_categories", lambda: remap_categories(conn)),
                       ("article_text", lambda: backfill_article_text(conn, MAX_ENRICH_PER_RUN))):
@@ -2617,6 +2721,7 @@ def run():
         except Exception as exc:                                  # noqa: BLE001
             print(f"[warn] {label} step failed and was skipped: {type(exc).__name__}: {exc}")
 
+    remove_stale_outputs()
     export_unique_events_csv(conn)
     n = export_articles_csv(conn)
     export_master_summary_csv(conn, "SUMMARY_all.csv", confirmed_only=False)
