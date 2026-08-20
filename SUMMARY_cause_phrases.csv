@@ -28,7 +28,6 @@ roadway,lost_control; hit_tree_pole,2
 old structure collapse,structural_failure; fire_short_circuit,1
 others,trench_excavation_collapse,1
 roadway,fell_into_water,1
-roadway,driver_fatigue,1
 roadway,slippery_wet_road; manhole_drain,1
 train,electrocution,1
 train,explosion_blast,1
