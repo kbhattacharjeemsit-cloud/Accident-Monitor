@@ -1,16 +1,19 @@
 ﻿City,Accident Type,Sector (others only),Number of Accidents,Near Misses,Fatal Accidents,Injury-only Accidents,People Killed,People Injured
 Madhya Pradesh,others,factory manufacturing,1,0,1,0,100,0
-Mumbai,roadway,,4,0,4,0,84,0
+Mumbai,roadway,,3,0,3,0,78,0
+Kanpur,roadway,,2,0,2,0,47,15
 Bihar,roadway,,1,0,1,0,25,0
 Maharashtra,old structure collapse,,3,0,3,0,24,0
 Mathura,train,,1,0,1,0,24,0
+Chamba,roadway,,3,0,3,0,21,3
+Nawada,roadway,,1,0,1,0,20,0
 Mumbai,old structure collapse,,2,0,2,0,19,0
-Chamba,roadway,,2,0,2,0,18,0
+Junagadh,roadway,,1,0,1,0,19,0
 Madhopur Chowk,roadway,,1,0,1,0,16,16
-Jalandhar,roadway,,3,0,3,0,14,0
 Himachal Pradesh,roadway,,2,0,2,0,14,0
 Sivakasi,roadway,,2,0,2,0,13,0
 Bhiwandi,old structure collapse,,2,0,2,0,12,0
+Jalandhar,roadway,,2,0,2,0,12,0
 Saharanpur,others,factory manufacturing,2,0,2,0,12,0
 Palghar,roadway,,1,0,1,0,12,25
 Prime Minister,roadway,,1,0,1,0,12,0
@@ -18,6 +21,7 @@ Sambalpur,train,,1,0,1,0,12,12
 Himachal,roadway,,2,0,2,0,11,8
 Renavi Ghat,port maritime,,2,0,2,0,11,0
 Uttar Pradesh,roadway,,1,0,1,0,11,0
+Nagpur,roadway,,3,0,2,1,10,16
 Bokaro,train,,2,1,1,0,10,0
 Arambagh,roadway,,1,0,1,0,10,0
 Chaibasa,roadway,,1,0,1,0,10,0
@@ -38,6 +42,7 @@ Kolkata,others,fire,1,0,1,0,9,0
 Ghat,roadway,,1,0,1,0,8,0
 Rajasthan,roadway,,2,0,2,0,7,16
 Jharkhand,roadway,,1,0,1,0,7,0
+Bareilly,train,,3,0,2,1,6,13
 Uttarakhand,roadway,,2,0,1,1,6,22
 Amidst,roadway,,1,0,1,0,6,6
 Jharkhand,port maritime,,1,0,1,0,6,0
@@ -57,18 +62,20 @@ Jammu and Kashmir,roadway,,1,0,1,0,5,0
 Mumbai,others,electrical,1,0,1,0,5,0
 Surendranagar,roadway,,1,0,1,0,5,5
 Wardha,roadway,,1,0,1,0,5,0
-Nagpur,roadway,,2,0,1,1,4,16
 Assam,others,factory manufacturing,1,0,1,0,4,0
-Barabanki,others,agriculture,1,0,1,0,4,0
 Bijnor,roadway,,1,0,1,0,4,10
 Karnataka,roadway,,1,0,1,0,4,0
+Sultanpur,others,agriculture,1,0,1,0,4,0
+Surendranagar,others,drowning water,1,0,1,0,4,0
 Visakhapatnam,roadway,,1,0,1,0,4,0
+Bengaluru,roadway,,2,0,1,1,3,5
 Telangana,roadway,,2,0,1,1,3,39
-Bengaluru,roadway,,1,0,1,0,3,0
+Barabanki,roadway,,1,0,1,0,3,0
 Chandigarh,roadway,,1,0,1,0,3,8
 Chundi,roadway,,1,0,1,0,3,0
 Faridkot,roadway,,1,0,1,0,3,1
 Ghaziabad,roadway,,1,0,1,0,3,0
+Gurgaon,roadway,,1,0,1,0,3,2
 Hamirpur,roadway,,1,0,1,0,3,25
 Hoshiarpur,roadway,,1,0,1,0,3,0
 Karnataka,others,factory manufacturing,1,0,1,0,3,0
@@ -79,18 +86,22 @@ Meerut,roadway,,1,0,1,0,3,0
 Satara,others,sewer sanitation,1,0,1,0,3,0
 Sirhind,roadway,,1,0,1,0,3,1
 Trichy,roadway,,1,0,1,0,3,0
-Bareilly,train,,2,0,1,1,2,13
+Dhanbad,train,,2,0,1,1,2,10
 Aurangabad,others,factory manufacturing,1,0,1,0,2,0
+Bhadohi,train,,1,0,1,0,2,0
 Chittorgarh,port maritime,,1,0,1,0,2,0
-Dhanbad,train,,1,0,1,0,2,0
 Fatehpur,train,,1,0,1,0,2,0
 Giddalur,roadway,,1,0,1,0,2,0
+Gwalior,train,,1,0,1,0,2,0
+Hardoi,train,,1,0,1,0,2,0
 Janagama,roadway,,1,0,1,0,2,0
 Kannauj,others,factory manufacturing,1,0,1,0,2,0
-Kanpur,roadway,,1,0,1,0,2,15
 Majholia,train,,1,0,1,0,2,0
+Mohali,construction ongoing,,1,0,1,0,2,0
 Nagpur,train,,1,0,1,0,2,0
+Pathankot,roadway,,1,0,1,0,2,0
 Pune,roadway,,1,0,1,0,2,0
+Punjab,construction ongoing,,1,0,1,0,2,0
 Sangli,port maritime,,1,0,1,0,2,0
 Agra,train,,1,0,1,0,1,0
 Ayodhya,port maritime,,1,0,1,0,1,0
@@ -108,7 +119,9 @@ Mumbra Railway,train,,1,0,1,0,1,0
 Raiganj,roadway,,1,0,1,0,1,10
 Rohini,old structure collapse,,1,0,1,0,1,0
 Saharsa,construction ongoing,,1,0,1,0,1,0
+Visakhapatnam,old structure collapse,,1,0,1,0,1,0
 Ganderbal,roadway,,2,0,0,2,0,71
+Jalgaon,roadway,,2,0,0,2,0,9
 Ulhasnagar,train,,2,2,0,0,0,0
 Alappuzha,train,,1,1,0,0,0,0
 Amarnath Yatra,roadway,,1,0,0,1,0,39
@@ -122,11 +135,13 @@ Bareilly,roadway,,1,0,0,1,0,13
 Basti,roadway,,1,0,0,1,0,27
 Bhopal,roadway,,1,0,0,1,0,26
 Chhindwara,aviation,,1,1,0,0,0,0
+Choshinganallur,roadway,,1,0,0,1,0,6
 Dehradun,roadway,,1,1,0,0,0,0
 Delhi,old structure collapse,,1,1,0,0,0,0
 Ferozepur,roadway,,1,0,0,1,0,6
 Gujarat,old structure collapse,,1,1,0,0,0,0
-Jalgaon,roadway,,1,0,0,1,0,8
+Jamuriya,others,factory manufacturing,1,0,0,1,0,3
+Jaunpur,roadway,,1,0,0,1,0,7
 Jharkhand,others,factory manufacturing,1,0,0,1,0,10
 Joginder Nagar,roadway,,1,1,0,0,0,0
 Kashmir,roadway,,1,0,0,1,0,40
@@ -137,6 +152,7 @@ Kota,roadway,,1,0,0,1,0,1
 Kumari,train,,1,0,0,1,0,7
 Mahabubnagar,roadway,,1,0,0,1,0,21
 Mankhurd,roadway,,1,0,0,1,0,7
+Mayorpur,train,,1,1,0,0,0,0
 Moradabad,roadway,,1,0,0,1,0,12
 Parbhani,roadway,,1,0,0,1,0,26
 Pilibhit,train,,1,0,0,1,0,10
