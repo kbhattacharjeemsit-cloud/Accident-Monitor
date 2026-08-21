@@ -1,50 +1,36 @@
 #!/usr/bin/env python3
 """
-India Accident News Monitor  (v4)
-=================================
+India Accident News Monitor  (v6 - full rewrite)
+================================================
 
-Collects INFRASTRUCTURE / TRANSPORT accident news for India from:
-  (A) Google News RSS across 10 Indian-language editions, and
-  (B) direct newspaper RSS feeds (NEWSPAPER_FEEDS).
+WHY THIS WAS REWRITTEN
+----------------------
+Versions 1-5 filtered by BLOCKLIST: keep everything, then remove what is known
+to be bad. That fails permanently, because anything not yet thought of gets
+through - Bangladeshi outlets, Alaskan crashes, food-safety stories, trekking
+deaths, protest blockades, murders, 1984 riot retrospectives.
 
-Then it: filters OUT natural calamities, classifies each item into a specific
-category, OPTIONALLY translates non-English items to English (to match numbers &
-places across languages), de-duplicates across languages, extracts image links,
-cities, highways and casualty counts, and writes monthly / yearly totals.
+v6 inverts the logic. NOTHING is kept unless it PROVES all four gates:
 
-CATEGORIES (each is a column in the summaries)
-  construction_infra  buildings, bridges, flyovers, tunnels, ports, dams, cranes,
-                      scaffolding, walls/slabs, under-construction structures
-  industrial          factory / boiler / gas-leak / plant / mine accidents
-  pedestrian          people run over / hit while on foot
-  traffic             cars, two-wheelers, autos - general road accidents
-  bus                 bus accidents
-  cargo               truck / lorry / tanker / trailer / goods-vehicle accidents
-  train               train / rail / derailment
-  flight              plane / helicopter / aviation
+    GATE 1  SOURCE   - published by a recognised Indian outlet
+                       (or, for an unknown outlet, the text proves it is Indian)
+    GATE 2  INDIA    - names an Indian place/state, or India itself
+    GATE 3  ACCIDENT - an UNINTENTIONAL physical incident: crash, collapse,
+                       derailment, capsize, industrial mishap.
+                       NOT violence, illness, food safety, sport, adventure,
+                       protest, policy or crime.
+    GATE 4  CURRENT  - happened now, not years ago, and is a report of the
+                       event itself rather than an investigation, statistic,
+                       commemoration or aftermath.
 
-EXCLUDED: floods, landslides, cloudbursts, earthquakes, cyclones, lightning,
-avalanches, tsunamis, wildfires, etc. (see NATURAL_CUES). Controlled by
-STRICT_NATURAL_EXCLUSION.
+Failing any gate drops the item, and the reason is counted in the run log, so
+exclusions are visible rather than silent.
 
-TRANSLATION (optional, for cross-language dedup)
-  Non-English titles are translated to English so the SAME English extractors
-  (city list, casualty words) apply uniformly, and duplicates in Hindi/Tamil/etc.
-  collapse into one event. It is CACHED (each item translated once) and CAPPED
-  per run. If translation fails, the tool falls back to the digit/keyword method
-  (casualty numbers already work without translation via Indic-digit conversion).
-  Backend "builtin" translates via Google's free endpoint using ONLY the standard
-  library - nothing to install. Set TRANSLATE_BACKEND="none" to switch it off.
-
-HONESTY: counts are NEWS MENTIONS not official totals (MoRTH/NCRB/DGFASLI are
-authoritative); non-English keyword sets are a starting point; images are stored
-as links (publisher copyright); newspaper feed URLs break and are skipped+logged.
-
-Standard library only. No pip install. No paid services.
+Standard library only. No pip install. No API keys. No paid services.
 """
 
-import csv
 import base64
+import csv
 import hashlib
 import html
 import json
@@ -54,7 +40,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from collections import Counter, OrderedDict
+from collections import OrderedDict
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
@@ -63,6 +49,17 @@ from xml.etree import ElementTree
 # ===========================================================================
 # CONFIG
 # ===========================================================================
+MIN_DATE = "2026-06-01"
+EVENT_DATE_WINDOW_DAYS = 3
+EVENT_SIM_THRESHOLD = 0.70
+TITLE_DUP_THRESHOLD = 0.90
+TRANSLATE_BACKEND = "builtin"      # "builtin" | "none"
+MAX_TRANSLATE_PER_RUN = 4000
+MAX_ARTICLE_FETCH_PER_RUN = 1200
+FETCH_TIMEOUT = 12
+DB_PATH = "accidents.db"
+UA = "Mozilla/5.0 (compatible; AccidentMonitor/6.0)"
+
 EDITIONS = {
     "en": ("English", "IN:en"), "hi": ("Hindi", "IN:hi"), "bn": ("Bengali", "IN:bn"),
     "mr": ("Marathi", "IN:mr"), "ta": ("Tamil", "IN:ta"), "te": ("Telugu", "IN:te"),
@@ -70,71 +67,670 @@ EDITIONS = {
     "pa": ("Punjabi", "IN:pa"),
 }
 
-# Broad accident queries per language. Fine-grained category is decided later by
-# detect_category, so these just need to surface accident stories.
 GN_QUERIES = {
-    "en": ['building OR bridge OR flyover collapse India', 'road OR highway accident India killed',
-           'bus OR truck OR tanker accident India', 'train OR rail accident India derailment',
-           'plane OR helicopter crash India', 'factory OR industrial accident India',
-           'pedestrian killed road India'],
-    "hi": ['इमारत OR पुल ढहा', 'सड़क हादसा मौत', 'बस OR ट्रक दुर्घटना', 'ट्रेन हादसा',
-           'विमान हादसा', 'फैक्ट्री हादसा'],
-    "bn": ['ভবন ধস', 'সড়ক দুর্ঘটনা নিহত', 'বাস OR ট্রেন দুর্ঘটনা', 'কারখানা দুর্ঘটনা'],
-    "mr": ['इमारत कोसळली', 'रस्ता अपघात मृत्यू', 'बस OR रेल्वे अपघात', 'कारखाना अपघात'],
-    "ta": ['கட்டிடம் இடிந்து', 'சாலை விபத்து உயிரிழப்பு', 'பேருந்து OR ரயில் விபத்து', 'தொழிற்சாலை விபத்து'],
-    "te": ['భవనం కూలింది', 'రోడ్డు ప్రమాదం మృతి', 'బస్సు OR రైలు ప్రమాదం', 'ఫ్యాక్టరీ ప్రమాదం'],
-    "kn": ['ಕಟ್ಟಡ ಕುಸಿತ', 'ರಸ್ತೆ ಅಪಘಾತ ಸಾವು', 'ಬಸ್ OR ರೈಲು ಅಪಘಾತ', 'ಕಾರ್ಖಾನೆ ಅಪಘಾತ'],
-    "ml": ['കെട്ടിടം തകർന്നു', 'റോഡ് അപകടം മരണം', 'ബസ് OR ട്രെയിൻ അപകടം', 'ഫാക്ടറി അപകടം'],
-    "gu": ['ઇમારત ધરાશાયી', 'માર્ગ અકસ્માત મોત', 'બસ OR ટ્રેન અકસ્માત', 'ફેક્ટરી અકસ્માત'],
-    "pa": ['ਇਮਾਰਤ ਢਹਿ', 'ਸੜਕ ਹਾਦਸਾ ਮੌਤ', 'ਬੱਸ OR ਰੇਲ ਹਾਦਸਾ', 'ਫੈਕਟਰੀ ਹਾਦਸਾ'],
+    "en": ['road accident India killed', 'bus truck accident India',
+           'train accident India derailment', 'building collapse India',
+           'bridge flyover collapse India', 'factory accident India workers',
+           'plane crash India airport', 'boat capsize India'],
+    "hi": ['सड़क हादसा मौत', 'बस ट्रक दुर्घटना', 'ट्रेन हादसा', 'इमारत ढही', 'पुल गिरा', 'फैक्ट्री हादसा'],
+    "bn": ['সড়ক দুর্ঘটনা নিহত', 'বাস ট্রাক দুর্ঘটনা', 'ট্রেন দুর্ঘটনা', 'ভবন ধস', 'কারখানা দুর্ঘটনা'],
+    "mr": ['रस्ता अपघात मृत्यू', 'बस अपघात', 'रेल्वे अपघात', 'इमारत कोसळली', 'कारखाना अपघात'],
+    "ta": ['சாலை விபத்து உயிரிழப்பு', 'பேருந்து விபத்து', 'ரயில் விபத்து', 'கட்டிடம் இடிந்து'],
+    "te": ['రోడ్డు ప్రమాదం మృతి', 'బస్సు ప్రమాదం', 'రైలు ప్రమాదం', 'భవనం కూలింది'],
+    "kn": ['ರಸ್ತೆ ಅಪಘಾತ ಸಾವು', 'ಬಸ್ ಅಪಘಾತ', 'ರೈಲು ಅಪಘಾತ', 'ಕಟ್ಟಡ ಕುಸಿತ'],
+    "ml": ['റോഡ് അപകടം മരണം', 'ബസ് അപകടം', 'ട്രെയിൻ അപകടം', 'കെട്ടിടം തകർന്നു'],
+    "gu": ['માર્ગ અકસ્માત મોત', 'બસ અકસ્માત', 'ટ્રેન અકસ્માત', 'ઇમારત ધરાશાયી'],
+    "pa": ['ਸੜਕ ਹਾਦਸਾ ਮੌਤ', 'ਬੱਸ ਹਾਦਸਾ', 'ਰੇਲ ਹਾਦਸਾ', 'ਇਮਾਰਤ ਢਹਿ'],
 }
 
-# Direct newspaper feeds (general -> filtered for accidents). Feeds break; dead
-# ones are skipped and logged. Add regional/no-Google-News-edition papers here.
 NEWSPAPER_FEEDS = [
     ("English", "https://indianexpress.com/feed/"),
     ("English", "https://www.thehindu.com/news/national/feeder/default.rss"),
     ("English", "https://feeds.feedburner.com/ndtvnews-india-news"),
     ("English", "https://www.news18.com/rss/india.xml"),
     ("Hindi",   "https://feed.livehindustan.com/rss/3127"),
-    # ("Assamese", "https://.../rss"), ("Odia", "https://.../rss"), ("Urdu", "https://.../rss"),
 ]
 
 RSS_SEARCH = "https://news.google.com/rss/search?q="
 
-# translation (SIMPLE build: "builtin" needs NOTHING installed - it calls the free
-# Google endpoint directly with Python's standard library. Use "none" to switch off.)
-TRANSLATE_BACKEND = "builtin"         # "builtin" | "none"
-MAX_TRANSLATE_PER_RUN = 4000
-# natural-calamity exclusion
-STRICT_NATURAL_EXCLUSION = True
-INDIA_ONLY = True                     # drop accidents occurring outside India
-# Only keep articles published on/after this date. Older items are dropped on
-# arrival and purged from the database, which keeps the collection small enough
-# to fully process every article each run. Change the date to widen the window.
-MIN_DATE = "2026-06-01"       # True: drop ANY item mentioning a calamity
-# images
-ENRICH = True
-MAX_ENRICH_PER_RUN = 1200       # article pages per run (backlog clears in ~2 days)
-ENRICH_TIMEOUT = 12
-# dedup
-TITLE_DUP_THRESHOLD = 0.92
-EVENT_SIM_THRESHOLD = 0.72   # within the 70-80% band; false-merge tests score 0.67
-EVENT_DATE_WINDOW_DAYS = 2
+# ===========================================================================
+# GATE 1 - SOURCE
+# ===========================================================================
+INDIAN_SOURCES = {
+    "times of india", "timesofindia", "hindustan times", "hindustantimes", "the hindu", "thehindu",
+    "indian express", "indianexpress", "ndtv", "news18", "india today", "indiatoday", "firstpost",
+    "the print", "theprint", "the wire", "thewire", "scroll.in", "deccan herald", "deccanherald",
+    "deccan chronicle", "deccanchronicle", "telegraph india", "telegraphindia", "business standard",
+    "businessstandard", "economic times", "economictimes", "livemint", "financial express",
+    "financialexpress", "the tribune", "tribuneindia", "the statesman", "thestatesman", "mid-day",
+    "midday", "dna india", "dnaindia", "outlook", "the quint", "thequint", "moneycontrol",
+    "zee news", "zeenews", "abp live", "abplive", "republic", "wion", "cnbc tv18", "cnbctv18",
+    "india tv", "indiatv", "aaj tak", "aajtak", "tv9", "etv bharat", "etvbharat", "asianet",
+    "manorama", "mathrubhumi", "new indian express", "newindianexpress", "the week", "theweek",
+    "press trust of india", "uni india", "opindia", "oneindia", "jansatta", "amar bharati",
+    "dainik bhaskar", "bhaskar", "jagran", "amar ujala", "amarujala", "navbharat times",
+    "navbharattimes", "hindustan", "livehindustan", "patrika", "prabhat khabar", "prabhatkhabar",
+    "nai dunia", "naidunia", "punjab kesari", "punjabkesari", "lokmat", "haribhoomi", "news24",
+    "rajasthan patrika", "dainik jagran", "swadesh", "india.com", "abplive",
+    "anandabazar", "ei samay", "eisamay", "bartaman", "sangbad pratidin", "sangbadpratidin",
+    "aajkaal", "uttarbanga", "abp ananda", "24 ghanta", "zee 24", "hindustan times bangla",
+    "loksatta", "maharashtra times", "maharashtratimes", "sakal", "esakal", "pudhari",
+    "abp majha", "saamana", "divya marathi", "webdunia", "policenama", "lokmat times",
+    "dinamalar", "dinamani", "daily thanthi", "dailythanthi", "dinakaran", "maalaimalar",
+    "hindu tamil", "vikatan", "puthiyathalaimurai", "polimer", "news7 tamil",
+    "eenadu", "sakshi", "andhrajyothy", "namasthe telangana", "ntv telugu", "abn andhra",
+    "v6 velugu", "hmtv", "10tv", "disha daily", "lokal", "prabha news", "great andhra",
+    "vijaya karnataka", "vijayakarnataka", "prajavani", "udayavani", "kannada prabha",
+    "public tv", "suvarna news", "news18 kannada",
+    "manorama online", "madhyamam", "deshabhimani", "kerala kaumudi", "twentyfour",
+    "reporter live", "asianet news", "samakalika malayalam", "marunadan",
+    "sandesh", "gujarat samachar", "gujaratsamachar", "divya bhaskar", "divyabhaskar",
+    "abp asmita", "nobat", "gujarati",
+    "ajit", "jagbani", "punjabi jagran", "punjabi tribune", "abp sanjha", "ptc news",
+    "rozana spokesman", "babushahi",
+    "orissapost", "sambad", "dharitri", "odishatv", "kanak news", "assam tribune",
+    "pratidin time", "sentinelassam", "nagaland post", "shillong times", "greater kashmir",
+    "rising kashmir", "daily excelsior", "kashmir reader", "herald goa", "navhind",
+    "kolkata24x7", "kolkata tv", "calcutta news", "najarbandi", "ganashakti",
+    "uttarbanga sambad", "news18 bangla", "focus bangla", "khabor", "sanbad",
+}
 
-DB_PATH = "accidents.db"
-UA = "Mozilla/5.0 (compatible; AccidentMonitor/4.0)"
+FOREIGN_SOURCES = {
+    # Bangladesh
+    "prothom alo", "prothomalo", "daily star", "thedailystar", "bdnews24", "kalerkantho",
+    "jugantor", "ittefaq", "samakal", "bangla tribune", "banglatribune", "ajkalerkhobor",
+    "banglanews", "risingbd", "bd-pratidin", "bdpratidin", "dhaka post", "dhakapost",
+    "dhaka mail", "dhaka tribune", "dhakatribune", "naya diganta", "nayadiganta",
+    "ajker patrika", "desh rupantor", "jagonews", "somoy news", "channel24", "jamuna tv",
+    "ntv bd", "bangladesh pratidin", "manabzamin", "amader shomoy", "bhorer kagoj",
+    "observerbd", "newagebd", "tbsnews", "businesspostbd", "bd24live", "bd24report",
+    "bd-journal", "bdjournal", "dhakaprokash", "citynewsdhaka", "protidinerbangladesh",
+    "bangladeshtimes", "the new nation", "daily bangla post", "bangladesh sangbad",
+    "sarabangla", "barta24", "dailyinqilab", "amardesh", "shomoyeralo", "banglavision",
+    "independent bd", "banglar janarob",
+    ".bd/", "bangladesh",
+    # Pakistan / Nepal / Sri Lanka
+    "dawn.com", "geo news", "geo tv", "ary news", "express tribune", "the news international",
+    "samaa", "dunya news", "nawaiwaqt", "bol news", "pakistan today", "pakistan observer",
+    "kathmandu post", "himalayan times", "onlinekhabar", "ekantipur", "setopati", "myrepublica",
+    "ada derana", "colombo page", "daily mirror sri", "newsfirst.lk", "sundaytimes.lk",
+    "dailynews.lk", "lankadeepa",
+    # elsewhere
+    "vietnam.vn", "vnexpress", "xinhua", "global times", "china daily",
+    "bbc", "al jazeera", "aljazeera", "cnn", "sputnik", "voanews", "dw.com", "deutsche welle",
+    "reuters", "associated press", "ap news", "afp", "the guardian", "new york times",
+    "nytimes", "washington post", "fox news", "sky news", "abc news", "cbs news", "nbc news",
+    "usa today", "daily mail", "the sun", "mirror.co.uk",
+}
+
+
+def source_verdict(source, url=""):
+    """'indian' | 'foreign' | 'unknown'.
+
+    Note on a mistake worth not repeating: "Kolkata24x7" and "najarbandi.in" were
+    briefly blocked here because "24" and "bangla" resemble Bangladeshi outlet
+    names. Both are West Bengal publications. Bengali-language does NOT mean
+    Bangladeshi, and matching must be on the outlet, not on the language.
+    """
+    hay = ((source or "") + " " + (url or "")).lower()
+    # an Indian domain settles it
+    if re.search(r"\.in\b|\.co\.in\b|india\.com", hay):
+        return "indian"
+    for f in FOREIGN_SOURCES:
+        if f in hay:
+            return "foreign"
+    for i in INDIAN_SOURCES:
+        if i in hay:
+            return "indian"
+    return "unknown"
+
+
+# ===========================================================================
+# GATE 2 - INDIA
+# ===========================================================================
+STATES = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa",
+    "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
+    "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha",
+    "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
+    "Uttarakhand", "West Bengal", "Delhi", "Jammu and Kashmir", "Ladakh", "Puducherry",
+    "Chandigarh"]
+
+CITIES = ["Mumbai", "New Delhi", "Kolkata", "Chennai", "Bengaluru", "Bangalore", "Hyderabad",
+    "Ahmedabad", "Pune", "Jaipur", "Lucknow", "Kanpur", "Nagpur", "Patna", "Bhopal", "Indore",
+    "Thane", "Visakhapatnam", "Vadodara", "Ghaziabad", "Ludhiana", "Agra", "Nashik", "Faridabad",
+    "Meerut", "Rajkot", "Varanasi", "Srinagar", "Aurangabad", "Dhanbad", "Amritsar", "Prayagraj",
+    "Allahabad", "Ranchi", "Howrah", "Coimbatore", "Jabalpur", "Gwalior", "Vijayawada", "Jodhpur",
+    "Madurai", "Raipur", "Kota", "Guwahati", "Thiruvananthapuram", "Solapur", "Hubballi",
+    "Bareilly", "Mysuru", "Mysore", "Gurugram", "Gurgaon", "Noida", "Aligarh", "Jalandhar",
+    "Bhubaneswar", "Salem", "Warangal", "Guntur", "Saharanpur", "Gorakhpur", "Bikaner", "Amravati",
+    "Jamshedpur", "Bhilai", "Cuttack", "Kochi", "Nellore", "Bhavnagar", "Dehradun", "Durgapur",
+    "Asansol", "Rourkela", "Nanded", "Kolhapur", "Ajmer", "Jamnagar", "Ujjain", "Siliguri",
+    "Jhansi", "Mangaluru", "Mangalore", "Erode", "Belagavi", "Tirupati", "Udaipur", "Panaji",
+    "Shillong", "Imphal", "Aizawl", "Kohima", "Itanagar", "Gangtok", "Agartala", "Shimla",
+    "Vellore", "Tiruchirappalli", "Trichy", "Tirunelveli", "Tiruppur", "Kozhikode", "Thrissur",
+    "Kollam", "Kannur", "Muzaffarpur", "Gaya", "Bhagalpur", "Darbhanga", "Rohtak", "Panipat",
+    "Karnal", "Ambala", "Hisar", "Sonipat", "Moradabad", "Junagadh", "Anand", "Surat",
+    "Navi Mumbai", "Kalyan", "Sangli", "Latur", "Akola", "Ratlam", "Sagar", "Satna", "Rewa",
+    "Bilaspur", "Korba", "Sambalpur", "Berhampur", "Puri", "Dibrugarh", "Silchar", "Tezpur",
+    "Jorhat", "Nagaon", "Bhiwandi", "Palghar", "Chandrapur", "Jalgaon", "Ahmednagar",
+    "Muzaffarnagar", "Firozabad", "Mathura", "Ayodhya", "Jaunpur", "Azamgarh", "Ballia",
+    "Deoria", "Basti", "Gonda", "Bahraich", "Mirzapur", "Etah", "Hathras", "Hapur", "Rampur",
+    "Pilibhit", "Sitapur", "Hardoi", "Unnao", "Raebareli", "Fatehpur", "Banda", "Etawah",
+    "Sultanpur", "Pratapgarh", "Ghazipur", "Chandauli", "Bhadohi", "Kushinagar", "Amroha",
+    "Sambhal", "Bijnor", "Bulandshahr", "Shahjahanpur", "Lakhimpur", "Barabanki", "Auraiya",
+    "Arrah", "Buxar", "Chhapra", "Siwan", "Motihari", "Sitamarhi", "Madhubani", "Samastipur",
+    "Begusarai", "Khagaria", "Munger", "Nawada", "Nalanda", "Katihar", "Purnia", "Araria",
+    "Saharsa", "Banka", "Jhalawar", "Bokaro", "Deoghar", "Hazaribagh", "Giridih", "Ramgarh",
+    "Chaibasa", "Dumka", "Palamu", "Malda", "Barasat", "Jalpaiguri", "Bankura", "Purulia",
+    "Kharagpur", "Haldia", "Raiganj", "Arambagh", "Bhilwara", "Alwar", "Sikar", "Pali",
+    "Barmer", "Nagaur", "Churu", "Jhunjhunu", "Bharatpur", "Karauli", "Bundi", "Baran",
+    "Chittorgarh", "Banswara", "Dungarpur", "Morena", "Bhind", "Shivpuri", "Guna", "Vidisha",
+    "Sehore", "Betul", "Chhindwara", "Seoni", "Balaghat", "Katni", "Damoh", "Chhatarpur",
+    "Dewas", "Khandwa", "Khargone", "Dhar", "Durg", "Rajnandgaon", "Jagdalpur", "Raigarh",
+    "Balasore", "Bhadrak", "Jajpur", "Angul", "Keonjhar", "Baripada", "Sundargarh", "Bolangir",
+    "Koraput", "Rayagada", "Anantnag", "Baramulla", "Udhampur", "Kathua", "Rajouri", "Poonch",
+    "Doda", "Leh", "Kargil", "Jammu", "Solan", "Mandi", "Kullu", "Kangra", "Dharamshala",
+    "Una", "Hamirpur", "Chamba", "Sirmaur", "Haridwar", "Rishikesh", "Roorkee", "Haldwani",
+    "Rudrapur", "Nainital", "Almora", "Pithoragarh", "Chamoli", "Uttarkashi", "Tehri", "Pauri",
+    "Bathinda", "Patiala", "Mohali", "Pathankot", "Hoshiarpur", "Moga", "Firozpur", "Faridkot",
+    "Muktsar", "Barnala", "Sangrur", "Kapurthala", "Gurdaspur", "Batala", "Khanna", "Phagwara",
+    "Rewari", "Bhiwani", "Jind", "Kaithal", "Kurukshetra", "Yamunanagar", "Sirsa", "Palwal",
+    "Bharuch", "Vapi", "Valsad", "Navsari", "Mehsana", "Patan", "Godhra", "Nadiad", "Bhuj",
+    "Morbi", "Surendranagar", "Amreli", "Porbandar", "Veraval", "Dahod", "Gandhinagar",
+    "Tinsukia", "Sivasagar", "Golaghat", "Bongaigaon", "Barpeta", "Dhubri", "Diphu",
+    "Sivakasi", "Karur", "Thanjavur", "Dindigul", "Cuddalore", "Nagercoil", "Thoothukudi",
+    "Palakkad", "Alappuzha", "Kottayam", "Malappuram", "Wayanad", "Ernakulam", "Kasaragod",
+    "Ballari", "Davanagere", "Shivamogga", "Tumakuru", "Raichur", "Bidar", "Hassan", "Udupi",
+    "Kurnool", "Kadapa", "Anantapur", "Rajahmundry", "Kakinada", "Eluru", "Ongole", "Chittoor",
+    "Karimnagar", "Khammam", "Nizamabad", "Mahbubnagar", "Adilabad", "Sangareddy", "Medak",
+    "Nalgonda", "Suryapet", "Dombivli", "Ulhasnagar", "Mumbra", "Panvel", "Vasai", "Wardha",
+    "Parbhani", "Beed", "Osmanabad", "Yavatmal", "Buldhana", "Gondia", "Bhandara", "Jalna"]
+
+PLACE_LIST = sorted(set(CITIES + STATES), key=len, reverse=True)
+_PLACE_PATTERNS = [(p, re.compile(r"\b" + re.escape(p) + r"\b", re.I)) for p in PLACE_LIST]
+
+INDIA_WORDS = re.compile(
+    r"\b(?:india|indian|bharat|nh[-\s]?\d{1,3}|national highway|state highway|"
+    r"expressway|indian railways|irctc|dgca|morth|nhai)\b", re.I)
+INDIA_NATIVE = ["भारत", "ভারত", "இந்தியா", "భారత", "ಭಾರತ", "ഇന്ത്യ", "ભારત", "ਭਾਰਤ"]
+
+FOREIGN_PLACES = re.compile(
+    r"\b(?:bangladesh|dhaka|chattogram|chittagong|sylhet|khulna|rajshahi|barisal|rangpur|"
+    r"mymensingh|feni|comilla|cumilla|narayanganj|gazipur|bogura|jessore|jashore|tangail|"
+    r"noakhali|brahmanbaria|dinajpur|pabna|kushtia|faridpur|sitakunda|"
+    r"pakistan|lahore|karachi|islamabad|rawalpindi|peshawar|quetta|multan|faisalabad|"
+    r"nepal|kathmandu|pokhara|sri lanka|colombo|kandy|galle|jaffna|mavatthagama|kurunegala|"
+    r"afghanistan|kabul|myanmar|yangon|bhutan|maldives|china|beijing|shanghai|vietnam|"
+    r"thailand|bangkok|indonesia|jakarta|malaysia|singapore|philippines|manila|japan|tokyo|"
+    r"korea|seoul|russia|moscow|ukraine|kyiv|turkey|iran|tehran|iraq|baghdad|syria|israel|"
+    r"gaza|palestine|egypt|cairo|saudi|riyadh|jeddah|mecca|medina|dubai|abu dhabi|qatar|doha|"
+    r"kuwait|oman|muscat|bahrain|yemen|nigeria|lagos|kenya|nairobi|ethiopia|addis ababa|"
+    r"congo|ghana|tanzania|uganda|south africa|johannesburg|morocco|algeria|tunisia|libya|"
+    r"brazil|sao paulo|mexico|peru|lima|bolivia|colombia|bogota|argentina|chile|venezuela|"
+    r"united states|u\.s\.|usa|america|american|alaska|texas|california|florida|new york|"
+    r"chicago|washington|canada|toronto|united kingdom|britain|british|england|london|"
+    r"scotland|ireland|france|paris|germany|berlin|italy|rome|spain|madrid|portugal|poland|"
+    r"warsaw|greece|athens|hungary|budapest|austria|vienna|switzerland|netherlands|belgium|"
+    r"sweden|norway|denmark|finland|australia|sydney|melbourne|new zealand|auckland|"
+    r"kazakhstan|uzbekistan|azerbaijan|cambodia|laos|taiwan|hong kong|malta|cyprus|serbia|"
+    r"croatia|bahamas|africa|europe|middle east)\b", re.I)
+
+
+def india_verdict(text):
+    if not text:
+        return "unknown"
+    if FOREIGN_PLACES.search(text):
+        return "foreign"
+    if INDIA_WORDS.search(text):
+        return "india"
+    for name, pat in _PLACE_PATTERNS:
+        if pat.search(text):
+            return "india"
+    if any(w in text for w in INDIA_NATIVE):
+        return "india"
+    return "unknown"
+
+
+# ===========================================================================
+# GATE 3 - IS IT AN ACCIDENT?
+# ===========================================================================
+ACCIDENT_EVENT = re.compile(
+    r"\b(?:accident|mishap|crash(?:e[sd])?|collision|collide[sd]?|colliding|"
+    r"overturn(?:s|ed|ing)?|capsiz(?:e|es|ed|ing)|derail(?:s|ed|ment)?|"
+    r"collaps(?:e|es|ed|ing)|caved? in|gave way|razed|"
+    r"ran over|run over|mow(?:ed|n) down|knocked down|rammed|skidded|veered|"
+    r"plunged|fell into|fell from|toppled|"
+    r"blast|explosion|exploded|boiler burst|tyre burst|"
+    r"electrocut(?:ed|ion)|asphyxiat\w*|suffocat\w*|"
+    r"trapped under|buried under|crushed under|"
+    r"fire broke out|caught fire|gutted|"
+    r"emergency landing|crash landing|runway excursion|hit and run|head-on)\b", re.I)
+
+ACCIDENT_NATIVE = ["दुर्घटना", "हादसा", "टक्कर", "पलटी", "ढह", "धमाका", "विस्फोट", "आग लग",
+    "দুর্ঘটনা", "ধস", "সংঘর্ষ", "উল্টে", "বিস্ফোরণ", "আগুন", "অগ্নিকাণ্ড",
+    "अपघात", "कोसळ", "स्फोट", "விபத்து", "மோதி", "இடிந்து", "வெடிப்பு",
+    "ప్రమాదం", "ఢీ", "కూలి", "పేలుడు", "ಅಪಘಾತ", "ಕುಸಿತ", "ಸ್ಫೋಟ",
+    "അപകടം", "തകർ", "സ്ഫോടനം", "અકસ્માત", "ધરાશાયી", "વિસ્ફોટ",
+    "ਹਾਦਸਾ", "ਟੱਕਰ", "ਢਹਿ", "ਧਮਾਕਾ"]
+
+NOT_ACCIDENT = re.compile(
+    r"\b(?:murder\w*|killing spree|assault\w*|attack(?:ed|er)?|stabb(?:ed|ing)|"
+    r"shot dead|shooting|firing|gunfire|encounter|lynch\w*|beaten to death|"
+    r"honour killing|dowry death|rape|molest\w*|abduct\w*|kidnap\w*|hostage|"
+    r"riot\w*|communal|mob |clash(?:es|ed)?|violence|arson|terror\w*|militant|naxal|maoist|"
+    r"grenade|suicide bomb|"
+    r"suicide|self-immolation|ended (?:his|her) life|hanged (?:him|her)self|"
+    r"food poison\w*|fungus|expired food|stale food|adulterat\w*|contaminat\w*|"
+    r"disease|infection|virus|outbreak|epidemic|dengue|malaria|cholera|"
+    r"heart attack|cardiac arrest|heatstroke|heat stroke|snakebite|snake bite|"
+    r"malnutrition|starvation|overdose|"
+    r"trek(?:king|kers?)?|mountaineer\w*|climbing expedition|paraglid\w*|"
+    r"bungee|rafting|scuba|adventure sport|marathon|cricket|football|kabaddi|tournament|"
+    r"protest\w*|rally|dharna|strike|bandh|blockade|road block|gherao|agitation|"
+    r"morcha|demonstration|sit-in|"
+    r"tiger|leopard|elephant attack|wild animal|man-eater|"
+    r"fir registered|case registered|arrest(?:ed)?|charge ?sheet|court|bail|verdict|"
+    r"compensation|ex-?gratia|solatium|relief fund|"
+    r"tribute|homage|mourn\w*|condolence|anniversary|memorial|black day|candle march)\b", re.I)
+
+NOT_ACCIDENT_NATIVE = ["हत्या", "मर्डर", "दंगा", "हमला", "आत्महत्या", "गोली", "बलात्कार", "अपहरण",
+    "प्रदर्शन", "धरना", "हड़ताल", "श्रद्धांजलि", "पुण्यतिथि", "ट्रेकिंग",
+    "খুন", "হত্যা", "দাঙ্গা", "হামলা", "আত্মহত্যা", "প্রতিবাদ", "শ্রদ্ধাঞ্জলি",
+    "आंदोलन", "கொலை", "தாக்குதல்", "தற்கொலை", "போராட்டம்",
+    "హత్య", "దాడి", "ఆత్మహత్య", "నిరసన", "ಕೊಲೆ", "ದಾಳಿ", "ಆತ್ಮಹತ್ಯೆ", "ಪ್ರತಿಭಟನೆ",
+    "കൊലപാതകം", "ആക്രമണം", "ആത്മഹത്യ", "പ്രതിഷേധം",
+    "હત્યા", "હુમલો", "આત્મહત્યા", "વિરોધ", "ਕਤਲ", "ਹਮਲਾ", "ਖ਼ੁਦਕੁਸ਼ੀ", "ਪ੍ਰਦਰਸ਼ਨ"]
+
+NATURAL_HAZARD = re.compile(
+    r"\b(?:flood\w*|deluge|inundat\w*|landslide|landslip|mudslide|cloudburst|avalanche|"
+    r"earthquake|quake|tremor|cyclone|hurricane|typhoon|tornado|tsunami|lightning|"
+    r"thunderbolt|hailstorm|wildfire|forest fire|glacier burst|glacial lake)\b", re.I)
+NATURAL_NATIVE = ["बाढ़", "भूस्खलन", "भूकंप", "चक्रवात", "बिजली गिर", "बादल फट", "हिमस्खलन",
+    "বন্যা", "ভূমিধস", "ভূমিকম্প", "ঘূর্ণিঝড়", "বজ্রপাত", "வெள்ளம்", "நிலச்சரிவு",
+    "నిలநடுக்கம்", "వరద", "కొండచరియ", "భూకంపం", "ಪ್ರವಾಹ", "ಭೂಕುಸಿತ", "ಭೂಕಂಪ",
+    "വെള്ളപ്പൊക്കം", "ഉരുൾപൊട്ടൽ", "ഭൂകമ്പം", "પૂર", "ભૂસ્ખલન", "ધરતીકંપ", "ਹੜ੍ਹ", "ਭੂਚਾਲ"]
+
+
+def _has(text, words):
+    return any(w in text for w in words)
+
+
+def accident_verdict(text):
+    if not text:
+        return "unclear"
+    if NOT_ACCIDENT.search(text) or _has(text, NOT_ACCIDENT_NATIVE):
+        return "not_accident"
+    if NATURAL_HAZARD.search(text) or _has(text, NATURAL_NATIVE):
+        return "natural"
+    if ACCIDENT_EVENT.search(text) or _has(text, ACCIDENT_NATIVE):
+        return "accident"
+    return "unclear"
+
+
+# ===========================================================================
+# GATE 4 - CURRENT EVENT REPORT?
+# ===========================================================================
+OLD_EVENT = re.compile(
+    r"\b(?:19\d{2}|200\d|201\d|202[0-5])\b|"
+    r"\b\d{1,3}\s*(?:years?|yrs?|decades?)\s+(?:ago|after|since|of|on)\b|"
+    r"\b(?:anniversary|remembering|looking back|flashback|history of|"
+    r"back in (?:19|20)\d{2}|that fateful|even after)\b", re.I)
+
+NOT_EVENT_REPORT = re.compile(
+    r"\b(?:investigation|investigating|probe|inquiry|enquiry|hearing|report (?:says|reveals)|"
+    r"editorial|opinion|analysis|explainer|spotlight|questions? (?:on|raised)|why (?:does|did)|"
+    r"demands?|urges|appeals|assures|announces|announced|launch(?:es|ed)|inaugurat\w*|"
+    r"scheme|policy|guideline|bill |budget|tender|audit|mock drill|awareness|campaign|"
+    r"safety week|training|workshop|seminar|conference|summit|meeting|"
+    r"statistics|data shows|figures show|per day|per year|every hour|on average|"
+    r"in (?:one|a|the last|the past|first)\s*\d{0,3}\s*(?:month|months|year|years|day|days)|"
+    r"across the (?:country|state)|govt informs|assembly told|"
+    r"drug test|dope test|breathalyser|licence suspended|grounded|"
+    r"insurance|claim settled|acquitted|convicted|sentenced)\b", re.I)
+
+
+def currency_verdict(text, published_date):
+    if not text:
+        return "not_event"
+    if NOT_EVENT_REPORT.search(text):
+        return "not_event"
+    if OLD_EVENT.search(text):
+        return "old"
+    if MIN_DATE and published_date and published_date < MIN_DATE:
+        return "old"
+    return "current"
+
+
+# ===========================================================================
+# THE GATE CHAIN
+# ===========================================================================
+def screen(title, snippet, source, url, published_date):
+    """(True, '') to keep; (False, reason) to drop. Silence is rejection."""
+    text = ((title or "") + " " + (snippet or "")).strip()
+    if not text:
+        return False, "empty"
+    sv = source_verdict(source, url)
+    if sv == "foreign":
+        return False, "foreign_source"
+    iv = india_verdict(text)
+    if iv == "foreign":
+        return False, "foreign_place"
+    if iv != "india" and sv != "indian":
+        return False, "india_unproven"
+    av = accident_verdict(text)
+    if av == "not_accident":
+        return False, "not_an_accident"
+    if av == "natural":
+        return False, "natural_hazard"
+    if av != "accident":
+        return False, "no_accident_evidence"
+    cv = currency_verdict(text, published_date)
+    if cv == "old":
+        return False, "old_event"
+    if cv == "not_event":
+        return False, "not_event_report"
+    return True, ""
+
+
+# ===========================================================================
+# CLASSIFICATION
+# ===========================================================================
+CATEGORY_RULES = OrderedDict([
+    ("aviation", re.compile(
+        r"\b(?:aircraft|aeroplane|airplane|plane|helicopter|chopper|flight|airline|"
+        r"airport|airstrip|runway|hangar|microlight|glider|air ?crash)\b"
+        r"|विमान|हेलिकॉप्टर|एयरपोर्ट|বিমান|হেলিকপ্টার|விமான|విమానం|ವಿಮಾನ|വിമാനം|વિમાન|ਜਹਾਜ਼", re.I)),
+    ("port_maritime", re.compile(
+        r"\b(?:boat|boats|ferry|ferries|ship|ships|vessel|trawler|barge|steamer|"
+        r"dredger|tugboat|harbour|harbor|jetty|dockyard|shipyard|seaport)\b"
+        r"|नाव|नौका|जहाज|बंदरगाह|নৌকা|জাহাজ|লঞ্চ|বন্দর|படகு|கப்பல்|పడవ|నౌక|ದೋಣಿ|ಹಡಗು|ബോട്ട്|હોડી|ਕਿਸ਼ਤੀ", re.I)),
+    ("train", re.compile(
+        r"\b(?:train|trains|railway|railways|rail|locomotive|derail\w*|level crossing|"
+        r"railway crossing|goods train|express train|metro rail|bogie)\b"
+        r"|ट्रेन|रेल|রেল|ট্রেন|ரயில்|రైలు|ರೈಲು|ട്രെയിൻ|ટ્રેન|ਰੇਲ", re.I)),
+    ("roadway", re.compile(
+        r"\b(?:road|roads|highway|expressway|street|bus|buses|truck|trucks|lorry|lorries|"
+        r"tanker|trailer|car|cars|jeep|suv|van|tempo|auto|autorickshaw|auto-rickshaw|"
+        r"rickshaw|bike|bikes|motorcycle|motorbike|scooter|scooty|two-wheeler|cyclist|"
+        r"pedestrian|dumper|container|traffic|divider)\b"
+        r"|सड़क|हाईवे|बस|ट्रक|कार|बाइक|स्कूटर|রাস্তা|সড়ক|বাস|ট্রাক|গাড়ি|रस्ता|महामार्ग|"
+        r"சாலை|பேருந்து|லாரி|கார்|రోడ్డు|బస్సు|ట్రక్|కారు|ರಸ್ತೆ|ಬಸ್|ಕಾರು|റോഡ്|ബസ്|കാർ|"
+        r"માર્ગ|બસ|ટ્રક|કાર|ਸੜਕ|ਬੱਸ|ਟਰੱਕ|ਕਾਰ", re.I)),
+    ("construction_ongoing", re.compile(
+        r"\b(?:under construction|under-construction|construction site|being built|"
+        r"newly built|newly constructed|scaffolding|girder|crane|shuttering|formwork|"
+        r"excavation|trench|construction work|under repair)\b"
+        r"|निर्माणाधीन|निर्माण कार्य|क्रेन|নির্মীয়মাণ|নির্মাণ|கட்டுமான|నిర్మాణంలో|ನಿರ್ಮಾಣ|നിർമാണ|બાંધકામ|ਉਸਾਰੀ", re.I)),
+    ("old_structure_collapse", re.compile(
+        r"\b(?:building|house|wall|roof|slab|ceiling|balcony|staircase|bridge|culvert|"
+        r"structure|dilapidated|godown|shed)\b"
+        r"|इमारत|मकान|दीवार|छत|पुल|भवन|ভবন|বাড়ি|দেয়াল|ছাদ|সেতু|भिंत|கட்டிடம்|சுவர்|பாலம்|"
+        r"భవనం|గోడ|వంతెన|ಕಟ್ಟಡ|ಗೋಡೆ|ಸೇತುವೆ|കെട്ടിടം|ഭിത്തി|പാലം|ઇમારત|દીવાલ|પુલ|ਇਮਾਰਤ|ਕੰਧ|ਪੁਲ", re.I)),
+])
+
+FAILURE_WORDS = re.compile(
+    r"\b(?:collaps\w*|caved? in|gave way|fell|fallen|razed|crumbl\w*)\b"
+    r"|ढह|गिर|ধস|कोसळ|இடிந்து|కూలి|ಕುಸಿ|തകർ|ધરાશાયી|ਢਹਿ", re.I)
+
+OTHER_SECTORS = OrderedDict([
+    ("factory_manufacturing", re.compile(r"\b(?:factory|plant|mill|workshop|boiler|furnace|foundry|manufactur\w*)\b|फैक्ट्री|कारखाना|কারখানা|தொழிற்சாலை|ఫ్యాక్టరీ|ಕಾರ್ಖಾನೆ|ഫാക്ടറി|ફેક્ટરી|ਫੈਕਟਰੀ", re.I)),
+    ("mining_quarry", re.compile(r"\b(?:mine|mines|mining|colliery|quarry|stone crusher)\b|खदान|खनन|খনি|சுரங்க|గని|ಗಣಿ|ഖനി|ખાણ", re.I)),
+    ("chemical_refinery", re.compile(r"\b(?:chemical|refinery|petrochemical|acid|ammonia|chlorine)\b|रासायनिक|রাসায়নিক|ரசாயன|రసాయన", re.I)),
+    ("fireworks_explosives", re.compile(r"\b(?:firecracker|cracker unit|fireworks|explosive)\b|पटाखा|আতশবাজি|পটকা|பட்டாசு|బాణాసంచా", re.I)),
+    ("gas_cylinder", re.compile(r"\b(?:gas leak|cylinder|lpg|gas pipeline)\b|गैस|গ্যাস|எரிவாயு|గ్యాస్", re.I)),
+    ("electrical", re.compile(r"\b(?:electrocut\w*|live wire|transformer|short circuit|high tension)\b|करंट|बिजली|বিদ্যুৎ|மின்சார|విద్యుత్", re.I)),
+    ("fire", re.compile(r"\b(?:fire|blaze|gutted)\b|आग|আগুন|தீ|మంటలు|ಬೆಂಕಿ|തീ", re.I)),
+    ("sewer_sanitation", re.compile(r"\b(?:septic tank|sewer|manhole|drain)\b|सेप्टिक|सीवर|নর্দমা", re.I)),
+    ("borewell_well", re.compile(r"\b(?:borewell|bore well|open well)\b|बोरवेल|কূপ", re.I)),
+    ("lift_elevator", re.compile(r"\b(?:lift|elevator|escalator)\b|लिफ्ट|লিফট", re.I)),
+    ("agriculture", re.compile(r"\b(?:tractor|harvester|thresher)\b|ट्रैक्टर|ট্রাক্টর|டிராக்டர்", re.I)),
+])
+
+
+def classify(text):
+    for cat, pat in CATEGORY_RULES.items():
+        if pat.search(text):
+            if cat == "old_structure_collapse" and not FAILURE_WORDS.search(text):
+                continue          # a structure word alone is not a collapse
+            return cat, ""
+    for sector, pat in OTHER_SECTORS.items():
+        if pat.search(text):
+            return "others", sector
+    return "others", "unspecified"
+
+
+# ===========================================================================
+# FACT EXTRACTION
+# ===========================================================================
+def _digit_map():
+    m = {}
+    for s in [0x0966, 0x09E6, 0x0A66, 0x0AE6, 0x0B66, 0x0BE6, 0x0C66, 0x0CE6, 0x0D66]:
+        for d in range(10):
+            m[chr(s + d)] = str(d)
+    return str.maketrans(m)
+
+DIGITS = _digit_map()
+
+WORD_NUM = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+            "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+            "एक": 1, "दो": 2, "तीन": 3, "चार": 4, "पांच": 5, "पाँच": 5, "छह": 6, "सात": 7,
+            "এক": 1, "দুই": 2, "তিন": 3, "চার": 4, "পাঁচ": 5,
+            "இரண்டு": 2, "மூன்று": 3, "நான்கு": 4, "ஐந்து": 5,
+            "ఇద్దరు": 2, "ముగ్గురు": 3, "నలుగురు": 4, "ఐదుగురు": 5, "ఏడుగురు": 7,
+            "ఐదుగురికి": 5, "ఏడుగురికి": 7, "ಇಬ್ಬರು": 2, "ಮೂವರು": 3, "બે": 2, "ਦੋ": 2}
+
+DEATH_CUES = ["killed", "kills", "dead", "death", "deaths", "died", "dies", "deceased",
+              "lost life", "lives lost", "मौत", "मृत", "मरे", "मृत्यु", "ठार",
+              "নিহত", "মৃত", "মৃত্যু", "இறந்த", "உயிரிழ", "பலி", "మృతి", "మరణ", "చనిపో",
+              "ಸಾವು", "ಮೃತ", "ಬಲಿ", "മരണം", "മരിച്ച", "મોત", "મૃત્યુ", "ਮੌਤ", "ਮਰੇ"]
+INJURY_CUES = ["injured", "hurt", "wounded", "injuries", "घायल", "जख्मी", "আহত", "জখম",
+               "जखमी", "காயம்", "படுகாயம்", "గాయ", "ಗಾಯ", "പരിക്ക", "ઘાયલ", "ਜ਼ਖ਼ਮੀ"]
+
+ANIMALS = re.compile(r"\b(?:sheep|goats?|cattle|cows?|buffalo\w*|bulls?|dogs?|cats?|"
+                     r"elephants?|monkeys?|birds?|hens?|pigs?|horses?|camels?|livestock|animals?)\b", re.I)
+HUMANS = re.compile(r"\b(?:people|persons?|passengers?|men|man|women|woman|children|child|"
+                    r"boys?|girls?|workers?|labourers?|students?|drivers?|pedestrians?|"
+                    r"villagers?|farmers?|devotees?|pilgrims?|jawans?|police\w*|tourists?|"
+                    r"youths?|family|victims?|nationals?)\b", re.I)
+
+
+def _clean_numbers(text):
+    t = text.translate(DIGITS)
+    t = re.sub(r"\|\s*\d+\s*$", " ", t)
+    t = re.sub(r"\b(?:nh|sh|mdr|national highway|state highway|route)\s*[-\u2013]?\s*\d+[a-z]?\b", " ", t, flags=re.I)
+    t = re.sub(r"\b\d{1,3}\s*[-\u2013]?\s*(?:year|yr|yrs|years)\s*[-\u2013]?\s*old\b", " ", t, flags=re.I)
+    t = re.sub(r"\b(?:aged|age)\s*\d{1,3}\b", " ", t, flags=re.I)
+    t = re.sub(r"\b([A-Za-z]+)\s*,\s*\d{1,3}\s*,", r" \1 ", t)
+    t = re.sub(r"\b\d+(?:\.\d+)?\s*(?:%|per\s*cent|percent)", " ", t, flags=re.I)
+    t = re.sub(r"\b\d+\s*(?:km|kms|metre|meter|feet|ft|storey|storeys|floor|floors|"
+               r"minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years|"
+               r"am|pm|lakh|crore)\b", " ", t, flags=re.I)
+    t = re.sub(r"\b\d{1,3}\s*[x\u00d7]\s*\d{1,2}\b", " ", t)
+    t = re.sub(r"(?<=\d)[,.](?=\d{3}\b)", "", t)
+    low = t.lower()
+    for w, v in sorted(WORD_NUM.items(), key=lambda kv: -len(kv[0])):
+        if w in low:
+            low = (re.sub(r"\b" + re.escape(w) + r"\b(?![-\w])", f" {v} ", low)
+                   if w.isascii() else low.replace(w, f" {v} "))
+    return low
+
+
+def extract_counts(text):
+    t = _clean_numbers(text)
+
+    def near(cues, window=34):
+        best = None
+        for cue in cues:
+            start = 0
+            while True:
+                i = t.find(cue.lower(), start)
+                if i == -1:
+                    break
+                lo, hi = max(0, i - window), min(len(t), i + len(cue) + window)
+                while lo > 0 and t[lo - 1].isdigit():
+                    lo -= 1
+                while hi < len(t) and t[hi].isdigit():
+                    hi += 1
+                seg = t[lo:hi]
+                for mm in re.finditer(r"\d+", seg):
+                    val = int(mm.group())
+                    if val <= 0 or val > 500 or 1900 <= val <= 2100:
+                        continue
+                    after = seg[mm.end(): mm.end() + 26]
+                    am, hm = ANIMALS.search(after), HUMANS.search(after)
+                    if am and (not hm or am.start() < hm.start()):
+                        continue
+                    pos = mm.start() + lo
+                    dist = abs(pos - i) * (2.0 if pos > i else 1.0)
+                    if best is None or dist < best[0]:
+                        best = (dist, val, pos)
+                start = i + len(cue)
+        return best
+
+    d, i = near(DEATH_CUES), near(INJURY_CUES)
+    if d and i and d[2] == i[2]:
+        if d[0] <= i[0]:
+            i = None
+        else:
+            d = None
+    return (d[1] if d else None), (i[1] if i else None)
+
+
+HIGHWAY_RE = [re.compile(r"\bNH[-\s]?\d{1,3}[A-Z]?\b", re.I),
+              re.compile(r"\bSH[-\s]?\d{1,3}[A-Z]?\b", re.I),
+              re.compile(r"\b[A-Z][a-z]+(?:[-\s][A-Z][a-z]+)?\s+Expressway\b")]
+
+JUNK_PLACES = {"google", "news", "india", "indian", "bharat", "video", "watch", "live",
+               "update", "breaking", "exclusive", "hindi", "bengali", "marathi", "tamil",
+               "telugu", "kannada", "malayalam", "gujarati", "punjabi", "maratha"}
+
+
+def extract_places(text):
+    if not text:
+        return "", ""
+    found, seen = [], set()
+    for name, pat in _PLACE_PATTERNS:
+        if name.lower() in JUNK_PLACES or name.lower() in seen:
+            continue
+        if pat.search(text):
+            found.append(name)
+            seen.add(name.lower())
+            if len(found) >= 3:
+                break
+    hw, hs = [], set()
+    for pat in HIGHWAY_RE:
+        for m in pat.findall(text):
+            k = re.sub(r"[-\s]+", "-", m.strip())
+            if k.lower() not in hs:
+                hw.append(k)
+                hs.add(k.lower())
+    return "; ".join(found), "; ".join(hw)
+
+
+CAUSE_TRIGGER = re.compile(
+    r"\b(?:after|when|while|due to|because of|owing to|caused by|as a result of|"
+    r"following|reportedly|allegedly|suspected|police said|prima facie|lost control|"
+    r"brake failure|tyre burst|overspeed\w*|drunk|asleep|fog|slipp\w*|overload\w*|negligen\w*)\b", re.I)
+SENT_SPLIT = re.compile(r"(?<=[.!?])\s+|\u0964")
+
+
+def extract_cause(body, headline):
+    """Explanation taken from the article body, with sentences that merely
+    restate the headline removed. Blank when the report does not explain."""
+    if not body:
+        return ""
+    text = re.sub(r"\s+", " ", body).strip()
+    sents = [s.strip() for s in SENT_SPLIT.split(text) if len(s.strip()) > 25]
+    hw = set(re.findall(r"[a-z]{4,}", (headline or "").lower()))
+    keep = []
+    for s in sents[:10]:
+        sw = set(re.findall(r"[a-z]{4,}", s.lower()))
+        if hw and sw and len(hw & sw) / max(1, min(len(hw), len(sw))) >= 0.6:
+            continue
+        if CAUSE_TRIGGER.search(s):
+            keep.append(s)
+        if sum(len(k.split()) for k in keep) > 55:
+            break
+    return " ".join(keep).strip()[:400]
+
+
+TIME_AMPM = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b", re.I)
+TIME_24 = re.compile(r"\b([01]?\d|2[0-3]):([0-5]\d)\s*(?:hrs|hours)?\b")
+NIGHT_WORDS = ["night", "midnight", "wee hours", "early hours", "overnight", "evening",
+               "रात", "शाम", "রাত", "সন্ধ্যা", "இரவு", "மாலை", "రాత్రి", "సాయంత్రం",
+               "ರಾತ್ರಿ", "ಸಂಜೆ", "രാത്രി", "વૈകുന്നേരം", "રાત", "સાંજ", "ਰਾਤ", "ਸ਼ਾਮ"]
+DAY_WORDS = ["morning", "afternoon", "noon", "midday", "daytime", "सुबह", "दोपहर", "सकाळ",
+             "সকাল", "দুপুর", "காலை", "மதியம்", "ఉదయం", "మధ్యాహ్నం", "ಬೆಳಿಗ್ಗೆ", "ಮಧ್ಯಾಹ್ನ",
+             "രാവിലെ", "ઉച്ച", "સવાર", "બપોર", "ਸਵੇਰ", "ਦੁਪਹਿਰ"]
+
+
+def extract_time_of_day(text):
+    if not text:
+        return ""
+    m = TIME_AMPM.search(text)
+    if m:
+        h = int(m.group(1)) % 12
+        if m.group(3).lower().startswith("p"):
+            h += 12
+        return "Night" if (h >= 18 or h < 6) else "Day"
+    m = TIME_24.search(text)
+    if m:
+        h = int(m.group(1))
+        return "Night" if (h >= 18 or h < 6) else "Day"
+    low = text.lower()
+    if any(w in low for w in NIGHT_WORDS):
+        return "Night"
+    if any(w in low for w in DAY_WORDS):
+        return "Day"
+    return ""
+
+
+MALE_RE = re.compile(r"\b(?:man|men|male|boy|boys|father|husband|son|brother|youth|jawan)\b", re.I)
+FEMALE_RE = re.compile(r"\b(?:woman|women|female|girl|girls|mother|wife|daughter|sister|lady)\b", re.I)
+AGE_RE = [re.compile(r"\b(\d{1,3})\s*[-\u2013]?\s*(?:year|yr|yrs|years)\s*[-\u2013]?\s*old\b", re.I),
+          re.compile(r"\b(?:aged|age)\s*(\d{1,3})\b", re.I)]
+
+
+def extract_gender(text):
+    if not text:
+        return ""
+    m, f = bool(MALE_RE.search(text)), bool(FEMALE_RE.search(text))
+    return "Both" if m and f else ("Male" if m else ("Female" if f else ""))
+
+
+def extract_ages(text):
+    out = []
+    for pat in AGE_RE:
+        for v in pat.findall(text or ""):
+            n = int(v)
+            if 0 < n <= 110 and n not in out:
+                out.append(n)
+    return "; ".join(str(x) for x in sorted(out)[:4])
+
+
+NEAR_MISS = re.compile(
+    r"\b(?:no casualt\w*|no one (?:was )?(?:hurt|injured)|nobody injured|no injuries|"
+    r"escaped unhurt|escaped unharmed|narrow escape|narrowly escaped|averted|all safe|"
+    r"rescued safely|no loss of life)\b|बाल-बाल बच|हादसा टला", re.I)
+
+
+def severity(text, deaths, injured):
+    if deaths:
+        return "Fatal"
+    if injured:
+        return "Injury only"
+    if text and NEAR_MISS.search(text):
+        return "Near miss"
+    return "Not stated"
+
 
 # ===========================================================================
 # TRANSLATION
 # ===========================================================================
-_MOCK_TRANSLATE = None  # test hook: callable(text)->str
+_MOCK_TRANSLATE = None
 
 
 def translate_to_en(text):
-    """SIMPLE build: translate via Google's free public endpoint using only the
-    standard library (no pip install). Unofficial, so it can rate-limit; on any
-    failure we return "" and the caller falls back to the digit/keyword method."""
     if not text or not text.strip():
         return ""
     if _MOCK_TRANSLATE is not None:
@@ -148,1445 +744,109 @@ def translate_to_en(text):
         with urllib.request.urlopen(req, timeout=15) as r:
             data = json.loads(r.read().decode("utf-8", "ignore"))
         return "".join(seg[0] for seg in data[0] if seg and seg[0])
-    except Exception:
+    except Exception:                                              # noqa: BLE001
         return ""
 
 
 # ===========================================================================
-# DIGITS + CASUALTY EXTRACTION (works without translation)
+# HTTP / FEEDS
 # ===========================================================================
-def _digit_map():
-    m = {}
-    for s in [0x0966, 0x09E6, 0x0A66, 0x0AE6, 0x0B66, 0x0BE6, 0x0C66, 0x0CE6, 0x0D66]:
-        for d in range(10):
-            m[chr(s + d)] = str(d)
-    return str.maketrans(m)
-
-DIGIT_TRANS = _digit_map()
-
-DEATH_CUES = ["killed", "kills", "dead", "death", "deaths", "died", "dies", "die ", "deceased",
-              "toll", "lives lost", "perished", "loses life", "lost life",
-              "मौत", "मृत", "मरे", "मृत्यु", "निधन", "ठार", "নিহত", "মৃত", "মৃত্যু",
-              "இறந்த", "உயிரிழ", "பலி", "మృతి", "మృత్యు", "మరణ", "చనిపో", "ಸಾವು", "ಮೃತ", "ಬಲಿ",
-              "മരണം", "മരിച്ച", "കൊല്ല", "મોત", "મૃત્યુ", "મૃત", "ਮੌਤ", "ਮਰੇ"]
-INJURED_CUES = ["injured", "hurt", "wounded", "injuries", "घायल", "जख्मी", "আহত", "জখম", "जखमी",
-                "காயம்", "படுகாயம்", "గాయ", "క్షతగా", "ಗಾಯ", "പരിക്ക", "ઘાયલ", "ઈજા",
-                "ਜ਼ਖ਼ਮੀ", "ਜ਼ਖਮੀ", "ਘਾਇਲ"]
-
-
-
-# Spelled-out numerals. Field testing showed reports like "two died, 20 injured"
-# (Tamil "irandu per pali") caused the digit 20 to be mis-assigned to deaths,
-# because the death count was a WORD. Converting words to digits fixes this.
-WORD_NUMBERS = {
- "one":1,"two":2,"three":3,"four":4,"five":5,"six":6,"seven":7,"eight":8,"nine":9,"ten":10,
- "eleven":11,"twelve":12,"thirteen":13,"fourteen":14,"fifteen":15,"sixteen":16,
- "seventeen":17,"eighteen":18,"nineteen":19,"twenty":20,"thirty":30,"forty":40,"fifty":50,
- "एक":1,"दो":2,"तीन":3,"चार":4,"पांच":5,"पाँच":5,"छह":6,"सात":7,"आठ":8,"नौ":9,"दस":10,
- "এক":1,"দুই":2,"তিন":3,"চার":4,"পাঁচ":5,"ছয়":6,"সাত":7,"আট":8,"নয়":9,"দশ":10,
- "ஒரு":1,"ஒருவர":1,"இரண்டு":2,"இருவர":2,"மூன்று":3,"மூவர":3,"நான்கு":4,"நால்வர":4,
- "ஐந்து":5,"ஆறு":6,"ஏழு":7,"எட்டு":8,"ஒன்பது":9,"பத்து":10,
- "ఒక":1,"ఇద్దరు":2,"ముగ్గురు":3,"నలుగురు":4,"ఐదుగురు":5,"ఆరుగురు":6,"ఏడుగురు":7,
- "ఎనిమిది":8,"తొమ్మిది":9,"పది":10,
- "ఇద్దరికి":2,"ముగ్గురికి":3,"నలుగురికి":4,"ఐదుగురికి":5,"ఆరుగురికి":6,"ఏడుగురికి":7,
- "ಒಬ್ಬ":1,"ಇಬ್ಬರು":2,"ಮೂವರು":3,"ನಾಲ್ವರು":4,"ಐವರು":5,
- "ഒരാൾ":1,"രണ്ട":2,"മൂന്ന":3,"നാല":4,"അഞ്ച":5,
- "એક":1,"બે":2,"ત્રણ":3,"ચાર":4,"પાંચ":5,
- "ਇੱਕ":1,"ਦੋ":2,"ਤਿੰਨ":3,"ਚਾਰ":4,"ਪੰਜ":5,
- "एका":1,"दोन":2,"तीन":3,"चार":4,"पाच":5,
-}
-_WORDNUM_SORTED = sorted(WORD_NUMBERS.items(), key=lambda kv: len(kv[0]), reverse=True)
-
-
-def _words_to_digits(t):
-    for word, val in _WORDNUM_SORTED:
-        if word not in t:
-            continue
-        if word.isascii():
-            # whole words only: "two-wheeler" must NOT become "2-wheeler"
-            t = re.sub(r"\b" + re.escape(word) + r"\b(?![-\w])", f" {val} ", t)
-        else:
-            t = t.replace(word, f" {val} ")
-    return t
-
-
-# ===========================================================================
-# TIME OF DAY, VICTIM GENDER, VICTIM AGE
-# ===========================================================================
-_CLOCK_RE = re.compile(r"\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b", re.I)
-_CLOCK24_RE = re.compile(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\s*(?:hrs|hours)?\b")
-NIGHT_CUES = ["night", "midnight", "late night", "after midnight", "wee hours", "pre-dawn",
-              "early hours", "overnight", "dark",
-              "रात", "देर रात", "आधी रात", "रातो", "রাত", "গভীর রাতে", "இரவு", "நள்ளிரவு",
-              "రాత్రి", "అర్ధరాత్రి", "ರಾತ್ರಿ", "രാത്രി", "રાત", "ਰਾਤ"]
-DAY_CUES = ["morning", "afternoon", "noon", "daytime", "midday", "early morning", "evening",
-            "सुबह", "दोपहर", "दिन", "शाम", "সকাল", "দুপুর", "বিকেল", "காலை", "மதியம்", "மாலை",
-            "ఉదయం", "మధ్యాహ్నం", "సాయంత్రం", "ಬೆಳಿಗ್ಗೆ", "ಮಧ್ಯಾಹ್ನ", "ಸಂಜೆ",
-            "രാവിലെ", "ഉച്ചയ്ക്ക്", "വൈകുന്നേരം", "સવારે", "બપોરે", "સાંજે", "ਸਵੇਰ", "ਦੁਪਹਿਰ", "ਸ਼ਾਮ"]
-_EVENING_CUES = ["evening", "शाम", "বিকেল", "மாலை", "సాయంత్రం", "ಸಂಜೆ", "വൈകുന്നേരം", "સાંજે", "ਸ਼ਾਮ"]
-
-
-def extract_time_of_day(text):
-    """Return 'Night', 'Day' or '' . Night = 18:00-06:00."""
-    if not text:
-        return ""
-    low = text.lower()
-    m = _CLOCK_RE.search(text)
-    if m:
-        hr = int(m.group(1)) % 12
-        if m.group(3).lower().startswith("p"):
-            hr += 12
-        return "Night" if (hr >= 18 or hr < 6) else "Day"
-    m = _CLOCK24_RE.search(text)
-    if m:
-        hr = int(m.group(1))
-        return "Night" if (hr >= 18 or hr < 6) else "Day"
-    for cue in NIGHT_CUES:
-        if cue in low:
-            return "Night"
-    for cue in _EVENING_CUES:
-        if cue in low:
-            return "Night"          # evening treated as after 18:00
-    for cue in DAY_CUES:
-        if cue in low:
-            return "Day"
-    return ""
-
-
-_MALE_RE = re.compile(r"\b(?:man|men|male|males|boy|boys|father|husband|son|sons|brother|"
-                      r"uncle|grandfather|youth|jawan|constable|driver|labourer|farmer)\b", re.I)
-_FEMALE_RE = re.compile(r"\b(?:woman|women|female|females|girl|girls|mother|wife|daughter|"
-                        r"sister|aunt|grandmother|lady|ladies|bride|widow)\b", re.I)
-_MALE_NATIVE = ["पुरुष", "युवक", "पिता", "पति", "बेटा", "भाई", "लड़का",
-                "পুরুষ", "যুবক", "ছেলে", "স্বামী", "ஆண்", "இளைஞர்", "மகன்",
-                "పురుషుడు", "యువకుడు", "కుమారుడు", "ಪುರುಷ", "ಯುವಕ", "പുരുഷ", "യുവാവ്",
-                "પુરુષ", "યુવક", "ਪੁਰਸ਼", "ਨੌਜਵਾਨ"]
-_FEMALE_NATIVE = ["महिला", "युवती", "मां", "पत्नी", "बेटी", "बहन", "लड़की",
-                  "মহিলা", "নারী", "যুবতী", "স্ত্রী", "মেয়ে", "பெண்", "மனைவி", "மகள்",
-                  "మహిళ", "స్త్రీ", "భార్య", "కుమార్తె", "ಮಹಿಳೆ", "ಪತ್ನಿ", "സ്ത്രീ", "ഭാര്യ",
-                  "મહિલા", "પત્ની", "ਔਰਤ", "ਮਹਿਲਾ"]
-
-
-def extract_gender(text):
-    """'Male', 'Female', 'Both' or '' - based on how the victims are described."""
-    if not text:
-        return ""
-    male = bool(_MALE_RE.search(text)) or any(w in text for w in _MALE_NATIVE)
-    female = bool(_FEMALE_RE.search(text)) or any(w in text for w in _FEMALE_NATIVE)
-    if male and female:
-        return "Both"
-    if male:
-        return "Male"
-    if female:
-        return "Female"
-    return ""
-
-
-_AGE_RES = [
-    re.compile(r"\b(\d{1,3})\s*[-\u2013]?\s*(?:year|yr|yrs|years)\s*[-\u2013]?\s*old\b", re.I),
-    re.compile(r"\b(?:aged|age)\s*(\d{1,3})\b", re.I),
-    re.compile(r"\b(?:man|woman|youth|boy|girl|person|student|worker|driver)\s*,\s*(\d{1,3})\s*,", re.I),
-    re.compile(r"\b(\d{1,3})\s*(?:साल|वर्ष|বছর|வயது|సంవత్సరాల|ವರ್ಷ|വയസ്സ|વર્ષ|ਸਾਲ)\b"),
-]
-
-
-def extract_ages(text, limit=4):
-    """Ages of those involved, where the report gives them."""
-    if not text:
-        return ""
-    out, seen = [], set()
-    for pat in _AGE_RES:
-        for val in pat.findall(text):
-            try:
-                v = int(val)
-            except (TypeError, ValueError):
-                continue
-            if 0 < v <= 110 and v not in seen:
-                out.append(v); seen.add(v)
-                if len(out) >= limit:
-                    return "; ".join(str(x) for x in sorted(out))
-    return "; ".join(str(x) for x in sorted(out))
-
-
-def _clean_for_numbers(text, singular_fallback=True):
-    """Prepare text for casualty extraction.
-    Fixes found in field testing:
-      * trailing ' - Source Name' contributed stray numbers (e.g. Bengali outlet
-        'Ekattor' and article IDs like '|1271497')
-      * thousand separators split '37,000' into '37' and '000' -> bogus 0
-    """
-    t = text.translate(DIGIT_TRANS)
-    t = re.sub(r"\|\s*\d+\s*$", " ", t)            # trailing |1271497 article ids
-    # Strip identifiers whose digits are NOT casualties. Field testing found
-    # "bridge under construction on NH-107" recorded as 107 deaths, and road
-    # numbers are extremely common in Indian accident headlines.
-    t = re.sub(r"\b(?:nh|sh|mdr|national highway|state highway|ring road|route)\s*[-\u2013]?\s*\d+[a-z]?\b", " ", t, flags=re.I)
-    t = re.sub(r"\b(?:ward|sector|plot|flat|room|gate|platform|coach|bogie|pillar|km|kilometre|kilometer)\s*(?:no\.?|number)?\s*\d+\b", " ", t, flags=re.I)
-    t = re.sub(r"\b\d+\s*(?:km|kms|kilometre|kilometer|metre|meter|mtr|feet|ft|storey|storeys|story|floor|floors|lane|lanes|year|years|yr|yrs|month|months|am|pm|hrs|hours|o\'clock)\b", " ", t, flags=re.I)
-    t = re.sub(r"\b(?:rs|inr|usd|crore|lakh)\.?\s*\d+", " ", t, flags=re.I)
-    # AGES are the single biggest source of false casualty counts in Indian
-    # headlines ("70-yr-old killed", "24 year old youth dies", "200-year-old
-    # building collapses"). Remove them before looking for casualty numbers.
-    t = re.sub(r"\b\d{1,3}\s*[-\u2013]?\s*(?:year|yr|yrs|years)\s*[-\u2013]?\s*old\b", " ", t, flags=re.I)
-    t = re.sub(r"\b(?:aged|age)\s*\d{1,3}\b", " ", t, flags=re.I)
-    t = re.sub(r"\b(man|woman|youth|boy|girl|person|student|worker|driver|official|officer|"
-               r"engineer|teacher|doctor|soldier|jawan|constable|cop|biker|rider|son|daughter|"
-               r"employee|businessman|techie|farmer|labourer|laborer|resident|native|"
-               r"[A-Z][a-z]+)\s*,\s*\d{1,3}\s*,", r" \1 ", t, flags=re.I)
-    t = re.sub(r"\b\d{1,3}\s*[x\u00d7]\s*\d{1,2}\b", " ", t)      # channel names like 24x7
-    t = re.sub(r"\b\d{1,3}\s*(?:saal|varsh|barsh)\b", " ", t, flags=re.I)
-    # percentages and shares are not counts
-    t = re.sub(r"\b\d+(?:\.\d+)?\s*(?:%|per\s*cent\b|percent\b|pc\b)", " ", t, flags=re.I)
-    # durations
-    t = re.sub(r"\b\d+\s*(?:minute|minutes|min|mins|second|seconds|sec|secs|day|days|week|weeks)\b", " ", t, flags=re.I)
-    t = re.sub(r"\s+-\s+[^-]{0,40}$", " ", t)       # trailing ' - Publisher'
-    t = re.sub(r"(?<=\d)[,\.](?=\d{3}\b)", "", t)  # 37,000 -> 37000
-    t = t.lower()
-    # "death of a person", "one man died" -> a single fatality
-    t = re.sub(r"\b(?:a|one|an)\s+(person|man|woman|youth|girl|boy|child|labourer|laborer|"
-               r"worker|student|driver|rider|pedestrian|villager|farmer|devotee|passenger)\b",
-               r" 1 \1 ", t)
-    if not singular_fallback:
-        return _words_to_digits(t)
-    # a single victim named without any number: "man died", "youth dies",
-    # "woman killed" -> one fatality (ages have already been stripped above)
-    t = re.sub(r"\b(person|man|woman|youth|girl|boy|child|labourer|laborer|worker|student|"
-               r"man|woman|youth|girl|boy|child|labourer|laborer|worker|student|driver|rider|pedestrian|villager|farmer|devotee|passenger|jawan|constable|official|officer|engineer|teacher|doctor|soldier|cop|biker|son|daughter|employee|businessman|techie|resident|conductor|cyclist|motorcyclist|inspector|grandmother|grandfather|granddaughter|grandson|mother|father|wife|husband|brother|sister|uncle|aunt|nurse|guard|cleaner|helper|mechanic|vendor|shopkeeper|trader|pilot|crew|nationals?|tourists?|pilgrims?|devotees?|minor|toddler|infant|baby|elderly)\s+"
-               r"(?=(?:dies|died|killed|dead|is dead|was killed|injured|hurt|wounded))",
-               r" 1 \1 ", t)
-    return _words_to_digits(t)
-
-
-_HUMAN_RE = re.compile(r"\b(?:people|persons?|passengers?|men|man|women|woman|children|child|"
-                       r"boys?|girls?|workers?|labourers?|laborers?|students?|drivers?|riders?|"
-                       r"pedestrians?|villagers?|farmers?|devotees?|pilgrims?|jawans?|soldiers?|"
-                       r"police(?:men)?|constables?|tourists?|youths?|family|families|victims?)\b", re.I)
-
-
-def _plausible(val):
-    """Reject values that are not casualty counts."""
-    if val <= 0 or val > 500:
-        return False
-    if 1900 <= val <= 2100:                          # years
-        return False
-    return True
-
-
-def extract_counts(text):
-    """Try to read explicit numbers first. Only if none are found do we fall back
-    to inferring a single victim from wording like "youth dies" - otherwise
-    "9 Nationals Killed" would be reduced to 1."""
-    d, i = _extract_counts_from(_clean_for_numbers(text, singular_fallback=False))
-    if d is None and i is None:
-        return _extract_counts_from(_clean_for_numbers(text, singular_fallback=True))
-    d2, i2 = _extract_counts_from(_clean_for_numbers(text, singular_fallback=True))
-    if d is None:
-        d = d2
-    if i is None:
-        i = i2
-    return d, i
-
-
-def _extract_counts_from(t):
-
-    def near(cues, window=34):
-        best = None
-        for cue in cues:
-            start = 0
-            while True:
-                i = t.find(cue.lower(), start)
-                if i == -1:
-                    break
-                base = max(0, i - window)
-                end = i + len(cue) + window
-                # never slice through a number, or '2024' becomes '4'
-                while base > 0 and t[base - 1].isdigit():
-                    base -= 1
-                while end < len(t) and t[end].isdigit():
-                    end += 1
-                seg = t[base:end]
-                # full digit runs only, so '1271497' is read whole and rejected
-                for mm in re.finditer(r"\d+", seg):
-                    val = int(mm.group())
-                    if not _plausible(val):
-                        continue
-                    # Never count animals: "70 sheep killed". Only the noun that
-                    # belongs to THIS number matters, so look just after it and
-                    # stop at the first human noun - otherwise "12 goats dead,
-                    # 2 people injured" would discard the 2 people as well.
-                    after = seg[mm.end(): mm.end() + 26]
-                    am = ANIMAL_RE.search(after)
-                    hm = _HUMAN_RE.search(after)
-                    if am and (not hm or am.start() < hm.start()):
-                        continue
-                    pos = mm.start() + base
-                    dist = abs(pos - i)
-                    # In English and most Indian languages the count PRECEDES the
-                    # cue ("3 killed", "20 per kayam"). Bengali often puts it after
-                    # ("nihoto 12"), so numbers after the cue are penalised, not
-                    # excluded.
-                    if pos > i:
-                        dist *= 2.0
-                    if best is None or dist < best[0]:
-                        best = (dist, val, pos)
-                start = i + len(cue)
-        return best  # (distance, value, position) or None
-
-    d = near(DEATH_CUES)
-    i = near(INJURED_CUES)
-    # If BOTH cues claim the SAME number (e.g. "two died, 20 injured" - the word
-    # 'two' is not a digit, so '20' sits near both cues), award it to the closer
-    # cue only and leave the other blank rather than double-counting it.
-    if d and i and d[2] == i[2]:
-        if d[0] <= i[0]:
-            i = None
-        else:
-            d = None
-    return (d[1] if d else None), (i[1] if i else None)
-
-
-# ===========================================================================
-# CATEGORY + NATURAL-CALAMITY CUES  (ordered: most specific first)
-# ===========================================================================
-CATEGORY_CUES = OrderedDict([
-    # --- AVIATION -----------------------------------------------------------
-    ("aviation", ["plane","planes","aircraft","aeroplane","airplane","helicopter","chopper",
-        "air crash","aviation","flight","flights","emergency landing","crash landing","runway",
-        "airport","airstrip","विमान","हेलिकॉप्टर","विमानतळ","एयरपोर्ट","एयरक्राफ्ट","हवाई अड्डा",
-        "उड़ान","विमानतल","এয়ারপোর্ট","বিমানবন্দর","விமான நிலைய","వિమానాశ్రయ","ವಿಮಾನ ನಿಲ್ದಾಣ",
-        "വിമാനത്താവള","એરપોર્ટ","ਏਅਰਪੋਰਟ","ਹਵਾਈ ਅੱਡਾ","বিমান","হেলিকপ্টার","விமான",
-        "విమానం","ವಿಮಾನ","വിമാനം","વિમાન","ਜਹਾਜ਼"]),
-
-    # --- PORT / MARITIME ----------------------------------------------------
-    ("port_maritime", ["boat","boats","ferry","ferries","ship","ships","vessel","trawler","barge",
-        "launch capsiz*","capsiz*","harbour","harbor","jetty","dockyard","dock ","shipyard",
-        "port ","seaport","fishing boat","steamer","dredger","tugboat","cargo ship","container ship",
-        "नौका","नाव","जहाज","बंदरगाह","घाट","নৌকা","জাহাজ","লঞ্চ","বন্দর","ফেরি",
-        "படகு","கப்பல்","துறைமுகம்","పడవ","నౌక","ఓడ","ఓడరేవు","ದೋಣಿ","ಹಡಗು","ಬಂದರು",
-        "ബോട്ട്","കപ്പൽ","തുറമുഖം","હોડી","જહાજ","બંદર","ਕਿਸ਼ਤੀ","ਜਹਾਜ਼ ਬੰਦਰਗਾਹ"]),
-
-    # --- TRAIN --------------------------------------------------------------
-    ("train", ["train","trains","railway","rail","derail*","locomotive","level crossing",
-        "railway crossing","metro train","goods train","express train",
-        "ट्रेन","रेल","रेलवे","রেল","ট্রেন","ரயில்","రైలు","ರೈಲು","ട്രെയിൻ","ટ્રેન","ਰੇਲ"]),
-
-    # --- ROADWAY (buses + cargo + cars/two-wheelers + pedestrians merged) ----
-    ("roadway", [
-        # buses
-        "bus","buses","minibus","school bus","बस","বাস","பேருந்து","బస్సు","ಬಸ್","ബസ്","બસ","ਬੱਸ",
-        # cargo / goods vehicles
-        "truck","trucks","lorry","lorries","tanker","tankers","trailer","goods vehicle","container",
-        "cargo","dumper","freight","pickup van","tempo","ट्रक","लॉरी","टैंकर","ট্রাক","லாரி",
-        "ట్రక్","ಟ್ರಕ್","ലോറി","ટ્રક","ਟਰੱਕ",
-        # pedestrians
-        "pedestrian","pedestrians","run over","ran over","mowed down","knocked down",
-        "hit while crossing","पैदल","राहगीर","পথচারী","பாதசாரி","పాదచారి","ಪಾದಚಾರಿ","કાൽനട",
-        "રાહદારી","ਪੈਦਲ",
-        # general road traffic
-        "road accident","road mishap","road crash","car crash","two-wheeler","motorcycle",
-        "motorbike","bike","bikes","scooter","scooty","suv","van","vans","auto-rickshaw",
-        "autorickshaw","auto rickshaw","jeep","highway","expressway","road accidents",
-        "सड़क","हाईवे","राजमार्ग","सड़क हादसा","सड़क दुर्घटना","রাস্তা","সড়ক","পথ দুর্ঘটনা",
-        "रस्ता अपघात","महामार्ग","சாலை","நெடுஞ்சாலை",
-        "రోడ్డు","హైవే","ರಸ್ತೆ","ಹೆದ್ದಾರಿ","റോഡ്","માર્ગ","હાઈવે","ਸੜਕ","ਹਾਈਵੇ"]),
-
-    # --- ONGOING CONSTRUCTION (building / infrastructure being built) -------
-    ("construction_ongoing", ["under construction","under-construction","construction site",
-        "scaffolding","girder","crane","cranes","trench collaps*","excavation collaps*",
-        "pit collaps*","newly built","newly constructed","being built","construction work",
-        "under repair","tunnel collaps*","bridge under","flyover under","formwork","shuttering",
-        "निर्माणाधीन","निर्माण कार्य","निर्माण स्थल","क्रेन","নির্মীয়মাণ","নির্মাণ",
-        "கட்டுமான","నిర్మాణంలో","ನಿರ್ಮಾಣ","നിർമാണ","બાંધકામ","ਉਸਾਰੀ"]),
-
-    # --- OLD / EXISTING STRUCTURE COLLAPSE ----------------------------------
-    ("old_structure_collapse", ["collaps*","caved in","gave way","dilapidated","old building",
-        "decades-old","century-old","declared dangerous","dangerous building","wall fell",
-        "roof fell","slab fell","building razed","structure fell",
-        "इमारत","ढह","दीवार","भवन","जर्जर","पुरानी इमारत","छत गिर","ভবন ধস","ধস","পুরনো ভবন",
-        "कोसळ","इमारत कोसळ","கட்டிடம்","இடிந்து","భవనం","కూలి","ಕಟ್ಟಡ","ಕುಸಿ","കെട്ടിടം",
-        "തകർന്നു","ઇમારત","ધરાશાયી","ਇਮਾਰਤ","ਢਹਿ"]),
-])
-
-# Anything that matches none of the above but IS an accident falls into "others".
-# The sector column says what kind of activity it was.
-OTHER_SECTOR_CUES = OrderedDict([
-    ("factory_manufacturing", ["factory","plant","manufacturing","workshop","boiler","assembly line",
-        "फैक्ट्री","कारखाना","কারখানা","தொழிற்சாலை","ఫ్యాక్టరీ","ಕಾರ್ಖಾನೆ","ഫാക്ടറി","ફેક્ટરી","ਫੈਕਟਰੀ"]),
-    ("mining_quarry", ["mine","mines","mining","colliery","quarry","stone crusher","खदान","खनन","खान",
-        "খনি","சுரங்க","గని","ಗಣಿ","ഖനി","ખાણ"]),
-    ("chemical_refinery", ["chemical","refinery","petrochemical","acid","ammonia","chlorine",
-        "रासायनिक","रिफाइनरी","রাসায়নিক","ரசாயன","రసాయన"]),
-    ("fireworks_explosives", ["firecracker","cracker unit","fireworks","explosive","पटाखा","आतिशबाजी",
-        "বাজি","পটকা","பட்டாசு","బాణాసంచా"]),
-    ("gas_cylinder", ["gas leak*","cylinder","lpg","gas pipeline","गैस","গ্যাস","எரிவாயு","గ్యాస్"]),
-    ("electrical", ["electrocut*","live wire","transformer","short circuit","high tension",
-        "करंट","बिजली","বিদ্যুৎ","மின்சார","విద్యుత్"]),
-    ("fire", ["fire","blaze","caught fire","आग","আগুন","தீ விபத்து","మంటలు","ಬೆಂಕಿ","തീപിടിത്തം"]),
-    ("sewer_sanitation", ["septic tank","sewer","manhole","drain","सेप्टिक","सीवर","নর্দমা"]),
-    ("borewell_well", ["borewell","bore well","open well","बोरवेल","কূপ"]),
-    ("lift_elevator", ["lift","elevator","लिफ्ट","লিফট"]),
-    ("drowning_water", ["drowned","drowning","canal","pond","waterfall","डूब","ডুবে","மூழ்கி"]),
-    ("stampede_crowd", ["stampede","crowd crush","भगदड़","পদপিষ্ট","நெரிசல்"]),
-    ("agriculture", ["tractor","harvester","thresher","farm","ट्रैक्टर","ট্রাক্টর","டிராக்டர்"]),
-])
-
-NATURAL_CUES = ["flood*", "deluge", "inundat*", "landslide", "landslip", "mudslide",
-                "cloudburst", "avalanche", "earthquake", "quake", "tremor", "cyclone", "hurricane",
-                "typhoon", "tornado", "tsunami", "lightning", "thunderbolt", "hailstorm", "wildfire",
-                "forest fire", "storm surge", "glacier burst", "glacial lake",
-                "बाढ़", "भूस्खलन", "भूकंप", "चक्रवात", "बिजली गिरने", "बादल फटने", "हिमस्खलन",
-                "বন্যা", "ভূমিধস", "ভূমিকম্প", "ঘূর্ণিঝড়", "বজ্রপাত", "வெள்ளம்", "நிலச்சரிவு", "நிலநடுக்கம்",
-                "మిన்னல்", "వరద", "కొండచరియ", "భూకంపం", "పిడుగు", "ಪ್ರವಾಹ", "ಭೂಕುಸಿತ", "ಭೂಕಂಪ", "ಸಿಡಿಲು",
-                "വെള്ളപ്പൊക്കം", "ഉരുൾപൊട്ടൽ", "ഭൂകമ്പം", "પૂર", "ભૂસ્ખલન", "ધરતીકંપ", "ਹੜ੍ਹ", "ਭੂਚਾਲ"]
-
-
-def _compile(cues):
-    """ASCII cues -> word-boundary regex. A trailing '*' means 'any word suffix'
-    (e.g. 'collaps*' matches collapse/collapses/collapsed). Non-ASCII cues are
-    matched as plain substrings (Indic scripts have no simple word boundary)."""
-    out = []
-    for c in cues:
-        c = c.strip()
-        if not c.isascii():
-            out.append(("sub", c))
-        elif c.endswith("*"):
-            out.append(("re", re.compile(r"\b" + re.escape(c[:-1]) + r"\w*", re.I)))
-        else:
-            out.append(("re", re.compile(r"\b" + re.escape(c) + r"\b", re.I)))
-    return out
-
-CATEGORY_PATTERNS = OrderedDict((cat, _compile(cues)) for cat, cues in CATEGORY_CUES.items())
-NATURAL_PATTERNS = _compile(NATURAL_CUES)
-SECTOR_PATTERNS = OrderedDict((s, _compile(c)) for s, c in OTHER_SECTOR_CUES.items())
-
-
-def _hit(patterns, text, low):
-    for kind, p in patterns:
-        if kind == "re":
-            if p.search(text):
-                return True
-        elif p in low:
-            return True
-    return False
-
-
-GENERIC_ACCIDENT_CUES = ["accident","mishap","crash","killed","dead","death","died","injured",
- "collaps*","blast","explosion","fire","electrocut*","drowned","stampede","trapped","crushed",
- "हादसा","दुर्घटना","अपघात","मौत","घायल","দুর্ঘটনা","নিহত","আহত","விபத்து","உயிரிழ",
- "ప్రమాదం","మృతి","ಅಪಘಾತ","ಸಾವು","അപകടം","മരണം","અકસ્માત","મોત","ਹਾਦਸਾ","ਮੌਤ"]
-GENERIC_PATTERNS = _compile(GENERIC_ACCIDENT_CUES)
-
-
-def detect_sector(text):
-    """For 'others': which sector/activity the accident belongs to."""
-    low = text.lower()
-    for sector, patterns in SECTOR_PATTERNS.items():
-        if _hit(patterns, text, low):
-            return sector
-    return "unspecified"
-
-
-def detect_category(text):
-    low = text.lower()
-    for cat, patterns in CATEGORY_PATTERNS.items():
-        if _hit(patterns, text, low):
-            return cat
-    # not one of the named groups - keep it as "others" if it is still an accident
-    if _hit(GENERIC_PATTERNS, text, low):
-        return "others"
-    return None
-
-
-def is_natural(text):
-    return _hit(NATURAL_PATTERNS, text, text.lower())
-
-
-
-# ===========================================================================
-# GEOGRAPHIC FILTER - keep INDIA only
-# Google News language editions leak across borders: the Bengali edition
-# carries Bangladeshi outlets, and some foreign sites publish in Hindi.
-# Field testing found ~24% of Bengali items came from Bangladeshi outlets.
-# ===========================================================================
-FOREIGN_SOURCES = [
- # Bangladesh
- "daily star","prothom alo","প্রথম আলো","ডেইলি স্টার","bss","bangladesh sangbad","unb",
- "bdnews24","kalerkantho","jugantor","ittefaq","samakal","bangla tribune","ajkalerkhobor",
- "banglanews","risingbd","bd-pratidin","dhaka post","dhakapost","dhaka mail","dhaka tribune",
- "naya diganta","নয়া দিগন্ত","ajker patrika","আজকের পত্রিকা","desh rupantor","দেশ রূপান্তর",
- "jagonews","somoy","channel24","jamuna","ntv bd","rtv","bangladesh pratidin","manabzamin",
- "amader shomoy","bhorer kagoj","observerbd","newagebd","tbsnews","businesspostbd",
- # Pakistan
- "dawn","geo news","ary news","express tribune","the news international","samaa","dunya",
- "jang","nawaiwaqt","bol news",
- # Nepal / Sri Lanka / others in South Asia
- "kathmandu post","himalayan times","onlinekhabar","ekantipur","setopati","myrepublica",
- "ada derana","colombo","daily mirror sri","newsfirst.lk","sundaytimes.lk",
- # Vietnam / East Asia sites that publish Indian-language pages
- "vietnam.vn","vnexpress","xinhua","global times","china daily",
- # International wires / broadcasters (their India-datelined copy is usually
- # duplicated by Indian outlets anyway)
- "bbc","al jazeera","cnn","sputnik","voa","dw.com","deutsche welle",
-]
-
-FOREIGN_PLACES = [
- # countries / regions, English
- "bangladesh","pakistan","nepal","sri lanka","afghanistan","myanmar","bhutan","maldives",
- "china","vietnam","hungary","thailand","indonesia","malaysia","singapore","philippines",
- "japan","korea","russia","ukraine","turkey","iran","iraq","syria","israel","egypt",
- "saudi arabia","dubai","abu dhabi","qatar","kuwait","oman","bahrain","yemen",
- "nigeria","kenya","ethiopia","congo","ghana","tanzania","uganda","south africa","morocco",
- "brazil","mexico","peru","bolivia","colombia","argentina","chile","venezuela","ecuador",
- "united states","u.s.","usa","america","canada","mexico city","texas","california",
- "florida","new york","chicago","washington","united kingdom","britain","england","london",
- "scotland","ireland","france","paris","germany","berlin","italy","rome","spain","madrid",
- "portugal","poland","greece","serbia","croatia","austria","switzerland","netherlands",
- "belgium","sweden","norway","denmark","finland","australia","new zealand","kazakhstan",
- "uzbekistan","azerbaijan","georgia","armenia","cambodia","laos","taiwan","hong kong",
- # Bangladeshi districts/cities that appear without the country name
- "dhaka","chattogram","chittagong","sylhet","khulna","rajshahi","barisal","rangpur","mymensingh",
- "feni","comilla","cumilla","narayanganj","gazipur","bogura","jessore","jashore","cox's bazar",
- "tangail","noakhali","brahmanbaria","dinajpur","pabna","kushtia","faridpur","madaripur",
- "gopalganj bd","munshiganj","manikganj","sirajganj","naogaon","natore","joypurhat",
- "lalmonirhat","rangamati","magura","jhenaidah","meherpur","chuadanga","satkhira","bagerhat",
- "pirojpur","jhalokathi","barguna","bhola","habiganj","moulvibazar","sunamganj","netrokona",
- "jamalpur","sherpur","kurigram","nilphamari","panchagarh","thakurgaon","gaibandha",
- "chapainawabganj","bandarban","khagrachhari","patuakhali","shariatpur","rajbari","narsingdi",
- "kishoreganj","fatullah","savar","narail","keraniganj","tongi","ashulia",
- "হাঙ্গেরি","বগুড়া","নড়াইল","চকরিয়া","গাজীপুর","কক্সবাজার","নোয়াখালী","কুমিল্লা","লক্ষ্মীপুর",
- "চাঁদপুর","হবিগঞ্জ","ব্রাহ্মণবাড়িয়া","টাঙ্গাইল","কিশোরগঞ্জ","মানিকগঞ্জ","লালমনিরহাট",
- "রাঙামাটি","মাগুরা","ঝিনাইদহ","সাতক্ষীরা","বাগেরহাট","পিরোজপুর","ঝালকাঠি","বরগুনা","ভোলা",
- "মৌলভীবাজার","সুনামগঞ্জ","নেত্রকোনা","জামালপুর","শেরপুর","কুড়িগ্রাম","নীলফামারী","পঞ্চগড়",
- "ঠাকুরগাঁও","গাইবান্ধা","চাঁপাইনবাবগঞ্জ","বান্দরবান","খাগড়াছড়ি","পটুয়াখালী","শরীয়তপুর",
- "রাজবাড়ী","নরসিংদী","ফতুল্লা","সাভার","নারায়ণগঞ্জ","কেরানীগঞ্জ","টঙ্গী","আশুলিয়া",
- "ਹੰਗਰੀ","ਯੂਗਾਂਡਾ","uganda","tanzania","poland","polish","bahamas","algeria","algerian",
- "lahore","karachi","islamabad","rawalpindi","peshawar","quetta","multan","faisalabad",
- "kathmandu bd","pokhara","chittagong hill","yangon","phnom penh","jakarta","manila",
- "riyadh","jeddah","doha","muscat","kuwait city","tehran","baghdad","cairo","lagos","nairobi",
- "johannesburg","sao paulo","lima","bogota","santiago","buenos aires","toronto","sydney",
- "melbourne","auckland","kuala lumpur","bangkok","hanoi","seoul","tokyo","osaka","beijing",
- "shanghai","guangzhou","moscow","kyiv","warsaw","budapest","vienna","athens","lisbon",
- "addis ababa","ethiopian","malta","maltese","cyprus","kabul","dhaka bd","male maldives",
- "gaza","west bank","saudi","saudi arabia","jeddah","mecca","medina","dammam","riyadh",
- "africa","african","east africa","west africa","south asia","middle east","gulf countries",
- "mavatthagama","kurunegala","kandy","galle","jaffna","batticaloa","anuradhapura","matara",
- "trincomalee","negombo","ratnapura","badulla","hambantota","polonnaruwa",
- "apache","chinook","black hawk","f-16","f-35","boeing 737 max crash","us army","u.s. army",
- "us navy","us air force","royal air force","nato","pentagon","idf","israeli army",
- "colombo lk","zimbabwe","zambia","sudan","somalia","libya","tunisia","angola","mozambique",
- # Bangladeshi upazilas/towns seen in field testing
- "sitakunda","kaliakore","kaliakair","osmaninagar","ishwardi","puthia","bhaluka","hatibandha",
- "daganbhuiyan","daganbhuan","sundarganj","pakundia","kotalipara","gouripur","trishal",
- "chhagalnaiya","parshuram","sonagazi","mirsharai","hathazari","fatikchhari","raozan",
- "patiya","banshkhali","lohagara bd","satkania","boalkhali","sandwip","anwara","chandanaish",
- "shibganj","gomastapur","bholahat","nachole","dhamoirhat","porsha","sapahar","mahadebpur",
- "tanore","godagari","charghat","bagha","durgapur bd","mohanpur","paba","bagmara",
- "lalpur","baraigram","gurudaspur","singra","bagatipara","naldanga","kalia","lohagara narail",
- "shailkupa","harinakunda","kaliganj bd","kotchandpur","maheshpur","damurhuda","jibannagar",
- "alamdanga","gangni","mujibnagar","kushtia sadar","kumarkhali","khoksa","mirpur bd",
- "bheramara","daulatpur","rajbari sadar","goalanda","pangsha","baliakandi","kalukhali",
- "shibchar","kalkini","rajoir","dasar","naria","zajira","bhedarganj","damudya","gosairhat",
- "narsingdi sadar","palash","shibpur","monohardi","belabo","raipura","araihazar","sonargaon",
- "bandar","rupganj","siddhirganj","kaliakoir","kapasia","sreepur bd","kaliganj gazipur",
- "savar bd","dhamrai","keraniganj bd","nawabganj bd","dohar","tongi bd",
- "টাঙ্গাইল","সীতাকুণ্ড","কালিয়াকৈর","ওসমানীনগর","ঈশ্বরদী","পুঠিয়া","ভালুকা","হাতীবান্ধা",
- "দাগনভূঞা","সুন্দরগঞ্জ","পাকুন্দিয়া","নারায়ণগঞ্জ","সিলেট","ময়মনসিংহ","ফেনী","নাটোর",
- "হাঙ্গেরিতে","যুক্তরাজ্য","লন্ডন","ব্রিটেন",
- # native-script country names commonly seen
- "বাংলাদেশ","ঢাকা","চট্টগ্রাম","সিলেট","খুলনা","রাজশাহী","বরিশাল","রংপুর","ময়মনসিংহ",
- "হাঙ্গেরি","ভিয়েতনাম","পাকিস্তান","নেপাল","শ্রীলঙ্কা","সৌদি","চীন","ব্রাজিল","পোল্যান্ড",
- "बांग्लादेश","ढाका","पाकिस्तान","नेपाल","श्रीलंका","हंगरी","वियतनाम","चीन","सऊदी","ब्राजील",
- "म्यूनिख","रूस","यूक्रेन","अमेरिका","ब्रिटेन","लंदन",
- "பாகிஸ்தான்","வங்காளதேசம்","இலங்கை","சீனா","அமெரிக்கா",
- "పాకిస్తాన్","బంగ్లాదేశ్","శ్రీలంక","చైనా","అమెరికా",
- "ಪಾಕಿಸ್ತಾನ","ಬಾಂಗ್ಲಾದೇಶ","ಶ್ರೀಲಂಕಾ","ಚೀನಾ","ಅಮೆರಿಕ",
- "പാകിസ്ഥാൻ","ബംഗ്ലാദേശ്","ശ്രീലങ്ക","ചൈന","അമേരിക്ക",
- "પાકિસ્તાન","બાંગ્લાદેશ","શ્રીલંકા","ચીન","અમેરિકા",
- "ਪਾਕਿਸਤਾਨ","ਬੰਗਲਾਦੇਸ਼","ਸ਼੍ਰੀਲੰਕਾ","ਚੀਨ","ਅਮਰੀਕਾ",
-]
-FOREIGN_PLACE_PATTERNS = _compile(FOREIGN_PLACES)
-
-
-def is_foreign(text, source=""):
-    """True if the item looks like it is about another country."""
-    s = (source or "").lower()
-    for f in FOREIGN_SOURCES:
-        if f in s:
-            return True
-    return _hit(FOREIGN_PLACE_PATTERNS, text, text.lower())
-
-
-
-# ===========================================================================
-# NON-INCIDENT FILTER
-# Policy statements, court rulings, ministerial announcements and port/trade
-# news use the same vocabulary as accidents ("port", "hanging", "deaths") and
-# were leaking into the dataset. An item is kept only if it reports an actual
-# incident, not talk ABOUT incidents.
-# ===========================================================================
-POLICY_RE = re.compile(
-    r"\b(supreme court|high court|plea\b|petition|verdict|hearing|tribunal|"
-    r"minister|chief minister|governor|mla\b|mp\b|assembly|parliament|"
-    r"flags off|inaugurat\w*|launch(?:es|ed)?\b|reviews\b|demand\w*|urges|appeals|"
-    r"announce\w*|scheme|policy|guidelines|bill\b|budget|tender|project approved|"
-    r"compensation|summit|conference|meeting|awareness|campaign|training|workshop|"
-    r"measures to prevent|advice|warns|assures|survey|study finds|report says|"
-    r"export|import|exim|trade|gateway|operations begin|commission\w*|"
-    r"anniversary|remember\w*|tribute|memorial|"
-    r"compensation|ex-gratia|ex gratia|relief (?:fund|amount|cheque)|financial (?:aid|help|assistance)|"
-    r"insurance claim|claim settled|cheque (?:handed|distributed)|solatium|"
-    r"drug test|dope test|breathalyser|breathalyzer|alcohol test|medical test|"
-    r"licence suspended|license suspended|grounded|suspended pilot|de-?rostered|"
-    r"safety audit|mock drill|inspection|awareness drive|road safety week|"
-    r"traffic rules|challan|fine imposed|penalty imposed|helmet drive|"
-    r"exercise|drill|war games|test flight|trial run|airshow|air show|"
-    r"editorial|opinion|analysis|explainer|questions? (?:on|again)|spotlight|"
-    r"demands?\s+\w*\s*(?:technical|probe|hearing|action|inquiry)|black day|protest|closure of|"
-    r"investigation:|probe:|organi[sz]ation demands|association demands|"
-    r"handles \d+ flights|first day|inaugural flight|new terminal|"
-    r"safety record|long history|cooperation in|summoned|stake in|"
-    r"why does|why did|what happened|do we know|mystery|even after \d+ years)\b", re.I)
-
-INCIDENT_RE = re.compile(
-    r"\b(killed|kills|dead|died|dies|death toll|injur\w*|overturn\w*|collid\w*|collision|"
-    r"crash\w*|derail\w*|capsiz\w*|collaps\w*|ramm\w*|hit by|run over|mowed down|"
-    r"burnt|burned|electrocut\w*|drown\w*|trapp\w*|crush\w*|explos\w*|blast|"
-    r"caught fire|fire broke|swept away|buried|skidded|plunged|fell into|"
-    r"मौत|घायल|हादसा|दुर्घटना|নিহত|আহত|দুর্ঘটনা|விபத்து|உயிரிழ|ప్రమాదం|మృతి|"
-    r"ಅಪಘಾತ|ಸಾವು|അപകടം|മരണം|અકસ્માત|મોત|ਹਾਦਸਾ|ਮੌਤ)", re.I)
-
-
-
-# Some items mention a real crash but are ABOUT the aftermath, not the event:
-# investigations, demands, editorials, compensation, drug tests. The presence of
-# the word "crash" must not rescue them.
-STRONG_POLICY_RE = re.compile(
-    r"\b(?:investigation|investigating|probe|inquiry|enquiry|hearing|"
-    r"demands?|editorial|opinion piece|analysis:|explainer|spotlight|"
-    r"safety record|questions? (?:on|again|raised)|why (?:does|did|is)|"
-    r"compensation|ex-?gratia|solatium|relief (?:fund|amount)|"
-    r"drug test|dope test|breathalyser|breathalyzer|"
-    r"protest|black day|closure of|summoned|"
-    r"anniversary|years? (?:after|ago|of)|mystery|do we know)\b", re.I)
-
-
-def is_aftermath(text):
-    return bool(text and STRONG_POLICY_RE.search(text))
-
-
-def is_non_incident(text):
-    """True when the item talks ABOUT accidents rather than reporting one."""
-    if not text:
-        return True
-    if is_aftermath(text):
-        return True                        # about the aftermath, not the event
-    if INCIDENT_RE.search(text):
-        return False                       # a real incident is described
-    return bool(POLICY_RE.search(text))
-
-
-
-# Statistical round-ups ("416 killed in road accidents in July") and
-# anniversary / follow-up pieces about older crashes are not new incidents.
-# Left in, they add huge phantom casualty figures to the current month.
-AGGREGATE_RE = re.compile(
-    r"\b(?:killed|deaths?|died|fatalit\w*|accidents?)\b[^.]{0,40}\b(?:in|during|over|across)\b"
-    r"[^.]{0,30}\b(?:january|february|march|april|may|june|july|august|september|october|"
-    r"november|december|last year|this year|past year|last month|this month|the year|"
-    r"\d{4}|first half|second half|financial year|quarter|decade)\b", re.I)
-AGGREGATE_HINTS = re.compile(
-    r"\b(?:per day|every day|each day|per year|every year|annually|on average|average of|"
-    r"statistics|data shows|data reveals|figures show|report reveals|as per data|"
-    r"according to (?:the )?(?:data|report|ncrb|morth)|total of \d+|tally|"
-    r"toll (?:for|in) (?:the )?(?:year|month)|road accidents in \d{4}|"
-    r"in the past (?:era|years?|decade)|past era|in \d{1,3} years|"
-    r"\d+ deaths and \d+ injured|figures revealed|scary figures|"
-    r"roads are becoming|deaths? (?:per|a) (?:day|year|month)|"
-    r"in (?:one|a|the last|the past|only|first)\s+\d{0,3}\s*(?:month|months|year|years|day|days|week|weeks)|"
-    r"in \d{1,3}\s*(?:months|years|days|weeks)|first \d{1,2}\s*months|"
-    r"across the (?:country|state|district)|govt informs|government informs|"
-    r"assembly told|house told|so far this (?:year|month)|every (?:hour|minute|day|week|month|year)|(?:per|an) hour)", re.I)
-RETROSPECTIVE_RE = re.compile(
-    r"\b\d{1,3}\s*(?:years?|yrs?)\s+(?:of|since|after|ago|on)\b|"
-    r"\b(?:back in|way back|in the year)\s+(?:19|20)\d{2}\b|"
-    r"\b(?:still shiver\w*|still haunt\w*|tragedy still|history of|worst \w+ (?:accidents?|tragedies))\b|"
-    r"\b(?:a year after|one year after|years after|year(?:s)? ago|anniversary|"
-    r"remembering|looking back|final report|probe report|investigation report|"
-    r"draft report|aaib report|still awaits|even after a year|what happened)\b", re.I)
-
-
-
-ANIMAL_RE = re.compile(
-    r"\b(?:sheep|goats?|cattle|cows?|buffalo(?:e?s)?|oxen|bulls?|dogs?|cats?|"
-    r"elephants?|monkeys?|birds?|hens?|chickens?|pigs?|horses?|camels?|donkeys?|"
-    r"livestock|animals?|strays?)\b", re.I)
-
-
-def is_animal_casualty(text):
-    """'70 sheep killed in train collision' is not 70 human deaths."""
-    if not text:
-        return False
-    m = re.search(r"\b(?:killed|dead|died|deaths?)\b", text, re.I)
-    if not m:
-        return False
-    window = text[max(0, m.start() - 60): m.end() + 40]
-    if not ANIMAL_RE.search(window):
-        return False
-    # if people are ALSO mentioned near the cue, keep the record
-    return not re.search(r"\b(?:people|persons?|passengers?|men|women|children|"
-                         r"workers?|labourers?|driver|villagers?|students?)\b", window, re.I)
-
-
-def is_aggregate_or_retrospective(text):
-    """True for statistical round-ups and anniversary/follow-up articles."""
-    if not text:
-        return False
-    return bool(AGGREGATE_RE.search(text) or AGGREGATE_HINTS.search(text)
-                or RETROSPECTIVE_RE.search(text) or is_animal_casualty(text))
-
-
-def classify(combined, source=""):
-    """Return an in-scope category, or None if it should be dropped."""
-    if INDIA_ONLY and is_foreign(combined, source):
-        return None                      # accident in another country
-    if is_non_incident(combined):
-        return None                      # policy / court / announcement, not an accident
-    if is_aggregate_or_retrospective(combined):
-        return None                      # statistics round-up or anniversary piece
-    cat = detect_category(combined)
-    if cat is None:
-        return None
-    if is_natural(combined) and STRICT_NATURAL_EXCLUSION:
-        return None
-    return cat
-
-
-# ===========================================================================
-# REPORTED CAUSE (preliminary / as-reported, NOT investigated root cause)
-# Runs on the English (translated) + native text, so it works across sources
-# and languages. Many items will have NO detectable cause -> left blank.
-# ===========================================================================
-CAUSE_CUES = OrderedDict([
-    ("overspeeding", ["overspeed*", "speeding", "rash driving", "high speed", "reckless driving",
-                      "तेज रफ्तार", "तेज़ रफ्तार", "तेज गति", "रैश ड्राइविंग"]),
-    ("drunk_driving", ["drunk driving", "drink and drive", "drunken", "inebriated",
-                       "under the influence", "नशे में", "शराब पीकर", "शराब के नशे"]),
-    ("wrong_side_driving", ["wrong side", "wrong-side", "wrong lane", "wrong direction",
-                            "विपरीत दिशा", "गलत दिशा"]),
-    ("overtaking", ["overtaking", "overtake", "ओवरटेक"]),
-    ("tyre_burst", ["tyre burst", "tire burst", "tyre blowout", "tire blowout",
-                    "टायर फट", "टायर ब्लास्ट", "टायर फटने"]),
-    ("brake_failure", ["brake failure", "brakes failed", "brake fail*", "brakes fail*", "ब्रेक फेल"]),
-    ("overloading", ["overloaded", "overloading", "overcapacity", "क्षमता से अधिक", "ओवरलोड", "अधिक सवारी"]),
-    ("driver_fatigue", ["fell asleep", "dozed off", "driver asleep", "fatigue", "drowsy",
-                        "नींद", "झपकी", "सो गया"]),
-    ("fog_poor_visibility", ["dense fog", "fog", "poor visibility", "low visibility", "smog", "mist",
-                             "कोहरा", "धुंध", "कम दृश्यता"]),
-    ("slippery_wet_road", ["wet road", "slippery road", "slippery", "गीली सड़क", "फिसलन"]),
-    ("pothole_bad_road", ["pothole*", "bad road", "crater*", "damaged road", "गड्ढा", "गड्ढे",
-                          "खराब सड़क", "जर्जर सड़क"]),
-    ("signal_jump", ["jumped signal", "jumped the signal", "red light", "signal jump*",
-                     "सिग्नल तोड़", "रेड लाइट"]),
-    ("lost_control", ["lost control", "lost balance", "skid*", "veered", "swerved",
-                      "नियंत्रण खो", "अनियंत्रित", "बेकाबू"]),
-    ("head_on_collision", ["head-on", "head on collision", "collided head", "आमने-सामने", "आमने सामने"]),
-    ("unmanned_crossing", ["unmanned crossing", "unmanned level crossing", "unmanned railway",
-                           "मानवरहित क्रॉसिंग", "मानवरहित फाटक"]),
-    ("trench_excavation_collapse", ["trench collaps*", "trench caved", "excavation collaps*",
-                                    "pit collaps*", "खाई", "खुदाई", "गड्ढा धंस"]),
-    ("structural_failure", ["structural failure", "gave way", "caved in", "substandard construction",
-                            "poor construction", "dilapidated", "weak structure", "जर्जर", "भरभरा", "धंस", "ढह"]),
-    ("scaffolding_failure", ["scaffolding collaps*", "scaffold fell", "scaffold gave way", "मचान"]),
-    ("crane_failure", ["crane collaps*", "crane fell", "crane failure", "क्रेन गिर"]),
-    ("wall_slab_roof_collapse", ["wall collaps*", "slab collaps*", "roof collaps*", "boundary wall",
-                                 "दीवार गिर", "छत गिर", "स्लैब गिर"]),
-    ("under_construction", ["under construction", "under-construction", "during construction",
-                            "construction site", "निर्माणाधीन", "निर्माण कार्य"]),
-    ("gas_leak", ["gas leak*", "toxic gas", "gas leakage", "ammonia leak", "chlorine leak",
-                  "गैस रिसाव", "गैस लीक", "जहरीली गैस"]),
-    ("boiler_blast", ["boiler blast", "boiler burst", "boiler explos*", "बॉयलर फट", "बॉयलर ब्लास्ट"]),
-    ("explosion_blast", ["explosion", "cylinder blast", "gas cylinder", "विस्फोट", "धमाका", "सिलेंडर फट"]),
-    ("fire_short_circuit", ["short circuit", "caught fire", "fire broke out", "massive fire",
-                            "आग लग", "आगजनी", "शॉर्ट सर्किट", "शॉर्ट-सर्किट"]),
-    ("electrocution", ["electrocuted", "electrocution", "live wire", "करंट", "बिजली का झटका", "करंट लग"]),
-    ("suffocation_toxic_fumes", ["asphyxiation", "suffocation", "toxic fumes", "poisonous fumes",
-                                 "दम घुट", "जहरीला धुआं"]),
-    ("fell_into_water", ["fell into river", "fell into canal", "plunged into", "submerged", "drowned",
-                         "पानी में गिर", "नदी में गिर", "डूब"]),
-    ("fell_from_height", ["fell from height", "fell from building", "fell to death",
-                          "ऊंचाई से गिर"]),
-    ("hit_and_run", ["hit and run", "hit-and-run", "fled the spot", "fled after", "टक्कर मारकर फरार",
-                     "मारकर फरार"]),
-    ("rear_end_collision", ["rammed from behind", "rear-ended", "rear ended", "hit from behind",
-                            "पीछे से टक्कर"]),
-    ("hit_stationary_vehicle", ["parked truck", "stationary truck", "parked vehicle",
-                                "stationary vehicle", "rammed into parked", "खड़े ट्रक", "खड़ी ट्रक"]),
-    ("hit_divider_barrier", ["divider", "median", "crash barrier", "guardrail", "railing",
-                             "डिवाइडर", "रेलिंग"]),
-    ("animal_on_road", ["stray cattle", "cattle on", "stray animal", "nilgai", "stray dog",
-                        "आवारा पशु", "मवेशी", "नीलगाय"]),
-    ("hit_tree_pole", ["rammed into tree", "hit a tree", "crashed into tree", "electric pole",
-                       "hit a pole", "पेड़ से टकरा", "खंभे से टकरा", "पेड़ से जा टकरा"]),
-    ("gorge_valley_plunge", ["fell into gorge", "plunged into gorge", "plunges into gorge", "into a gorge", "into gorge", "fell into ravine",
-                             "rolled down", "fell into valley", "deep gorge", "खाई में गिर",
-                             "खड्ड में", "घाटी में गिर"]),
-    ("borewell_fall", ["borewell", "bore well", "बोरवेल"]),
-    ("manhole_drain", ["manhole", "open drain", "open nala", "storm drain", "मैनहोल",
-                       "नाले में गिर", "नाले में बह"]),
-    ("septic_sewer_deaths", ["septic tank", "sewer", "sewer line", "manual scavenging",
-                             "सेप्टिक टैंक", "सीवर"]),
-    ("lift_elevator", ["lift collapse", "lift crash", "elevator", "lift fell", "लिफ्ट"]),
-    ("machinery_entrapment", ["caught in machine", "crushed by machine", "conveyor", "grinder",
-                              "lathe", "मशीन में फंस", "मशीन में आ"]),
-    ("load_beam_fall", ["load fell", "beam fell", "iron rod fell", "girder fell", "slab fell on",
-                        "गर्डर गिर", "सरिया गिर"]),
-    ("quarry_crusher_blast", ["quarry", "stone crusher", "stone quarry", "खदान में विस्फोट",
-                              "क्रशर"]),
-    ("chemical_spill_reaction", ["chemical reaction", "acid leak", "chemical spill", "toxic chemical",
-                                 "रासायनिक", "एसिड"]),
-    ("firecracker_unit", ["firecracker", "cracker unit", "cracker factory", "पटाखा"]),
-    ("rail_signal_track_fault", ["signal failure", "track defect", "rail fracture", "points failure",
-                                 "broken rail", "सिग्नल फेल", "पटरी टूट"]),
-    ("crossing_railway_track", ["while crossing the track", "crossing railway track",
-                                "crossing the tracks", "पटरी पार करते"]),
-    ("fell_from_train", ["fell from train", "fell off train", "fell from moving train",
-                         "चलती ट्रेन से गिर"]),
-    ("overcrowding_footboard", ["footboard", "overcrowded", "overcrowding", "भीड़भाड़",
-                                "फुटबोर्ड"]),
-    ("mobile_distraction", ["using mobile", "on phone while", "talking on phone", "mobile phone while",
-                            "मोबाइल पर बात"]),
-    ("underage_driving", ["minor driving", "underage driving", "minor behind the wheel",
-                          "नाबालिग चला"]),
-    ("steering_axle_failure", ["steering failed", "steering failure", "axle broke", "axle breakage",
-                               "स्टीयरिंग फेल", "एक्सल टूट"]),
-    ("technical_snag_aviation", ["technical snag", "engine failure", "engine fire", "bird hit",
-                                 "hydraulic failure", "तकनीकी खराबी"]),
-    ("runway_excursion", ["overshot runway", "overshot the runway", "skidded off runway",
-                          "veered off runway", "रनवे से फिसल"]),
-    ("illegal_construction", ["illegal construction", "unauthorised construction",
-                              "unauthorized construction", "illegal building", "अवैध निर्माण",
-                              "अवैध इमारत"]),
-    ("welding_spark", ["welding", "वेल्डिंग"]),
-    ("speed_breaker", ["speed breaker", "स्पीड ब्रेकर"]),
-    ("u_turn", ["taking u-turn", "u-turn", "यू-टर्न", "यू टर्न"]),
-    ("triple_riding", ["triple riding", "riding triple", "तीन सवारी"]),
-])
-CAUSE_PATTERNS = OrderedDict((c, _compile(cues)) for c, cues in CAUSE_CUES.items())
-
-
-def extract_causes(text, limit=6):
-    """Return up to `limit` reported-cause labels found in the text, '; '-joined.
-    Empty string means no cause was stated in the headline/snippet."""
-    low = text.lower()
-    found = []
-    for cause, patterns in CAUSE_PATTERNS.items():
-        if _hit(patterns, text, low):
-            found.append(cause)
-            if len(found) >= limit:
-                break
-    return "; ".join(found)
-
-
-# ===========================================================================
-# CAUSE AS A PHRASE (not a fixed label)
-# A fixed taxonomy forces every report into a preset bucket and mislabels the
-# ones that do not fit. Instead we lift the actual wording out of the report -
-# "after the driver lost control on a wet road" - so nothing is squeezed into a
-# category it does not belong to. A short tag is still derived alongside it,
-# purely so that repetition can be counted; the phrase is the primary field.
-# ===========================================================================
-_CAUSE_TRIGGER_RE = re.compile(
-    r"\b(?:after|when|while|during|due to|because of|owing to|caused by|"
-    r"as a result of|on account of|following|reportedly|allegedly|suspected|"
-    r"believed to|police said|police suspect|prima facie|blamed on|attributed to|"
-    r"lost control|failed to|in a bid to|trying to|attempting to)\b", re.I)
-CAUSE_CONTENT_CUES = ["driver","vehicle","brake","tyre","tire","speed","control","road","track",
- "train","bus","truck","car","bike","wall","roof","slab","building","bridge","scaffold","crane",
- "fire","gas","boiler","machine","wire","current","water","river","canal","fog","rain","slip",
- "collid","hit","ram","overturn","fell","fall","collaps","blast","explos","leak","short circuit",
- "signal","crossing","platform","boat","ferry","capsiz","drown","crush","trapped","negligence",
- "maintenance","repair","construction","overload","fatigue","asleep","drunk","phone"]
-CAUSE_CONTENT_PATTERNS = _compile(CAUSE_CONTENT_CUES)
-_CAUSE_STOP = re.compile(r"[.;|]|\s+-\s+")
-
-
-def extract_cause_phrase(text, max_words=16):
-    """Return a short human-readable phrase describing the reported cause, taken
-    verbatim (lightly trimmed) from the article text. Empty when the report does
-    not say why it happened - which is common and is reported honestly as blank."""
-    if not text:
-        return ""
-    t = re.sub(r"\s+", " ", text).strip()
-    m = _CAUSE_TRIGGER_RE.search(t)
-    if not m:
-        return ""
-    tail = t[m.start():]
-    cut = _CAUSE_STOP.search(tail, m.end() - m.start())
-    phrase = tail[:cut.start()] if cut else tail
-    words = phrase.split()
-    if len(words) < 3:
-        return ""
-    phrase = " ".join(words[:max_words]).strip(" ,-")
-    # discard phrases with no accident-related content (political headlines etc.
-    # can contain "due to" without describing an accident cause)
-    if not _hit(GENERIC_PATTERNS, phrase, phrase.lower()) and \
-       not _hit(CAUSE_CONTENT_PATTERNS, phrase, phrase.lower()):
-        return ""
-    return phrase[0].upper() + phrase[1:] if phrase else ""
-
-
-
-# Many headlines never say "after"/"due to" but still describe HOW it happened
-# ("bus overturns losing control", "car collides with tanker", "wall collapses
-# on labourers"). This second pass lifts that descriptive clause so the cause
-# column is populated far more often, still using the report's own words.
-_HOW_RE = re.compile(
-    r"\b(?:overturn\w*|collid\w*|collision|ramm\w*|hit(?:s|ting)?\b|crash\w*|"
-    r"skidd\w*|derail\w*|capsiz\w*|collaps\w*|fell\b|fall\w*|plung\w*|"
-    r"caught fire|fire broke out|explod\w*|blast\w*|leak\w*|short circuit|"
-    r"electrocut\w*|drown\w*|crush\w*|trapp\w*|buried|swept away|run over|"
-    r"mowed down|lost control|toppl\w*|burst\w*|gave way|caved in)\b", re.I)
-
-
-def extract_how_phrase(text, max_words=16):
-    """Descriptive clause explaining how the accident happened."""
-    if not text:
-        return ""
-    t = re.sub(r"\s+", " ", text).strip()
-    m = _HOW_RE.search(t)
-    if not m:
-        return ""
-    # start a few words before the verb so the subject is included
-    start = t.rfind(" ", 0, max(0, m.start() - 40))
-    start = 0 if start < 0 else start + 1
-    tail = t[start:]
-    cut = _CAUSE_STOP.search(tail, (m.start() - start) + 1)
-    phrase = tail[:cut.start()] if cut else tail
-    words = phrase.split()
-    if len(words) < 3:
-        return ""
-    phrase = " ".join(words[:max_words]).strip(" ,-:")
-    return phrase[0].upper() + phrase[1:] if phrase else ""
-
-
-
-
-def _too_similar(a, b, threshold=0.6):
-    """True when two texts say substantially the same thing."""
-    if not a or not b:
-        return False
-    wa, wb = content_words(a), content_words(b)
-    if not wa or not wb:
-        return SequenceMatcher(None, a.lower(), b.lower()).ratio() >= threshold
-    overlap = len(wa & wb) / max(1, min(len(wa), len(wb)))
-    return overlap >= threshold or SequenceMatcher(None, a.lower(), b.lower()).ratio() >= threshold
-
-
-def clean_cause(cause, title, title_en=""):
-    """The cause must ADD something the headline does not already say.
-    Rather than discarding the whole passage, drop only the sentences that merely
-    restate the headline and keep the parts that explain the accident. Returns ""
-    when nothing new is left - blank is more honest than an echo of the headline.
-    """
-    if not cause:
-        return ""
-    heads = [h for h in (title_en, title) if h]
-    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", cause) if s.strip()]
-    kept = [s for s in sentences if not any(_too_similar(s, h) for h in heads)]
-    out = " ".join(kept).strip()
-    if not out or len(out.split()) < 4:
-        return ""
-    low = (title_en or title or "").lower()
-    if out.lower().strip(" .") in low:
-        return ""
-    return out
-
-
-NEAR_MISS_CUES = [
-    "no casualt*", "no one was hurt", "no one injured", "nobody injured", "none injured",
-    "no injuries", "escaped unhurt", "escaped unharmed", "narrow escape", "narrowly escaped",
-    "major disaster averted", "disaster averted", "tragedy averted", "averted", "all safe",
-    "everyone safe", "rescued safely", "safely rescued", "no loss of life", "without injury",
-    "बाल-बाल बच", "कोई हताहत नहीं", "टला बड़ा हादसा", "बड़ा हादसा टला",
-    "অল্পের জন্য রক্ষা", "কেউ হতাহত হয়নি", "பலத்த சேதம் இல்லை", "உயிரிழப்பு இல்லை",
-    "ప్రాణనష్టం లేదు", "ಯಾವುದೇ ಸಾವು", "ആളപായമില്ല", "કોઈ જાનહાનિ નહીં", "ਕੋਈ ਜਾਨੀ ਨੁਕਸਾਨ ਨਹੀਂ",
-]
-NEAR_MISS_PATTERNS = _compile(NEAR_MISS_CUES)
-
-
-def classify_severity(text, deaths, injured):
-    """Fatal / Injury only / Near miss / Not stated."""
-    if deaths:
-        return "Fatal"
-    if injured:
-        return "Injury only"
-    if text and _hit(NEAR_MISS_PATTERNS, text, text.lower()):
-        return "Near miss"
-    return "Not stated"
-
-
-def extract_cause_detail(text, max_words=60):
-    """Return a DETAILED, readable explanation of how/why the accident happened -
-    up to a few sentences taken from the report itself, so it can be interpreted
-    later. Prefers sentences that actually explain something (causal words or a
-    description of the sequence) over generic ones."""
-    if not text:
-        return ""
-    t = re.sub(r"\s+", " ", text).strip()
-    t = re.sub(r"\s+-\s+[A-Za-z0-9 .]{2,30}$", " ", t)          # trailing " - Publisher"
-    t = re.sub(r"\b[A-Z][A-Z ]{2,20}:\s*", "", t)               # "SHIMLA: " dateline
-    # split into sentences
-    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+|\u0964", t) if len(s.strip()) > 25]
-    if not sentences:
-        sentences = [t]
-    scored = []
-    for idx, s in enumerate(sentences[:12]):
-        score = 0
-        if _CAUSE_TRIGGER_RE.search(s):
-            score += 3                       # says why
-        if _HOW_RE.search(s):
-            score += 2                       # says how
-        if re.search(r"\b(police|driver|officials?|witness|eyewitness|investigat\w*|"
-                     r"probe|prima facie|reportedly|allegedly|suspect\w*)\b", s, re.I):
-            score += 2                       # attribution
-        if re.search(r"\b(speed\w*|brake|tyre|tire|fog|rain|slipp\w*|overload\w*|"
-                     r"drunk|asleep|fatigue|maintenance|negligen\w*|violat\w*|signal|"
-                     r"wrong side|overtak\w*|pothole|curve|bend|slope|gradient)\b", s, re.I):
-            score += 2                       # a specific factor
-        # Sentences that also carry WHEN it happened and WHO was involved make the
-        # cause far more interpretable later, so prefer them. Uses text already in
-        # hand - no extra fetching, no extra runtime.
-        if extract_time_of_day(s):
-            score += 1.5
-        if extract_ages(s):
-            score += 1.5
-        if extract_gender(s):
-            score += 1
-        if score:
-            score += max(0, 3 - idx) * 0.3   # earlier sentences carry the summary
-            scored.append((score, idx, s))
-    if not scored:
-        return ""
-    scored.sort(key=lambda x: (-x[0], x[1]))
-    chosen, used, total = [], set(), 0
-    for _, idx, s in scored:
-        if idx in used:
-            continue
-        words = s.split()
-        if total + len(words) > max_words and chosen:
-            break
-        chosen.append((idx, s)); used.add(idx); total += len(words)
-        if total >= max_words * 0.7:
-            break
-    chosen.sort(key=lambda x: x[0])
-    out = " ".join(s for _, s in chosen)
-    out = " ".join(out.split()[:max_words]).strip(" ,-:;")
-    return out[0].upper() + out[1:] if out else ""
-
-
-
-CATEGORY_ALLOWED_TAGS = {
-    "aviation": {"technical_snag_aviation", "runway_excursion", "fire_short_circuit",
-                 "explosion_blast", "overloading", "fog_poor_visibility", "lost_control"},
-    "train": {"rail_signal_track_fault", "crossing_railway_track", "fell_from_train",
-              "unmanned_crossing", "overcrowding_footboard", "fire_short_circuit",
-              "explosion_blast", "structural_failure", "fog_poor_visibility"},
-    "port_maritime": {"overloading", "fell_into_water", "fire_short_circuit", "explosion_blast",
-                      "technical_snag_aviation", "lost_control"},
-    "construction_ongoing": {"trench_excavation_collapse", "structural_failure",
-                             "scaffolding_failure", "crane_failure", "wall_slab_roof_collapse",
-                             "under_construction", "illegal_construction", "load_beam_fall",
-                             "lift_elevator", "fell_from_height", "machinery_entrapment"},
-    "old_structure_collapse": {"structural_failure", "wall_slab_roof_collapse",
-                               "illegal_construction", "lift_elevator", "fell_from_height",
-                               "gas_leak", "explosion_blast", "fire_short_circuit"},
-}
-
-
-def filter_tags_for_category(tags, category):
-    """A cause tag that cannot apply to the category is a mis-tag, not a finding.
-    Roadway/others keep everything; the specific modes keep only what fits."""
-    if not tags or category not in CATEGORY_ALLOWED_TAGS:
-        return tags
-    allowed = CATEGORY_ALLOWED_TAGS[category]
-    kept = [t.strip() for t in tags.split(";") if t.strip() in allowed]
-    return "; ".join(kept)
-
-
-def derive_cause_tags(text, phrase=""):
-    """Short tags kept ONLY so repeated causes can be counted month to month.
-    Derived from the phrase where possible, else from the whole text."""
-    return extract_causes((phrase or "") + " " + (text or ""))
-
-# ===========================================================================
-# CITIES + HIGHWAYS
-# ===========================================================================
-CITIES = ["Mumbai", "Delhi", "New Delhi", "Kolkata", "Chennai", "Bengaluru", "Bangalore", "Hyderabad",
-    "Ahmedabad", "Pune", "Jaipur", "Lucknow", "Kanpur", "Nagpur", "Patna", "Bhopal", "Indore", "Thane",
-    "Visakhapatnam", "Vadodara", "Ghaziabad", "Ludhiana", "Agra", "Nashik", "Faridabad", "Meerut",
-    "Rajkot", "Varanasi", "Srinagar", "Aurangabad", "Dhanbad", "Amritsar", "Prayagraj", "Allahabad",
-    "Ranchi", "Howrah", "Coimbatore", "Jabalpur", "Gwalior", "Vijayawada", "Jodhpur", "Madurai",
-    "Raipur", "Kota", "Guwahati", "Chandigarh", "Thiruvananthapuram", "Solapur", "Hubballi", "Bareilly",
-    "Mysuru", "Mysore", "Gurugram", "Gurgaon", "Noida", "Aligarh", "Jalandhar", "Bhubaneswar", "Salem",
-    "Warangal", "Guntur", "Saharanpur", "Gorakhpur", "Bikaner", "Amravati", "Jamshedpur", "Bhilai",
-    "Cuttack", "Kochi", "Nellore", "Bhavnagar", "Dehradun", "Durgapur", "Asansol", "Rourkela", "Nanded",
-    "Kolhapur", "Ajmer", "Kalaburagi", "Jamnagar", "Ujjain", "Siliguri", "Jhansi", "Mangaluru",
-    "Mangalore", "Erode", "Belagavi", "Tirupati", "Udaipur", "Panaji", "Shillong", "Imphal", "Aizawl",
-    "Kohima", "Itanagar", "Gangtok", "Agartala", "Shimla", "Puducherry", "Vellore", "Tiruchirappalli",
-    "Trichy", "Tirunelveli", "Tiruppur", "Kozhikode", "Thrissur", "Kollam", "Kannur", "Muzaffarpur",
-    "Gaya", "Bhagalpur", "Darbhanga", "Rohtak", "Panipat", "Karnal", "Ambala", "Hisar", "Sonipat",
-    "Moradabad", "Junagadh", "Anand", "Surat", "Navi Mumbai", "Kalyan", "Sangli", "Latur", "Akola",
-    "Ratlam", "Sagar", "Satna", "Rewa", "Bilaspur", "Korba", "Sambalpur", "Berhampur", "Puri",
-    "Dibrugarh", "Silchar", "Tezpur", "Jorhat", "Nagaon"]
-
-# --- Additional district/town names (extracted locations were missing on ~90%
-# --- of items in field testing, so the gazetteer was widened considerably).
-CITIES += ["Ambattur","Avadi","Tambaram","Thoothukudi","Dindigul","Thanjavur","Nagercoil",
- "Karur","Cuddalore","Kancheepuram","Vellore","Namakkal","Sivakasi","Virudhunagar","Karaikudi",
- "Palakkad","Alappuzha","Kottayam","Malappuram","Pathanamthitta","Idukki","Wayanad","Kasaragod",
- "Ernakulam","Munnar","Guruvayur","Ballari","Davanagere","Shivamogga","Tumakuru","Raichur",
- "Bidar","Hassan","Udupi","Chikkamagaluru","Chitradurga","Bagalkot","Vijayapura","Karwar",
- "Kurnool","Kadapa","Anantapur","Rajahmundry","Kakinada","Eluru","Ongole","Srikakulam",
- "Vizianagaram","Machilipatnam","Chittoor","Karimnagar","Khammam","Nizamabad","Ramagundam",
- "Mahbubnagar","Adilabad","Siddipet","Sangareddy","Medak","Nalgonda",
- "Ahmednagar","Jalgaon","Chandrapur","Parbhani","Beed","Osmanabad","Wardha","Yavatmal",
- "Bhusawal","Panvel","Vasai","Virar","Mira Road","Dombivli","Ulhasnagar","Ichalkaranji",
- "Satara","Ratnagiri","Sindhudurg","Raigad","Palghar","Nandurbar","Dhule","Buldhana",
- "Gondia","Bhandara","Washim","Hingoli","Jalna",
- "Bhiwandi","Malegaon","Baramati","Karad","Sangamner",
- "Muzaffarnagar","Shamli","Baghpat","Hapur","Bulandshahr","Amroha","Sambhal","Rampur",
- "Bijnor","Pilibhit","Shahjahanpur","Hardoi","Sitapur","Lakhimpur","Barabanki","Unnao",
- "Raebareli","Fatehpur","Banda","Hamirpur","Mahoba","Jalaun","Etawah","Auraiya","Kannauj",
- "Farrukhabad","Mainpuri","Firozabad","Mathura","Hathras","Kasganj","Etah","Budaun",
- "Ayodhya","Faizabad","Sultanpur","Amethi","Pratapgarh","Jaunpur","Ghazipur","Ballia",
- "Mau","Azamgarh","Deoria","Kushinagar","Maharajganj","Basti","Gonda","Bahraich",
- "Shravasti","Balrampur","Siddharthnagar","Mirzapur","Sonbhadra","Chandauli","Bhadohi",
- "Rohtas","Sasaram","Arrah","Buxar","Chhapra","Siwan","Gopalganj","Bettiah","Motihari",
- "Sitamarhi","Madhubani","Samastipur","Begusarai","Khagaria","Munger","Jamui","Nawada",
- "Nalanda","Bihar Sharif","Aurangabad Bihar","Jehanabad","Katihar","Purnia","Araria",
- "Kishanganj","Supaul","Saharsa","Madhepura",
- "Bokaro","Deoghar","Hazaribagh","Giridih","Ramgarh","Chaibasa","Dumka","Palamu","Daltonganj",
- "Bardhaman","Malda","Krishnanagar","Barasat","Baharampur","Jalpaiguri","Cooch Behar",
- "Alipurduar","Raiganj","Balurghat","Bankura","Purulia","Midnapore","Kharagpur","Haldia",
- "Diamond Harbour","Barrackpore","Serampore","Chandannagar","Habra","Bongaon","Basirhat",
- "Bhilwara","Alwar","Sikar","Pali","Barmer","Jaisalmer","Nagaur","Churu","Jhunjhunu",
- "Hanumangarh","Sri Ganganagar","Bharatpur","Dholpur","Karauli","Sawai Madhopur","Bundi",
- "Baran","Jhalawar","Chittorgarh","Banswara","Dungarpur","Sirohi","Jalore","Rajsamand",
- "Morena","Bhind","Shivpuri","Guna","Vidisha","Sehore","Raisen","Hoshangabad","Betul",
- "Chhindwara","Seoni","Balaghat","Mandla","Dindori","Shahdol","Umaria","Katni","Damoh",
- "Panna","Chhatarpur","Tikamgarh","Datia","Ashoknagar","Neemuch","Mandsaur","Dewas",
- "Shajapur","Khandwa","Khargone","Barwani","Dhar","Jhabua","Ratlam MP",
- "Durg","Rajnandgaon","Jagdalpur","Ambikapur","Raigarh","Janjgir","Mahasamund","Dhamtari",
- "Kanker","Dantewada","Sukma","Bijapur Chhattisgarh",
- "Balasore","Bhadrak","Jajpur","Kendrapara","Jagatsinghpur","Angul","Dhenkanal","Keonjhar",
- "Mayurbhanj","Baripada","Sundargarh","Jharsuguda","Bargarh","Bolangir","Kalahandi",
- "Koraput","Rayagada","Nabarangpur","Malkangiri","Nuapada","Boudh","Ganjam","Gajapati",
- "Anantnag","Baramulla","Udhampur","Kathua","Rajouri","Poonch","Doda","Kishtwar","Leh",
- "Kargil","Jammu",
- "Solan","Mandi","Kullu","Kangra","Dharamshala","Una","Hamirpur HP","Bilaspur HP","Chamba",
- "Kinnaur","Lahaul","Sirmaur","Nahan","Palampur",
- "Haridwar","Rishikesh","Roorkee","Haldwani","Rudrapur","Kashipur","Nainital","Almora",
- "Pithoragarh","Chamoli","Rudraprayag","Uttarkashi","Tehri","Pauri","Bageshwar","Champawat",
- "Bathinda","Patiala","Mohali","Pathankot","Hoshiarpur","Moga","Firozpur","Faridkot",
- "Muktsar","Barnala","Sangrur","Kapurthala","Gurdaspur","Batala","Khanna","Phagwara",
- "Rewari","Bhiwani","Jind","Kaithal","Kurukshetra","Yamunanagar","Sirsa","Fatehabad",
- "Palwal","Nuh","Mahendragarh","Charkhi Dadri","Jhajjar",
- "Bharuch","Ankleshwar","Vapi","Valsad","Navsari","Mehsana","Patan","Palanpur","Godhra",
- "Nadiad","Bhuj","Gandhidham","Morbi","Surendranagar","Amreli","Porbandar","Veraval",
- "Botad","Dahod","Gandhinagar",
- "Dibang","Tinsukia","Sivasagar","Golaghat","Bongaigaon","Barpeta","Dhubri","Goalpara",
- "Karimganj","Hailakandi","Diphu","Haflong","Lakhimpur Assam","Sonitpur",
- "Dimapur","Tura","Jowai","Churachandpur","Lunglei","Namchi","Pasighat","Tawang",
- "Rourkela Steel","Vasco","Margao","Mapusa","Ponda",
- "Karaikal","Mahe","Yanam","Port Blair","Kavaratti","Silvassa","Daman","Diu"]
-CITIES += ["Uttar Pradesh","Madhya Pradesh","Maharashtra","Rajasthan","Tamil Nadu","Karnataka",
- "Kerala","Gujarat","Bihar","West Bengal","Odisha","Telangana","Andhra Pradesh","Punjab",
- "Haryana","Jharkhand","Chhattisgarh","Assam","Uttarakhand","Himachal Pradesh","Goa",
- "Tripura","Meghalaya","Manipur","Nagaland","Mizoram","Arunachal Pradesh","Sikkim",
- "Jammu and Kashmir","Ladakh","Delhi NCR"]
-
-# Native-script names for the largest cities, so a report written only in an
-# Indian script still yields a joinable location even if translation fails.
-CITY_ALIASES = {
- "Delhi": ["दिल्ली","দিল্লি","டெல்லி","ఢిల్లీ","ದೆಹಲಿ","ഡൽഹി","દિલ્હી","ਦਿੱਲੀ"],
- "Mumbai": ["मुंबई","মুম্বই","மும்பை","ముంబై","ಮುಂಬೈ","മുംബൈ","મુંબઈ","ਮੁੰਬਈ"],
- "Kolkata": ["कोलकाता","কলকাতা","கொல்கத்தா","కోల్‌కతా","ಕೋಲ್ಕತ್ತಾ","കൊൽക്കത്ത","કોલકાતા"],
- "Chennai": ["चेन्नई","চেন্নাই","சென்னை","చెన్నై","ಚೆನ್ನೈ","ചെന്നൈ","ચેન્નઈ"],
- "Bengaluru": ["बेंगलुरु","বেঙ্গালুরু","பெங்களூரு","బెంగళూరు","ಬೆಂಗಳೂರು","ബെംഗളൂരു","બેંગલુરુ"],
- "Hyderabad": ["हैदराबाद","হায়দরাবাদ","ஹைதராபாத்","హైదరాబాద్","ಹೈದರಾಬಾದ್","ഹൈദരാബാദ്","હૈદરાબાદ"],
- "Pune": ["पुणे","পুনে","புனே","పూణే","ಪುಣೆ","പൂനെ","પુણે"],
- "Ahmedabad": ["अहमदाबाद","আহমেদাবাদ","அகமதாபாத்","అహ్మదాబాద్","ಅಹಮದಾಬಾದ್","અમદાવાદ"],
- "Jaipur": ["जयपुर","জয়পুর","ஜெய்ப்பூர்","జైపూర్","ಜೈಪುರ","ജയ്പുർ","જયપુર"],
- "Lucknow": ["लखनऊ","লখনউ","லக்னோ","లక్నో","ಲಕ್ನೋ","લખનૌ"],
- "Kanpur": ["कानपुर","কানপুর","கான்பூர்","కాన్పూర్","ಕಾನ್ಪುರ"],
- "Patna": ["पटना","পাটনা","பாட்னா","పాట్నా","ಪಟ್ನಾ","પટના"],
- "Nagpur": ["नागपुर","নাগপুর","நாக்பூர்","నాగ్‌పూర్","�ನಾಗ್ಪುರ"],
- "Bhopal": ["भोपाल","ভোপাল","போபால்","భోపాల్","ಭೋಪಾಲ್"],
- "Indore": ["इंदौर","ইন্দোর","இந்தூர்","ఇండోర్","ಇಂದೋರ್"],
- "Surat": ["सूरत","সুরাট","சூரத்","సూరత్","ಸೂರತ್","સુરત"],
- "Varanasi": ["वाराणसी","বারাণসী","வாரணாசி","వారణాసి","ವಾರಾಣಸಿ"],
- "Guwahati": ["गुवाहाटी","গুয়াহাটি","கவுகாத்தி","గువహాటి"],
- "Coimbatore": ["कोयंबटूर","கோயம்புத்தூர்","కోయంబత్తూరు","ಕೊಯಮತ್ತೂರು"],
- "Visakhapatnam": ["विशाखापत्तनम","বিশাখাপত্তনম","விசாகப்பட்டினம்","విశాఖపట్నం","ವಿಶಾಖಪಟ್ಟಣಂ"],
- "Thiruvananthapuram": ["तिरुवनंतपुरम","திருவனந்தபுரம்","తిరువనంతపురం","തിരുവനന്തപുരം"],
- "Kochi": ["कोच्चि","কোচি","கொச்சி","కొచ్చి","ಕೊಚ್ಚಿ","കൊച്ചി"],
- "Ludhiana": ["लुधियाना","লুধিয়ানা","ਲੁਧਿਆਣਾ","లూధియానా"],
- "Amritsar": ["अमृतसर","অমৃতসর","ਅੰਮ੍ਰਿਤਸਰ","அமிர்தசரஸ்"],
- "Gurugram": ["गुरुग्राम","গুরুগ্রাম","గురుగ్రామ్"],
- "Noida": ["नोएडा","নয়ডা","நொய்டா","నోయిడా"],
- "Ranchi": ["रांची","রাঁচি","ராஞ்சி","రాంచీ"],
- "Raipur": ["रायपुर","রায়পুর","ராய்பூர்","రాయ్‌పూర్"],
- "Bhubaneswar": ["भुवनेश्वर","ভুবনেশ্বর","புவனேஸ்வர்","భువనేశ్వర్"],
- "Dehradun": ["देहरादून","দেরাদুন","டேராடூன்","డెహ్రాడూన్"],
- "Srinagar": ["श्रीनगर","শ্রীনগর","ஸ்ரீநகர்","శ్రీనగర్"],
- "Madurai": ["मदुरै","মাদুরাই","மதுரை","మధురై","ಮಧುರೈ"],
- "Mysuru": ["मैसूर","মহীশূর","மைசூர்","మైసూరు","ಮೈಸೂರು"],
- "Vijayawada": ["विजयवाड़ा","বিজয়ওয়াড়া","விஜயவாடா","విజయవాడ","ವಿಜಯವಾಡ"],
- "Kozhikode": ["कोझिकोड","கோழிக்கோடு","കോഴിക്കോട്"],
- "Thrissur": ["त्रिशूर","திருச்சூர்","തൃശൂർ"],
- "Nashik": ["नाशिक","নাসিক","நாசிக்","నాసిక్"],
- "Tiruchirappalli": ["तिरुचिरापल्ली","திருச்சிராப்பள்ளி","తిరుచిరాపల్లి"],
-}
-
-CITIES = sorted(set(CITIES), key=len, reverse=True)
-_CITY_PATTERNS = [(c, re.compile(r"\b" + re.escape(c) + r"\b", re.IGNORECASE)) for c in CITIES]
-_HIGHWAY_PATTERNS = [
-    re.compile(r"\bNH[-\s]?\d{1,3}[A-Z]?\b", re.IGNORECASE),
-    re.compile(r"\bSH[-\s]?\d{1,3}[A-Z]?\b", re.IGNORECASE),
-    re.compile(r"\bNational Highway[-\s]?\d{1,3}[A-Z]?\b", re.IGNORECASE),
-    re.compile(r"\bState Highway[-\s]?\d{1,3}[A-Z]?\b", re.IGNORECASE),
-    re.compile(r"\b[A-Z][a-z]+(?:[-\s][A-Z][a-z]+)?\s+Expressway\b"),
-]
-
-
-
-# A fixed list can never contain every Indian town (there are thousands). After
-# translation the text is English, so we can also read the location from common
-# phrasings - "in Sangrur", "near Chikhli", "Bhiwandi district". This catches
-# places absent from the gazetteer.
-_LOC_PATTERNS = [
-    # "in Sangrur", "near Chikhli", "at Bhiwandi"
-    re.compile(r"\b(?:in|at|near|outside|from)\s+([A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{3,})?)"),
-    # "Bhiwandi district", "Sangrur taluka"
-    re.compile(r"\b([A-Z][a-z]{3,})\s+(?:district|taluka|tehsil|mandal|village|town|city|block)\b"),
-    # headline prefix: "Bhind: Horrific road accident" / "Gwalior - 8 killed"
-    re.compile(r"^([A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{3,})?)\s*[:\-\u2013]"),
-    # "MP: Gwalior..." style after a state abbreviation
-    re.compile(r"^[A-Z]{2}\s*:\s*([A-Z][a-z]{3,})"),
-    # "... of Kanpur", "... near the Kanpur highway"
-    re.compile(r"\bof\s+([A-Z][a-z]{3,})\s+(?:district|city|town)\b"),
-    # "Kanpur News:", "Dehradun News"
-    re.compile(r"\b([A-Z][a-z]{3,})\s+News\b"),
-]
-_LOC_STOPWORDS = {"India","Indian","National","State","Highway","Expressway","Road","Bus","Train",
- "Police","Court","Hospital","Government","Ministry","Chief","Minister","Video","Watch","Update",
- "Breaking","News","Live","Report","After","Before","During","While","Several","Many","Three",
- "Four","Five","Vehicle","Truck","Lorry","Factory","Building","Bridge","Flyover","Tunnel",
- "Accident","Crash","Collapse","Death","Deaths","Killed","Injured","People","Workers","Family",
- "Google","News","Comprehensive","Sources","World","Coverage","Aggregated","Titles",
- "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday","January","February",
- "March","April","May","June","July","August","September","October","November","December",
- "Stellar","Terrible","Horrific","Horrible","Tragic","Massive","Major","Huge","Serious","Fatal",
- "Young","Elderly","Woman","Women","Child","Children","Student","Students","Driver","Constable",
- "Husband","Wife","Daughter","Father","Mother","Brother","Sister","Family","Couple","Youth",
- "Separate","Another","Total","Special","General","Local","Heavy","Speeding","Moving","Private",
- "Public","National","Central","Chief","Deputy","Senior","Junior","Late","Early","Morning",
- "Evening","Night","Today","Tomorrow","Yesterday","Assembly","Parliament","Court","Hospital"}
-
-
-def extract_generic_places(text, limit=3):
-    """Pull likely place names from English text via phrasing patterns."""
-    found, seen = [], set()
-    for pat in _LOC_PATTERNS:
-        for m in pat.findall(text):
-            name = re.sub(r"\s+(?:News|Accident|Update|Live)$", "", m.strip())
-            if not name or name in _LOC_STOPWORDS or name.split()[0] in _LOC_STOPWORDS:
-                continue
-            if name.lower() in seen:
-                continue
-            found.append(name); seen.add(name.lower())
-            if len(found) >= limit:
-                return found
-    return found
-
-
-# Additional route to place names: Indian reports almost always attach a place
-# to a road, police station, district or dateline. These structural patterns
-# work for towns that appear in no list at all.
-_PLACE_STRUCT = [
-    # "Mumbai-Pune expressway", "Hajipur-Mukerian road"
-    re.compile(r"\b([A-Z][a-z]{3,})\s*[-\u2013]\s*[A-Z][a-z]{3,}\s+(?:road|highway|expressway|marg)\b"),
-    # "Kotwali police station area", "Sadar police station"
-    re.compile(r"\b([A-Z][a-z]{3,})\s+police\s+station\b", re.I),
-    # dateline: "PUNE: Two killed" or "NEW DELHI: ..."
-    re.compile(r"^([A-Z][A-Z\s]{3,25}?)\s*:"),
-    # "on the outskirts of Nagpur", "in the Bhiwandi area"
-    re.compile(r"\bthe\s+([A-Z][a-z]{3,})\s+(?:area|region|belt|sector|bypass|ghat|road)\b"),
-    # "resident of Sangrur", "hailing from Chikhli"
-    re.compile(r"\b(?:resident of|hailing from|belonged to|native of)\s+([A-Z][a-z]{3,})"),
-    # "Toland village under X block"
-    re.compile(r"\b([A-Z][a-z]{3,})\s+(?:village|chowk|crossing|bypass|ghat|nagar|puram|pur)\b"),
-]
-
-
-def extract_structural_places(text, limit=3):
-    found, seen = [], set()
-    for pat in _PLACE_STRUCT:
-        for mm in pat.findall(text):
-            name = mm.strip().title() if mm.isupper() else mm.strip()
-            if not name or name in _LOC_STOPWORDS or name.split()[0] in _LOC_STOPWORDS:
-                continue
-            if len(name) < 4 or name.lower() in seen:
-                continue
-            found.append(name); seen.add(name.lower())
-            if len(found) >= limit:
-                return found
-    return found
-
-
-def extract_locations(text):
-    if not text:
-        return "", ""
-    cities, seen = [], set()
-    for name, pat in _CITY_PATTERNS:
-        if pat.search(text) and name.lower() not in seen:
-            cities.append(name); seen.add(name.lower())
-    # native-script aliases map back to the canonical English name, so a Hindi
-    # and an English report of the same city produce the SAME join key
-    for canon, aliases in CITY_ALIASES.items():
-        if canon.lower() in seen:
-            continue
-        for a in aliases:
-            if a in text:
-                cities.append(canon); seen.add(canon.lower())
-                break
-    highways, hseen = [], set()
-    for pat in _HIGHWAY_PATTERNS:
-        for m in pat.findall(text):
-            h = re.sub(r"[-\s]+", "-", m.strip())
-            if h.lower() not in hseen:
-                highways.append(h); hseen.add(h.lower())
-    if not cities:
-        # nothing from the gazetteer - fall back to phrasing-based detection
-        for name in extract_generic_places(text):
-            if name.lower() not in seen:
-                cities.append(name); seen.add(name.lower())
-    if not cities:
-        # last resort: structural patterns (roads, police stations, datelines)
-        for name in extract_structural_places(text):
-            if name.lower() not in seen:
-                cities.append(name); seen.add(name.lower())
-    cities = [c for c in cities if c.lower() not in JUNK_PLACES]
-    return "; ".join(cities), "; ".join(highways)
-
-
-def _set(s):
-    return {x.strip().lower() for x in s.split(";") if x.strip()}
-
-
-def _hwset(s):
-    return {re.sub(r"[-\s]+", "-", x.strip().lower()) for x in s.split(";") if x.strip()}
-
-
-# ===========================================================================
-# DATABASE
-# ===========================================================================
-COLUMNS = OrderedDict([
-    ("id", "TEXT PRIMARY KEY"), ("title", "TEXT"), ("title_en", "TEXT"), ("url", "TEXT"),
-    ("resolved_url", "TEXT"), ("source", "TEXT"), ("published", "TEXT"), ("published_ts", "REAL"),
-    ("category", "TEXT"), ("sector", "TEXT"), ("language", "TEXT"), ("query", "TEXT"), ("title_norm", "TEXT"),
-    ("snippet", "TEXT"), ("article_text", "TEXT"), ("image_url", "TEXT"), ("cities", "TEXT"), ("highways", "TEXT"),
-    ("deaths", "INTEGER"), ("injured", "INTEGER"), ("cause", "TEXT"), ("cause_tags", "TEXT"), ("time_of_day", "TEXT"), ("victim_gender", "TEXT"), ("victim_age", "TEXT"), ("severity", "TEXT"), ("fetched_at", "TEXT"),
-    ("is_duplicate", "INTEGER DEFAULT 0"), ("dup_group", "TEXT"), ("translated", "INTEGER DEFAULT 0"),
-])
-
-
-def init_db(conn):
-    conn.execute(f"CREATE TABLE IF NOT EXISTS articles ({', '.join(f'{k} {v}' for k,v in COLUMNS.items())})")
-    existing = {r[1] for r in conn.execute("PRAGMA table_info(articles)")}
-    for col, decl in COLUMNS.items():
-        if col not in existing:
-            conn.execute(f"ALTER TABLE articles ADD COLUMN {col} {decl.replace(' PRIMARY KEY','')}")
-    conn.commit()
-
-
-# ===========================================================================
-# FETCH + PARSE
-# ===========================================================================
-def feed_url(query, code, ceid):
-    return f"{RSS_SEARCH}{urllib.parse.quote(query)}&hl={code}-IN&gl=IN&ceid={ceid}"
-
-
-def http_get(url, timeout=30, retries=3):
+def http_get(url, timeout=30, retries=2):
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    for attempt in range(retries):
+    for a in range(retries):
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return resp.read(), resp.geturl()
-        except Exception:  # noqa: BLE001
-            if attempt == retries - 1:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.read(), r.geturl()
+        except Exception:                                          # noqa: BLE001
+            if a == retries - 1:
                 return None, None
-            time.sleep(2 * (attempt + 1))
+            time.sleep(2)
     return None, None
 
 
-def _strip_ns(tag):
-    return tag.split("}", 1)[-1] if "}" in tag else tag
+GOOGLE_BOILERPLATE = ["comprehensive up-to-date news coverage",
+                      "aggregated from sources all over the world",
+                      "read full articles, watch videos"]
 
 
-def feed_image_from_item(item, description):
-    for el in item.iter():
-        tag = _strip_ns(el.tag)
-        if tag in ("content", "thumbnail") and el.get("url") and "image" in (el.get("type") or "image"):
-            return el.get("url")
-        if tag == "enclosure" and el.get("url") and "image" in (el.get("type") or ""):
-            return el.get("url")
-    m = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', description or "", re.I)
-    return m.group(1) if m else ""
+def is_boilerplate(text):
+    if not text or len(text) < 40:
+        return True
+    low = text.lower()
+    return any(b in low for b in GOOGLE_BOILERPLATE)
 
 
-def looks_incident(text):
-    return detect_category(text) is not None or is_natural(text) or extract_counts(text) != (None, None)
-
-
-def parse_feed(xml_bytes, language, query, prefilter=False):
-    out = []
-    if not xml_bytes:
-        return out
+def resolve_url(url):
+    if "news.google.com" not in url:
+        return url
+    m = re.search(r"/articles/([A-Za-z0-9_\-]+)", url)
+    if not m:
+        return ""
     try:
-        root = ElementTree.fromstring(xml_bytes)
-    except ElementTree.ParseError:
-        return out
-    for item in root.iter("item"):
-        title = _dedupe_title((item.findtext("title") or "").strip())
-        if not title:
-            continue
-        description = item.findtext("description") or ""
-        desc_text = re.sub(r"<[^>]+>", " ", description).strip()
-        combined = title + " " + desc_text
-        if prefilter and not looks_incident(combined):
-            continue
-        link = (item.findtext("link") or "").strip()
-        pub_raw = (item.findtext("pubDate") or "").strip()
-        src_el = item.find("source")
-        source = src_el.text.strip() if src_el is not None and src_el.text else ""
-        ts, iso = parse_date(pub_raw)
-        if MIN_DATE and iso < MIN_DATE:
-            continue                      # older than the collection window
-        out.append({
-            "id": hashlib.sha1(normalize_title(title).encode("utf-8")).hexdigest(),
-            "title": title, "url": link, "source": source, "published": iso, "published_ts": ts,
-            "language": language, "query": query, "title_norm": normalize_title(title),
-            "snippet": desc_text[:400], "image_url": feed_image_from_item(item, description),
-            "fetched_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-        })
-    return out
+        tok = m.group(1)
+        raw = base64.urlsafe_b64decode((tok + "=" * (-len(tok) % 4)).encode("ascii"))
+        f = re.search(rb"https?://[^\x00-\x20\"'<>]{10,}", raw)
+        if f:
+            cand = f.group(0).decode("utf-8", "ignore")
+            if "google.com" not in cand:
+                return cand
+    except Exception:                                              # noqa: BLE001
+        pass
+    return ""
 
 
-def parse_date(pub_raw):
-    if pub_raw:
+PARA_RE = re.compile(r"<p[^>]*>(.*?)</p>", re.I | re.S)
+TAG_RE = re.compile(r"<[^>]+>")
+OG_IMG = re.compile(r'<meta[^>]+og:image["\'][^>]+content=["\']([^"\']+)["\']', re.I)
+
+
+def fetch_article(url, max_chars=1400):
+    real = resolve_url(url)
+    if not real:
+        return "", "", ""
+    data, final = http_get(real, timeout=FETCH_TIMEOUT, retries=1)
+    if not data or "news.google.com" in (final or ""):
+        return "", "", ""
+    page = data.decode("utf-8", "ignore")
+    img = OG_IMG.search(page)
+    parts = []
+    for p in PARA_RE.findall(page)[:14]:
+        t = re.sub(r"\s+", " ", html.unescape(TAG_RE.sub(" ", p))).strip()
+        if len(t) > 60 and not t.lower().startswith(("subscribe", "follow us", "also read",
+                                                     "read more", "advertisement", "copyright")):
+            parts.append(t)
+        if sum(len(x) for x in parts) > max_chars:
+            break
+    body = " ".join(parts)[:max_chars]
+    if is_boilerplate(body):
+        return final or "", "", ""
+    return (final or ""), (html.unescape(img.group(1)) if img else ""), body
+
+
+def dedupe_title(t):
+    if not t:
+        return ""
+    t = re.sub(r"\s+", " ", t.replace("\n", " ")).strip()
+    half = len(t) // 2
+    lo, hi = max(20, half - 30), min(max(21, len(t) - 15), half + 30)
+    for cut in range(lo, hi):
+        a, b = t[:cut].strip(), t[cut:].strip()
+        if len(b) > 12 and (a.lower().startswith(b.lower()[:18]) or b.lower().startswith(a.lower()[:18])):
+            return a
+    return t
+
+
+def norm_title(t):
+    t = (t or "").lower()
+    t = re.sub(r"\s+-\s+[^-]+$", "", t)
+    t = re.sub(r"[^\w\u0900-\u0d7f ]", " ", t, flags=re.UNICODE)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def parse_date(raw):
+    if raw:
         try:
-            dt = parsedate_to_datetime(pub_raw)
+            dt = parsedate_to_datetime(raw)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt.timestamp(), dt.strftime("%Y-%m-%d")
@@ -1596,211 +856,74 @@ def parse_date(pub_raw):
     return now.timestamp(), now.strftime("%Y-%m-%d")
 
 
-
-def _dedupe_title(t):
-    """Google News sometimes returns the headline twice in one string. Keep the
-    first complete version so the Title column is not a doubled mess."""
-    if not t:
-        return t
-    t = re.sub(r"\s+", " ", t.replace("\n", " ")).strip()
-    # if the second half restates the first, cut it
-    half = len(t) // 2
-    for cut in range(max(20, half - 30), min(len(t) - 15, half + 30)):
-        a, b = t[:cut].strip(), t[cut:].strip()
-        if len(b) > 12 and (a.lower().startswith(b.lower()[:18]) or b.lower().startswith(a.lower()[:18])):
-            return a
-    m_ = re.match(r"^(.{25,}?)\s*[-\u2013]\s*[^-\u2013]{2,30}\s+\1", t, re.I)
-    if m_:
-        return m_.group(1).strip()
-    return t
-
-
-def normalize_title(title):
-    t = title.lower()
-    t = re.sub(r"\s+-\s+[^-]+$", "", t)
-    t = re.sub(r"[^\w\u0900-\u0d7f ]", " ", t, flags=re.UNICODE)
-    return re.sub(r"\s+", " ", t).strip()
-
-
-# ===========================================================================
-# IMAGE ENRICHMENT
-# ===========================================================================
-_OG_IMG = re.compile(r'<meta[^>]+(?:property|name)=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', re.I)
-_OG_IMG_R = re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']og:image["\']', re.I)
-
-
-
-_OG_DESC = re.compile(r'<meta[^>]+(?:property|name)=["\'](?:og:description|description)["\'][^>]+content=["\']([^"\']+)["\']', re.I)
-_OG_DESC_R = re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:description|description)["\']', re.I)
-_PARA = re.compile(r"<p[^>]*>(.*?)</p>", re.I | re.S)
-_TAG = re.compile(r"<[^>]+>")
-
-
-
-GOOGLE_BOILERPLATE = [
-    "comprehensive up-to-date news coverage",
-    "aggregated from sources all over the world by google news",
-    "read full articles, watch videos, browse thousands of titles",
-    "google news",
-]
-
-
-def _looks_like_boilerplate(text):
-    if not text or len(text) < 40:
-        return True
-    low = text.lower()
-    return any(b in low for b in GOOGLE_BOILERPLATE)
-
-
-def resolve_google_news_url(url):
-    """Google News RSS links point at a redirect stub, not the article. Fetching
-    the stub returns Google's own page, so the body text is useless. Try to
-    recover the publisher URL from the encoded link; return "" if not possible."""
-    if "news.google.com" not in url:
-        return url
-    m_ = re.search(r"/articles/([A-Za-z0-9_\-]+)", url)
-    if not m_:
-        return ""
-    token = m_.group(1)
+def parse_feed(xml_bytes, language, query):
+    out = []
+    if not xml_bytes:
+        return out
     try:
-        pad = token + "=" * (-len(token) % 4)
-        raw = base64.urlsafe_b64decode(pad.encode("ascii"), )
-        found = re.search(rb"https?://[^\x00-\x20\"'<>]{10,}", raw)
-        if found:
-            cand = found.group(0).decode("utf-8", "ignore")
-            if "google.com" not in cand:
-                return cand
-    except Exception:                                             # noqa: BLE001
-        pass
-    return ""
-
-
-def fetch_article_text(url, max_chars=1200):
-    """Download the article page and return its opening text.
-    The headline alone rarely says WHY an accident happened or exactly WHERE;
-    the first few paragraphs usually do. Returns "" on any failure."""
-    real = resolve_google_news_url(url)
-    if not real:
-        return "", "", ""          # Google stub we cannot resolve - skip it
-    data, final = http_get(real, timeout=ENRICH_TIMEOUT, retries=1)
-    if not data:
-        return "", "", ""
-    page = data.decode("utf-8", "ignore")
-    if "news.google.com" in (final or ""):
-        return "", "", ""          # still on Google - no article to read
-    img = _OG_IMG.search(page) or _OG_IMG_R.search(page)
-    desc = _OG_DESC.search(page) or _OG_DESC_R.search(page)
-    parts = []
-    if desc:
-        parts.append(html.unescape(desc.group(1)).strip())
-    for p in _PARA.findall(page)[:12]:
-        txt = html.unescape(_TAG.sub(" ", p)).strip()
-        txt = re.sub(r"\s+", " ", txt)
-        if len(txt) > 60 and not txt.lower().startswith(("subscribe", "follow us", "copyright",
-                                                         "also read", "read more", "advertisement")):
-            parts.append(txt)
-        if sum(len(x) for x in parts) > max_chars:
-            break
-    body = " ".join(parts)[:max_chars]
-    if _looks_like_boilerplate(body):
-        return (final or ""), "", ""
-    return (final or ""), (html.unescape(img.group(1)) if img else ""), body
-
-
-def backfill_article_text(conn, budget):
-    """Fetch article bodies for rows that do not have one yet, then re-derive the
-    cause, location and casualty figures from the fuller text. Runs a slice each
-    day so coverage builds up without hammering any publisher."""
-    if budget <= 0:
-        return 0
-    rows = conn.execute(
-        """SELECT id,url,title,title_en,language FROM articles
-           WHERE (article_text IS NULL OR article_text='') AND url!=''
-           ORDER BY published_ts DESC LIMIT ?""", (budget,)).fetchall()
-    done = 0
-    for rid, url, title, ten, lang in rows:
-        _, img, body = fetch_article_text(url)
-        if not body:
-            conn.execute("UPDATE articles SET article_text='-' WHERE id=?", (rid,))
+        root = ElementTree.fromstring(xml_bytes)
+    except ElementTree.ParseError:
+        return out
+    for item in root.iter("item"):
+        title = dedupe_title((item.findtext("title") or "").strip())
+        if not title:
             continue
-        body_en = body
-        if lang != "English" and TRANSLATE_BACKEND != "none":
-            tx = translate_to_en(body[:1500])
-            if tx:
-                body_en = tx
-        full_en = (ten or "") + " " + body_en
-        full_any = (title or "") + " " + (ten or "") + " " + body + " " + body_en
-        # the body alone gives the cleanest explanation; fall back progressively
-        cause = (extract_cause_detail(body_en) or extract_cause_detail(body)
-                 or extract_cause_detail(full_en) or extract_cause_phrase(full_en)
-                 or extract_how_phrase(full_en))
-        cause = clean_cause(cause, title or "", ten or "")
-        cities, highways = extract_locations(full_en + " " + (title or ""))
-        deaths, injured = extract_counts(full_any)
-        tod = extract_time_of_day(body + " " + body_en + " " + (title or ""))
-        gender = extract_gender(body_en or body)
-        ages = extract_ages(body + " " + body_en)
-        conn.execute("""UPDATE articles SET article_text=?, image_url=CASE WHEN image_url='' THEN ?
-                        ELSE image_url END,
-                        cause=CASE WHEN ?!='' THEN ? ELSE cause END,
-                        cause_tags=?,
-                        cities=CASE WHEN ?!='' THEN ? ELSE cities END,
-                        highways=CASE WHEN ?!='' THEN ? ELSE highways END,
-                        deaths=COALESCE(deaths,?), injured=COALESCE(injured,?),
-                        time_of_day=CASE WHEN time_of_day='' OR time_of_day IS NULL THEN ? ELSE time_of_day END,
-                        victim_gender=CASE WHEN victim_gender='' OR victim_gender IS NULL THEN ? ELSE victim_gender END,
-                        victim_age=CASE WHEN victim_age='' OR victim_age IS NULL THEN ? ELSE victim_age END,
-                        severity=?
-                        WHERE id=?""",
-                     (body[:1200], img, cause, cause, derive_cause_tags(full_any, cause),
-                      cities, cities, highways, highways, deaths, injured, tod, gender, ages,
-                      classify_severity(full_any, deaths, injured), rid))
-        done += 1
-        time.sleep(0.25)
+        desc = re.sub(r"<[^>]+>", " ", item.findtext("description") or "").strip()
+        src_el = item.find("source")
+        ts, iso = parse_date((item.findtext("pubDate") or "").strip())
+        out.append({"title": title, "snippet": desc[:400],
+                    "url": (item.findtext("link") or "").strip(),
+                    "source": src_el.text.strip() if src_el is not None and src_el.text else "",
+                    "language": language, "query": query,
+                    "published": iso, "published_ts": ts})
+    return out
+
+
+# ===========================================================================
+# DATABASE
+# ===========================================================================
+COLUMNS = OrderedDict([
+    ("id", "TEXT PRIMARY KEY"), ("title", "TEXT"), ("title_en", "TEXT"), ("url", "TEXT"),
+    ("source", "TEXT"), ("published", "TEXT"), ("published_ts", "REAL"),
+    ("category", "TEXT"), ("sector", "TEXT"), ("language", "TEXT"), ("title_norm", "TEXT"),
+    ("snippet", "TEXT"), ("article_text", "TEXT"), ("image_url", "TEXT"),
+    ("cities", "TEXT"), ("highways", "TEXT"), ("deaths", "INTEGER"), ("injured", "INTEGER"),
+    ("cause", "TEXT"), ("time_of_day", "TEXT"), ("victim_gender", "TEXT"), ("victim_age", "TEXT"),
+    ("severity", "TEXT"), ("fetched_at", "TEXT"), ("is_duplicate", "INTEGER DEFAULT 0"),
+    ("dup_group", "TEXT"), ("translated", "INTEGER DEFAULT 0"),
+])
+
+
+def init_db(conn):
+    conn.execute(f"CREATE TABLE IF NOT EXISTS articles ({', '.join(f'{k} {v}' for k, v in COLUMNS.items())})")
+    have = {r[1] for r in conn.execute("PRAGMA table_info(articles)")}
+    for c, d in COLUMNS.items():
+        if c not in have:
+            conn.execute(f"ALTER TABLE articles ADD COLUMN {c} {d.replace(' PRIMARY KEY', '')}")
     conn.commit()
-    if done:
-        print(f"[article-text] fetched and re-analysed {done} articles")
-    return done
-
-
-def enrich_image(url):
-    data, final = http_get(url, timeout=ENRICH_TIMEOUT, retries=1)
-    if not data:
-        return "", ""
-    page = data.decode("utf-8", "ignore")
-    m = _OG_IMG.search(page) or _OG_IMG_R.search(page)
-    return (final or ""), (html.unescape(m.group(1)) if m else "")
 
 
 # ===========================================================================
-# DEDUP
+# DEDUPLICATION
 # ===========================================================================
-
-_STOPWORDS_EN = {"the","a","an","in","on","at","of","to","and","for","with","after","near","from",
- "was","were","is","are","by","as","it","its","his","her","their","two","three","four","five",
- "accident","accidents","news","video","watch","update","report","reports","said","says","killed",
- "dead","death","died","injured","injury","people","person","man","men","woman","women"}
+STOPW = {"the", "and", "for", "with", "after", "near", "from", "were", "was", "has", "had",
+         "accident", "accidents", "news", "video", "killed", "dead", "death", "died", "injured",
+         "people", "person", "police", "said", "report", "update", "horrific", "terrible"}
 
 
-def content_words(text):
-    """Meaningful lowercase words used to compare two reports' content."""
-    if not text:
-        return set()
-    words = re.findall(r"[a-z]{4,}", text.lower())
-    return {w for w in words if w not in _STOPWORDS_EN}
+def content_words(t):
+    return {w for w in re.findall(r"[a-z]{4,}", (t or "").lower()) if w not in STOPW}
 
 
-def event_similarity(a, b):
-    parts, weights = [], []
-    strong = False
-
-    # Work out the corroborating signals first, because they change how much a
-    # casualty-count difference should matter.
-    ca_, cb_ = _set(a["cities"]), _set(b["cities"])
-    ha_, hb_ = _hwset(a["highways"]), _hwset(b["highways"])
-    loc_match = bool((ca_ and cb_ and ca_ & cb_) or (ha_ and hb_ and ha_ & hb_))
-    ea_, eb_ = a.get("en_words") or set(), b.get("en_words") or set()
-    ov_ = len(ea_ & eb_) / max(1, min(len(ea_), len(eb_))) if ea_ and eb_ else 0.0
+def similarity(a, b):
+    parts, weights, strong = [], [], False
+    ca = {x.strip().lower() for x in a["cities"].split(";") if x.strip()}
+    cb = {x.strip().lower() for x in b["cities"].split(";") if x.strip()}
+    ha = {x.strip().lower() for x in a["highways"].split(";") if x.strip()}
+    hb = {x.strip().lower() for x in b["highways"].split(";") if x.strip()}
+    loc = bool((ca and cb and ca & cb) or (ha and hb and ha & hb))
+    wa, wb = a["words"], b["words"]
+    ov = len(wa & wb) / max(1, min(len(wa), len(wb))) if wa and wb else 0.0
 
     da, db = a["deaths"], b["deaths"]
     if da is not None and db is not None:
@@ -1808,985 +931,429 @@ def event_similarity(a, b):
             parts.append(1.0); weights.append(0.40); strong = True
         elif abs(da - db) <= 1:
             parts.append(0.5); weights.append(0.40)
-        elif loc_match and ov_ >= 0.45:
-            # Same place and same story, but the tolls differ - this is normal
-            # while a death toll is still rising, so it must not veto the match.
+        elif loc and ov >= 0.40:
             parts.append(0.5); weights.append(0.15)
         else:
             parts.append(0.0); weights.append(0.40)
-    ia, ib = a["injured"], b["injured"]
-    if ia is not None and ib is not None:
-        parts.append(1.0 if ia == ib else (0.5 if abs(ia - ib) <= 2 else 0.0)); weights.append(0.20)
-    ca, cb = _set(a["cities"]), _set(b["cities"])
-    if ca and cb:
-        parts.append(1.0 if ca & cb else 0.0); weights.append(0.30); strong = strong or bool(ca & cb)
-    ha, hb = _hwset(a["highways"]), _hwset(b["highways"])
-    if ha and hb:
-        parts.append(1.0 if ha & hb else 0.0); weights.append(0.20); strong = strong or bool(ha & hb)
-    if a["language"] == b["language"]:
-        r = SequenceMatcher(None, a["title_norm"], b["title_norm"]).ratio()
-        parts.append(r); weights.append(0.25); strong = strong or r >= TITLE_DUP_THRESHOLD
-
-    # Content overlap on the ENGLISH text. Two Hindi reports of one accident are
-    # worded differently but their translations share the same content words
-    # ("policemen killed collision car tanker Shimla"), so this catches pairs
-    # that numbers and place names alone would miss.
-    ea, eb = a.get("en_words") or set(), b.get("en_words") or set()
-    overlap = 0.0
-    if ea and eb:
-        overlap = len(ea & eb) / max(1, min(len(ea), len(eb)))
-        # Only counted when it is INFORMATIVE. Low overlap is common between two
-        # true reports of one accident (different angles), so it must never drag
-        # the score down - it can only confirm a match.
-        if overlap >= 0.45:
-            parts.append(overlap); weights.append(0.35)
-        if overlap >= 0.55 and len(ea & eb) >= 4:
+    if loc:
+        parts.append(1.0); weights.append(0.30); strong = True
+    elif (ca and cb) or (ha and hb):
+        parts.append(0.0); weights.append(0.30)
+    if ov >= 0.40:
+        parts.append(ov); weights.append(0.35)
+        if ov >= 0.50 and len(wa & wb) >= 3:
             strong = True
-        # Same place AND clearly the same story: treat as one event even if the
-        # reported tolls differ (they commonly do while a toll is still rising).
-        if loc_match and overlap >= 0.55 and len(ea & eb) >= 5:
-            parts.append(1.0); weights.append(0.45)
-            strong = True
+    r = SequenceMatcher(None, a["title_norm"], b["title_norm"]).ratio()
+    parts.append(r); weights.append(0.25)
+    if r >= TITLE_DUP_THRESHOLD:
+        strong = True
     if not parts:
-        return (overlap, True) if overlap >= 0.7 else (0.0, False)
+        return 0.0, False
     score = sum(p * w for p, w in zip(parts, weights)) / sum(weights)
-    if overlap >= 0.7:                      # near-identical content
-        score = max(score, overlap)
+    if loc and ov >= 0.50:
+        score = max(score, 0.75)
         strong = True
     return score, strong
 
 
-def find_duplicate(conn, a):
-    lo = a["published_ts"] - EVENT_DATE_WINDOW_DAYS * 86400
-    hi = a["published_ts"] + EVENT_DATE_WINDOW_DAYS * 86400
-    best = None
-    for r in conn.execute(
-        """SELECT id,dup_group,title_norm,language,cities,highways,deaths,injured,title_en,title
-           FROM articles WHERE category=? AND published_ts BETWEEN ? AND ?""",
-            (a["category"], lo, hi)):
-        b = {"id": r[0], "dup_group": r[1], "title_norm": r[2], "language": r[3],
-             "cities": r[4] or "", "highways": r[5] or "", "deaths": r[6], "injured": r[7],
-             "en_words": content_words((r[8] or "") or (r[9] if r[3] == "English" else ""))}
-        score, strong = event_similarity(a, b)
-        if score >= EVENT_SIM_THRESHOLD and strong and (best is None or score > best[1]):
-            best = (b["dup_group"] or b["id"], score)
-    return best[0] if best else None
+def rededupe(conn):
+    conn.execute("UPDATE articles SET is_duplicate=0, dup_group=id")
+    rows = conn.execute(
+        """SELECT id,title_norm,cities,highways,deaths,injured,category,published_ts,title_en,title
+           FROM articles ORDER BY published_ts ASC""").fetchall()
+    seen, merged = [], 0
+    for r in rows:
+        a = {"id": r[0], "title_norm": r[1] or "", "cities": r[2] or "", "highways": r[3] or "",
+             "deaths": r[4], "injured": r[5], "category": r[6], "published_ts": r[7] or 0,
+             "words": content_words((r[8] or "") or (r[9] or "")), "dup_group": r[0]}
+        best = None
+        for b in seen:
+            if b["category"] != a["category"]:
+                continue
+            if abs(b["published_ts"] - a["published_ts"]) > EVENT_DATE_WINDOW_DAYS * 86400:
+                continue
+            s, strong = similarity(a, b)
+            if s >= EVENT_SIM_THRESHOLD and strong and (best is None or s > best[1]):
+                best = (b["dup_group"], s)
+        if best:
+            conn.execute("UPDATE articles SET is_duplicate=1, dup_group=? WHERE id=?", (best[0], a["id"]))
+            a["dup_group"] = best[0]
+            merged += 1
+        seen.append(a)
+        if len(seen) > 3000:
+            seen = seen[-3000:]
+    conn.commit()
+    print(f"[dedupe] {merged} duplicate reports merged")
+    return merged
 
 
 # ===========================================================================
-# STORE  (translate -> classify -> exclude natural -> enrich -> dedup -> insert)
+# STORE
 # ===========================================================================
-def store(conn, articles, enrich_budget, translate_budget):
-    new = 0
-    for a in articles:
-        if conn.execute("SELECT 1 FROM articles WHERE id=?", (a["id"],)).fetchone():
+def store(conn, items, stats, translate_budget=0):
+    added = 0
+    for it in items:
+        keep, reason = screen(it["title"], it["snippet"], it["source"], it["url"], it["published"])
+        if not keep:
+            stats[reason] = stats.get(reason, 0) + 1
             continue
 
-        native = a["title"] + " " + a.get("snippet", "")
         title_en = ""
-        translated = 0
-        if a["language"] != "English" and TRANSLATE_BACKEND != "none" and translate_budget > 0:
-            tx = translate_to_en((a["title"] + "\n" + a.get("snippet", ""))[:4900])
+        if it["language"] != "English" and TRANSLATE_BACKEND != "none" and translate_budget > 0:
+            title_en = translate_to_en(it["title"] + "\n" + it["snippet"])
             translate_budget -= 1
-            if tx:
-                title_en = tx
-                translated = 1
+            if title_en:
+                keep2, reason2 = screen(title_en, "", it["source"], it["url"], it["published"])
+                if not keep2:
+                    stats[reason2 + " (seen after translation)"] = \
+                        stats.get(reason2 + " (seen after translation)", 0) + 1
+                    continue
 
-        english = title_en
-        combined = (english + " " + native).strip()
+        full = it["title"] + " " + it["snippet"] + " " + title_en
+        rid = hashlib.sha1(norm_title(it["title"]).encode("utf-8")).hexdigest()
+        if conn.execute("SELECT 1 FROM articles WHERE id=?", (rid,)).fetchone():
+            stats["already stored"] = stats.get("already stored", 0) + 1
+            continue
 
-        category = classify(combined, a.get('source', ''))
-        if category is None:
-            continue  # not in-scope, or a natural calamity -> dropped
-
-        # image enrichment only for kept items
-        resolved_url = ""
-        if ENRICH and enrich_budget > 0 and not a.get("image_url"):
-            resolved_url, img = enrich_image(a["url"])
-            enrich_budget -= 1
-            if img:
-                a["image_url"] = img
-            time.sleep(0.3)
-
-        deaths, injured = extract_counts(native + " " + english)
-        cities, highways = extract_locations(combined)
-        english_text = (english or "") if english else (native if a["language"] == "English" else "")
-        cause = (extract_cause_detail(english_text or native)
-                 or extract_cause_phrase(english_text or native)
-                 or extract_how_phrase(english_text or native))
-        # a cause that merely restates the headline tells us nothing
-        cause = clean_cause(cause, a["title"], title_en)
-        cause_tags = filter_tags_for_category(derive_cause_tags(combined, cause), category)
-        sector = detect_sector(combined) if category == "others" else ""
-        tod = extract_time_of_day(combined)
-        gender = extract_gender(english or native)
-        ages = extract_ages(combined)
-        severity = classify_severity(combined, deaths, injured)
-        a.update({"category": category, "deaths": deaths, "injured": injured,
-                  "cities": cities, "highways": highways})
-
-        a["en_words"] = content_words(english or (native if a["language"] == "English" else ""))
-        canonical = find_duplicate(conn, a)
-        is_dupe = 1 if canonical else 0
-        dup_group = canonical or a["id"]
-
+        cat, sector = classify(full)
+        deaths, injured = extract_counts(full)
+        cities, highways = extract_places(title_en or full)
         conn.execute(
             """INSERT OR IGNORE INTO articles
-               (id,title,title_en,url,resolved_url,source,published,published_ts,category,language,
-                query,title_norm,snippet,image_url,cities,highways,deaths,injured,cause,cause_tags,time_of_day,victim_gender,victim_age,severity,sector,fetched_at,
-                is_duplicate,dup_group,translated)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (a["id"], a["title"], title_en, a["url"], resolved_url, a["source"], a["published"],
-             a["published_ts"], category, a["language"], a["query"], a["title_norm"],
-             a.get("snippet", ""), a["image_url"], cities, highways, deaths, injured,
-             cause, cause_tags, tod, gender, ages, severity, sector, a["fetched_at"], is_dupe, dup_group, translated))
-        new += 1
+               (id,title,title_en,url,source,published,published_ts,category,sector,language,
+                title_norm,snippet,article_text,image_url,cities,highways,deaths,injured,cause,
+                time_of_day,victim_gender,victim_age,severity,fetched_at,is_duplicate,dup_group,translated)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?)""",
+            (rid, it["title"], title_en, it["url"], it["source"], it["published"],
+             it["published_ts"], cat, sector, it["language"], norm_title(it["title"]),
+             it["snippet"], "", "", cities, highways, deaths, injured, "",
+             extract_time_of_day(full), extract_gender(title_en or full), extract_ages(full),
+             severity(full, deaths, injured),
+             datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), rid,
+             1 if title_en else 0))
+        added += 1
+        stats["KEPT"] = stats.get("KEPT", 0) + 1
     conn.commit()
-    return new, enrich_budget, translate_budget
+    return added, translate_budget
+
+
+def backfill_articles(conn, budget):
+    if budget <= 0:
+        return 0
+    rows = conn.execute(
+        """SELECT id,url,title,title_en FROM articles
+           WHERE (article_text IS NULL OR article_text='') AND url!=''
+           ORDER BY published_ts DESC LIMIT ?""", (budget,)).fetchall()
+    done = 0
+    for rid, url, title, ten in rows:
+        _, img, body = fetch_article(url)
+        if not body:
+            conn.execute("UPDATE articles SET article_text='-' WHERE id=?", (rid,))
+            continue
+        body_en = body
+        if TRANSLATE_BACKEND != "none" and not body.isascii():
+            body_en = translate_to_en(body[:1500]) or body
+        keep, _ = screen((ten or title or "") + " " + body_en, "", "", url, None)
+        if not keep:
+            conn.execute("DELETE FROM articles WHERE id=?", (rid,))
+            continue
+        full = (title or "") + " " + (ten or "") + " " + body + " " + body_en
+        cities, highways = extract_places(body_en + " " + (ten or ""))
+        deaths, injured = extract_counts(full)
+        conn.execute(
+            """UPDATE articles SET article_text=?,
+               image_url=CASE WHEN image_url='' THEN ? ELSE image_url END,
+               cause=?, cities=CASE WHEN ?!='' THEN ? ELSE cities END,
+               highways=CASE WHEN ?!='' THEN ? ELSE highways END,
+               deaths=COALESCE(deaths,?), injured=COALESCE(injured,?),
+               time_of_day=CASE WHEN time_of_day='' THEN ? ELSE time_of_day END,
+               victim_gender=CASE WHEN victim_gender='' THEN ? ELSE victim_gender END,
+               victim_age=CASE WHEN victim_age='' THEN ? ELSE victim_age END,
+               severity=? WHERE id=?""",
+            (body[:1400], img, extract_cause(body_en, ten or title),
+             cities, cities, highways, highways, deaths, injured,
+             extract_time_of_day(full), extract_gender(body_en), extract_ages(full),
+             severity(full, deaths, injured), rid))
+        done += 1
+        time.sleep(0.25)
+    conn.commit()
+    if done:
+        print(f"[articles] fetched and analysed {done}")
+    return done
+
+
+def rescreen_all(conn):
+    """Apply the CURRENT gates to everything already stored, so a rule change
+    cleans history instead of only affecting new items."""
+    removed = 0
+    for rid, title, ten, snip, body, src, url, pub in conn.execute(
+            "SELECT id,title,title_en,snippet,article_text,source,url,published FROM articles").fetchall():
+        clean = dedupe_title(title or "")
+        text = " ".join(x for x in (clean, ten or "", snip or "",
+                                    (body if body and body != "-" else "")) if x)
+        keep, _ = screen(text, "", src or "", url or "", pub)
+        if not keep:
+            conn.execute("DELETE FROM articles WHERE id=?", (rid,))
+            removed += 1
+            continue
+        cat, sector = classify(text)
+        cities, highways = extract_places((ten or "") + " " + text)
+        conn.execute("""UPDATE articles SET title=?, title_norm=?, category=?, sector=?,
+                        cities=?, highways=? WHERE id=?""",
+                     (clean, norm_title(clean), cat, sector, cities, highways, rid))
+    conn.commit()
+    if removed:
+        print(f"[rescreen] removed {removed} stored records that fail the current gates")
+    return removed
 
 
 # ===========================================================================
 # EXPORTS
 # ===========================================================================
+def _w(path):
+    return open(path, "w", newline="", encoding="utf-8-sig")
 
 
-
-def remap_categories(conn):
-    """Rows saved under the previous taxonomy (bus/cargo/traffic/pedestrian/
-    flight/construction_infra/industrial) are re-classified into the current
-    groups, so old and new data are comparable."""
-    changed = 0
-    for rid, title, ten, snip, cat in conn.execute(
-            "SELECT id,title,title_en,snippet,category FROM articles").fetchall():
-        text = (title or "") + " " + (ten or "") + " " + (snip or "")
-        new_cat = detect_category(text)
-        if new_cat is None:
-            continue
-        new_sec = detect_sector(text) if new_cat == "others" else ""
-        if new_cat != cat:
-            conn.execute("UPDATE articles SET category=?, sector=? WHERE id=?",
-                         (new_cat, new_sec, rid))
-            changed += 1
-        else:
-            conn.execute("UPDATE articles SET sector=? WHERE id=?", (new_sec, rid))
-    conn.commit()
-    if changed:
-        print(f"[remap] re-classified {changed} rows into the new categories")
-    return changed
-
-
-
-# Place-like tokens that are never Indian locations. "Google" entered the
-# gazetteer output via Google News boilerplate; language names and continents
-# arrived through phrasing patterns.
-JUNK_PLACES = {
-    "google", "news", "comprehensive", "sources", "world", "coverage", "aggregated",
-    "titles", "video", "watch", "live", "update", "breaking", "exclusive",
-    # language names misread as places
-    "hindi", "bengali", "marathi", "tamil", "telugu", "kannada", "malayalam", "gujarati",
-    "punjabi", "urdu", "assamese", "odia", "maratha", "marathi news",
-    # continents / regions / foreign
-    "africa", "asia", "europe", "america", "gaza", "saudi", "gulf", "middle east",
-    "arab", "israel", "palestine",
-}
-
-
-def _drop_junk_places(value):
-    out = [p.strip() for p in (value or "").split(";")
-           if p.strip() and p.strip().lower() not in JUNK_PLACES]
-    return "; ".join(out)
-
-
-def cleanup_stored_data(conn):
-    """One-off repair of records written by earlier versions.
-
-    Rows already in the database keep whatever the pipeline produced at the time
-    they were stored, so a fix applied to the extractors does NOT correct history.
-    This pass re-derives the affected fields from the stored text and removes rows
-    that the current filters would now reject.
-    """
-    removed = boiler = retitled = relocated = 0
-
-    # 1. Google News boilerplate stored as article body
-    for rid, body in conn.execute(
-            "SELECT id, article_text FROM articles WHERE article_text IS NOT NULL AND article_text!=''"):
-        if _looks_like_boilerplate(body):
-            conn.execute("UPDATE articles SET article_text='-' WHERE id=?", (rid,))
-            boiler += 1
-
-    # 2. doubled headlines, junk locations, and re-application of the filters
-    for rid, title, ten, snip, body, cities, cat, src_name in conn.execute(
-            """SELECT id,title,title_en,snippet,article_text,cities,category,source
-               FROM articles""").fetchall():
-        clean_t = _dedupe_title(title or "")
-        clean_e = _dedupe_title(ten or "")
-        if clean_t != (title or "") or clean_e != (ten or ""):
-            conn.execute("UPDATE articles SET title=?, title_en=?, title_norm=? WHERE id=?",
-                         (clean_t, clean_e, normalize_title(clean_t), rid))
-            retitled += 1
-
-        combined = clean_t + " " + clean_e + " " + (snip or "")
-        if body and body != "-" and not _looks_like_boilerplate(body):
-            combined += " " + body
-
-        # would this record still be accepted today?
-        if (is_foreign(combined, src_name or "") or is_aftermath(combined)
-                or is_aggregate_or_retrospective(combined) or classify(combined, src_name or "") is None):
-            conn.execute("DELETE FROM articles WHERE id=?", (rid,))
-            removed += 1
-            continue
-
-        new_cities, new_hw = extract_locations(combined)
-        new_cities = _drop_junk_places(new_cities)
-        if new_cities != (cities or ""):
-            conn.execute("UPDATE articles SET cities=?, highways=? WHERE id=?",
-                         (new_cities, new_hw, rid))
-            relocated += 1
-
-    conn.commit()
-    print(f"[cleanup] boilerplate cleared {boiler}, titles fixed {retitled}, "
-          f"locations recomputed {relocated}, records removed {removed}")
-    return removed
-
-
-STALE_OUTPUTS = [
-    "SUMMARY.csv", "SUMMARY_simple.csv", "SUMMARY_month_by_type.csv", "SUMMARY_weekly.csv",
-    "SUMMARY_by_city.csv", "SUMMARY_casualties_monthly.csv", "SUMMARY_cause_histogram.csv",
-    "SUMMARY_others_by_sector.csv", "SUMMARY_cause_phrases.csv", "cause_summary.csv",
-    "cause_trend_monthly.csv", "monthly_summary.csv", "yearly_summary.csv",
-]
-
-
-def remove_stale_outputs():
-    """Delete summary files produced by earlier versions so the output folder
-    shows only the current set instead of accumulating obsolete sheets."""
-    import os
-    gone = []
-    for name in STALE_OUTPUTS:
-        if os.path.exists(name):
-            try:
-                os.remove(name)
-                gone.append(name)
-            except OSError:
-                pass
-    if gone:
-        print("[cleanup] removed obsolete output files:", ", ".join(gone))
-
-
-def purge_old(conn):
-    """Delete rows published before MIN_DATE so the working set stays small and
-    every remaining article can be fully fetched and analysed each run."""
-    if not MIN_DATE:
-        return 0
-    n = conn.execute("SELECT COUNT(*) FROM articles WHERE published < ?", (MIN_DATE,)).fetchone()[0]
-    if n:
-        conn.execute("DELETE FROM articles WHERE published < ?", (MIN_DATE,))
-        conn.commit()
-        print(f"[date-purge] removed {n} rows published before {MIN_DATE}")
-    return n
-
-
-def purge_foreign(conn):
-    """Remove rows saved BEFORE the geographic filter existed. Without this the
-    old foreign articles stay in the database and keep appearing in the counts."""
-    if not INDIA_ONLY:
-        return 0
-    removed = 0
-    for rid, title, ten, source in conn.execute(
-            "SELECT id,title,title_en,source FROM articles").fetchall():
-        if is_foreign((title or "") + " " + (ten or ""), source or ""):
-            conn.execute("DELETE FROM articles WHERE id=?", (rid,))
-            removed += 1
-    conn.commit()
-    if removed:
-        print(f"[geo-purge] removed {removed} non-India rows")
-    return removed
-
-
-def recompute_counts(conn, limit=6000):
-    """Re-run casualty extraction over stored rows. Needed after extraction bugs
-    are fixed, so old rows get corrected instead of keeping bad numbers."""
-    fixed = 0
-    for rid, title, ten, snip, d0, i0, body in conn.execute(
-            "SELECT id,title,title_en,snippet,deaths,injured,article_text FROM articles LIMIT ?",
-            (limit,)).fetchall():
-        text = (title or "") + " " + (ten or "") + " " + (snip or "") + " " + (body or "")
-        d, i = extract_counts(text)
-        if d != d0 or i != i0:
-            conn.execute("UPDATE articles SET deaths=?,injured=? WHERE id=?", (d, i, rid))
-            fixed += 1
-    conn.commit()
-    if fixed:
-        print(f"[recount] corrected casualty numbers on {fixed} rows")
-    return fixed
-
-
-def backfill_translations(conn, budget):
-    """Rows saved on earlier runs WITHOUT a translation stay untranslated forever
-    unless we revisit them. The free endpoint throttles (field testing translated
-    ~550 items before being cut off), so each run picks up where the last stopped.
-    Coverage therefore accumulates across days instead of stalling."""
-    if TRANSLATE_BACKEND == "none" or budget <= 0:
-        return 0
-    rows = conn.execute(
-        """SELECT id,title,snippet,language FROM articles
-           WHERE (title_en IS NULL OR title_en='') AND language!='English'
-           ORDER BY published_ts DESC LIMIT ?""", (budget,)).fetchall()
-    done = 0
-    for rid, title, snippet, lang in rows:
-        tx = translate_to_en((title + "\n" + (snippet or ""))[:1800])
-        if not tx:
-            break                      # throttled - stop, resume next run
-        combined = tx + " " + title + " " + (snippet or "")
-        cities, highways = extract_locations(combined)
-        deaths, injured = extract_counts(title + " " + (snippet or "") + " " + tx)
-        cause = extract_causes(combined)
-        conn.execute("""UPDATE articles SET title_en=?,translated=1,cities=?,highways=?,
-                        deaths=COALESCE(deaths,?),injured=COALESCE(injured,?),
-                        cause=CASE WHEN cause='' THEN ? ELSE cause END
-                        WHERE id=?""",
-                     (tx, cities, highways, deaths, injured, cause, rid))
-        done += 1
-        time.sleep(0.25)               # be gentle with the free service
-    conn.commit()
-    if done:
-        print(f"[translate-backfill] filled {done} older items")
-    return done
-
-
-def rededupe(conn):
-    """Re-run duplicate detection over the whole table. Needed because items get
-    richer over time (translation adds city/casualty data), which reveals matches
-    that were invisible when the item was first stored."""
-    conn.execute("UPDATE articles SET is_duplicate=0, dup_group=id")
-    rows = conn.execute(
-        """SELECT id,title_norm,language,cities,highways,deaths,injured,category,published_ts,
-                  title_en,title
-           FROM articles ORDER BY published_ts ASC""").fetchall()
-    seen = []
-    merged = 0
-    for r in rows:
-        a = {"id": r[0], "title_norm": r[1], "language": r[2], "cities": r[3] or "",
-             "highways": r[4] or "", "deaths": r[5], "injured": r[6], "category": r[7],
-             "published_ts": r[8] or 0,
-             "en_words": content_words((r[9] or "") or (r[10] if r[2] == "English" else ""))}
-        best = None
-        for b in seen:
-            if b["category"] != a["category"]:
-                continue
-            if abs((b["published_ts"] or 0) - a["published_ts"]) > EVENT_DATE_WINDOW_DAYS * 86400:
-                continue
-            score, strong = event_similarity(a, b)
-            if score >= EVENT_SIM_THRESHOLD and strong and (best is None or score > best[1]):
-                best = (b["dup_group"], score)
-        if best:
-            conn.execute("UPDATE articles SET is_duplicate=1, dup_group=? WHERE id=?", (best[0], a["id"]))
-            a["dup_group"] = best[0]
-            merged += 1
-        else:
-            a["dup_group"] = a["id"]
-        seen.append(a)
-        if len(seen) > 4000:
-            seen = seen[-4000:]
-    conn.commit()
-    print(f"[re-dedup] {merged} duplicates across the whole database")
-    return merged
-
-
-
-def export_unique_events_csv(conn, path="EVENTS_unique.csv"):
-    """ONE ROW PER REAL ACCIDENT - duplicates collapsed.
-    For each event group the fullest record is kept (most casualty/location
-    detail, English preferred), and the other reports of the same accident are
-    counted in 'Times Reported' and their outlets listed. This is the file to
-    use for counting; articles.csv remains the full archive of every article."""
+def export_accidents(conn, path="ACCIDENTS.csv"):
+    """ONE ROW PER ACCIDENT. Duplicate reports are not in this file at all."""
     groups = {}
-    for row in conn.execute(
-            """SELECT dup_group,published,category,sector,cause,cause_tags,source,title,title_en,
-                      cities,highways,deaths,injured,url,language,published_ts,
-                      time_of_day,victim_gender,victim_age,severity
-               FROM articles ORDER BY published_ts DESC"""):
-        g = row[0]
-        groups.setdefault(g, []).append(row)
-
-    def score(r):
-        # prefer the record with the most extracted information
-        s = 0
-        if r[11] is not None: s += 3      # deaths
-        if r[12] is not None: s += 2      # injured
-        if r[9]:  s += 2                  # cities
-        if r[10]: s += 1                  # highways
-        if r[4]:  s += 2                  # cause phrase
-        if r[14] == "English": s += 1
-        if r[8]:  s += 1                  # has translation
-        return s
-
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+    for r in conn.execute(
+            """SELECT dup_group,published,published_ts,category,sector,cities,highways,deaths,
+                      injured,cause,time_of_day,victim_gender,victim_age,severity,source,
+                      title,title_en,url,language
+               FROM articles ORDER BY published_ts ASC"""):
+        groups.setdefault(r[0], []).append(r)
+    rows = []
+    for members in groups.values():
+        by_time = sorted(members, key=lambda x: x[2] or 0)
+        first, last = by_time[0], by_time[-1]
+        best = max(members, key=lambda r: (r[7] is not None) * 3 + (r[8] is not None) * 2
+                   + bool(r[5]) * 2 + bool(r[9]) * 2 + (r[18] == "English"))
+        deaths = next((x[7] for x in reversed(by_time) if x[7] is not None), None)
+        injured = next((x[8] for x in reversed(by_time) if x[8] is not None), None)
+        rows.append([
+            first[1], last[1], (best[3] or "").replace("_", " "), (best[4] or "").replace("_", " "),
+            best[5] or "", best[6] or "",
+            deaths if deaths is not None else "", injured if injured is not None else "",
+            best[13] or "", next((x[10] for x in members if x[10]), ""),
+            next((x[11] for x in members if x[11]), ""), next((x[12] for x in members if x[12]), ""),
+            next((x[9] for x in members if x[9]), ""), len(members),
+            "; ".join(sorted({(x[14] or "").strip() for x in members if (x[14] or "").strip()})[:6]),
+            best[15] or "", best[16] or "", best[17] or ""])
+    rows.sort(key=lambda r: r[0], reverse=True)
+    with _w(path) as f:
         w = csv.writer(f)
-        w.writerow(["Date", "Accident Type", "Sector (others only)", "Cities", "Highways",
-                    "Killed", "Injured", "Reported Cause (detail)", "Cause Tags",
-                    "Times Reported", "Reported By", "Time of Day", "Victim Gender",
-                    "Victim Age(s)", "Severity", "First Reported", "Last Updated",
-                    "Headline", "Headline (English)", "Link"])
-        out = []
-        for g, members in groups.items():
-            best = max(members, key=score)
-            outlets = sorted({(m[6] or "").strip() for m in members if (m[6] or "").strip()})
-            # take the highest casualty figures seen across the reports of this event
-            # use the representative record's figures; taking the maximum across
-            # reports let one mis-extracted number inflate the whole event
-            # A developing story is reported repeatedly as the toll rises.
-            # Date  = the FIRST report (when the accident actually happened).
-            # Toll  = the LATEST report that carries a figure (the updated toll).
-            by_time = sorted(members, key=lambda x: x[15] or 0)
-            first_date = by_time[0][1]
-            latest_d = next((x[11] for x in reversed(by_time) if x[11] is not None), None)
-            latest_i = next((x[12] for x in reversed(by_time) if x[12] is not None), None)
-            deaths = latest_d
-            injured = latest_i
-            tod = next((x[16] for x in members if x[16]), "")
-            gender = next((x[17] for x in members if x[17]), "")
-            ages = next((x[18] for x in members if x[18]), "")
-            sev = classify_severity(" ".join((x[7] or "") + " " + (x[8] or "") for x in members),
-                                    deaths, injured)
-            cities = best[9] or next((m[9] for m in members if m[9]), "")
-            highways = best[10] or next((m[10] for m in members if m[10]), "")
-            cause = best[4] or next((m[4] for m in members if m[4]), "")
-            tags = best[5] or next((m[5] for m in members if m[5]), "")
-            headline_en = best[8] or (best[7] if best[14] == "English" else "")
-            out.append([first_date, (best[2] or "").replace("_", " "), (best[3] or "").replace("_", " "),
-                        cities, highways, deaths if deaths is not None else "",
-                        injured if injured is not None else "", cause,
-                        (tags or "").replace("_", " "), len(members),
-                        "; ".join(outlets[:6]), tod, gender, ages, sev, first_date, by_time[-1][1],
-                        best[7], headline_en, best[13]])
-        out.sort(key=lambda r: r[0], reverse=True)
-        w.writerows(out)
-    return len(groups)
-
-
-def export_articles_csv(conn, path="articles.csv"):
-    rows = conn.execute(
-        """SELECT published,language,category,sector,cause,cause_tags,time_of_day,victim_gender,
-                  victim_age,severity,source,title,
-                  CASE WHEN title_en IS NULL OR title_en='' THEN
-                       (CASE WHEN language='English' THEN title ELSE '' END)
-                       ELSE title_en END,
-                  cities,highways,deaths,injured,image_url,url,is_duplicate,dup_group,
-                  article_text
-           FROM articles ORDER BY published_ts DESC""").fetchall()
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["Date", "Language", "Accident Type", "Sector (others only)",
-                    "Reported Cause (detail)", "Cause Tags", "Time of Day", "Victim Gender",
-                    "Victim Age(s)", "Severity", "Source", "Title",
-                    "Title (English)", "Cities", "Highways", "Killed", "Injured",
-                    "Image URL", "Link", "Is Duplicate", "Event Group", "Article Text"])
-        for r in rows:
-            r = list(r)
-            r[2] = (r[2] or "").replace("_", " ")
-            r[3] = (r[3] or "").replace("_", " ")
-            r[5] = (r[5] or "").replace("_", " ")   # cause tags
-            w.writerow(r)
+        w.writerow(["Date of Accident", "Last Reported", "Accident Type", "Sector (others only)",
+                    "City / Place", "Highway", "Killed", "Injured", "Severity", "Time of Day",
+                    "Victim Gender", "Victim Age(s)", "Reported Cause", "Times Reported",
+                    "Reported By", "Headline", "Headline (English)", "Link"])
+        w.writerows(rows)
     return len(rows)
 
 
-
-
-def export_master_summary_csv(conn, path="SUMMARY.csv", confirmed_only=False):
-    """The summary sheet: one row per city per accident type, with the number of
-    accidents, how many were near misses, and the people killed and injured.
-
-    confirmed_only=False -> everything collected, including events whose location
-        or severity could not be determined (rows marked "Not identified" /
-        "unspecified"). This is the complete picture.
-    confirmed_only=True  -> ONLY events where the facts are actually known: a
-        named place, a defined sector, and a known outcome. Smaller and
-        certainly an undercount, but every row is a real, identified accident.
-    """
+def export_summary(conn, path, confirmed_only):
     agg = {}
-    for city_field, cat, sector, sev, d, i in conn.execute(
-            """SELECT cities, category, sector, severity, deaths, injured
+    for cities, cat, sector, sev, d, i in conn.execute(
+            """SELECT cities,category,sector,severity,deaths,injured
                FROM articles WHERE is_duplicate=0"""):
-        places = [c.strip() for c in (city_field or "").split(";") if c.strip()]
+        places = [c.strip() for c in (cities or "").split(";") if c.strip()]
         place = places[0] if places else "Not identified"
-        cat_label = (cat or "").replace("_", " ")
-        sector_label = (sector or "").replace("_", " ")
-
+        cat_l = (cat or "").replace("_", " ")
+        sec_l = (sector or "").replace("_", " ")
         if confirmed_only:
-            if not places:
-                continue                        # location unknown
-            if not cat_label:
-                continue                        # type unknown
-            if cat == "others" and sector_label in ("", "unspecified"):
-                continue                        # sector undefined
-            if sev in ("", "Not stated", None):
-                continue                        # outcome unknown
-            if sev in ("Fatal",) and not d:
-                continue                        # said fatal but no figure
-            if sev in ("Injury only",) and not i:
+            if not places or not cat_l:
                 continue
-
-        key = (place, cat_label, sector_label)
-        a = agg.setdefault(key, {"events": 0, "near": 0, "fatal": 0, "inj_only": 0,
-                                 "killed": 0, "injured": 0})
-        a["events"] += 1
-        if sev == "Near miss":
-            a["near"] += 1
-        elif sev == "Fatal":
-            a["fatal"] += 1
-        elif sev == "Injury only":
-            a["inj_only"] += 1
-        a["killed"] += d or 0
-        a["injured"] += i or 0
-
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+            if cat == "others" and sec_l in ("", "unspecified"):
+                continue
+            if sev in ("", "Not stated", None):
+                continue
+        a = agg.setdefault((place, cat_l, sec_l),
+                           {"n": 0, "near": 0, "fatal": 0, "inj": 0, "k": 0, "i": 0})
+        a["n"] += 1
+        a["near"] += sev == "Near miss"
+        a["fatal"] += sev == "Fatal"
+        a["inj"] += sev == "Injury only"
+        a["k"] += d or 0
+        a["i"] += i or 0
+    with _w(path) as f:
         w = csv.writer(f)
         w.writerow(["City", "Accident Type", "Sector (others only)", "Number of Accidents",
                     "Near Misses", "Fatal Accidents", "Injury-only Accidents",
                     "People Killed", "People Injured"])
-        for (place, cat, sector), a in sorted(
-                agg.items(), key=lambda kv: (-kv[1]["killed"], -kv[1]["events"], kv[0][0])):
-            w.writerow([place, cat, sector, a["events"], a["near"], a["fatal"],
-                        a["inj_only"], a["killed"], a["injured"]])
+        for (p, c, s), a in sorted(agg.items(), key=lambda kv: (-kv[1]["k"], -kv[1]["n"], kv[0][0])):
+            w.writerow([p, c, s, a["n"], a["near"], a["fatal"], a["inj"], a["k"], a["i"]])
     return len(agg)
 
 
-def export_simple_summary_csv(conn, path="SUMMARY_simple.csv"):
-    """The plain-English summary: one row per month per accident type, with the
-    number of accidents, people killed/injured, the main cities, and the most
-    common reported cause. This is the file to open first."""
-    rows = conn.execute(
-        """SELECT strftime('%Y-%m',published) AS month, category,
-                  COUNT(*)         AS number,
-                  SUM(COALESCE(deaths,0))  AS killed,
-                  SUM(COALESCE(injured,0)) AS injured
-           FROM articles WHERE is_duplicate=0 AND published!=''
-           GROUP BY month, category ORDER BY month DESC, number DESC""").fetchall()
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["Month", "Accident Type", "Sector (for Others)", "Number of Accidents",
-                    "People Killed", "People Injured", "Main Cities",
-                    "Most Common Cause", "Example Reported Cause"])
-        for month, cat, number, killed, injured in rows:
-            city_counter, cause_counter, sector_counter = Counter(), Counter(), Counter()
-            phrase_counter = Counter()
-            for (cities, cause, sect, tags) in conn.execute(
-                    """SELECT cities, cause, sector, cause_tags FROM articles
-                       WHERE is_duplicate=0 AND category=? AND strftime('%Y-%m',published)=?""",
-                    (cat, month)):
-                if sect:
-                    sector_counter[sect] += 1
-                for tg in (tags or "").split(";"):
-                    if tg.strip():
-                        cause_counter[tg.strip()] += 1
-                if (cause or "").strip():
-                    phrase_counter[cause.strip()] += 1
-                for c in (cities or "").split(";"):
-                    if c.strip():
-                        city_counter[c.strip()] += 1
-                if (cause or "").strip():
-                    cause_counter[cause.strip()] += 1
-            top_cities = ", ".join(f"{c} ({n})" for c, n in city_counter.most_common(5))
-            top_cause = cause_counter.most_common(1)[0][0].replace("_", " ") if cause_counter else "not reported"
-            example = phrase_counter.most_common(1)[0][0] if phrase_counter else ""
-            sectors = ", ".join(f"{s.replace('_',' ')} ({n})"
-                                for s, n in sector_counter.most_common(4)) if cat == "others" else ""
-            w.writerow([month, cat.replace("_", " "), sectors, number, killed or 0, injured or 0,
-                        top_cities or "not identified", top_cause, example])
-    return len(rows)
-
-
-
-def export_others_sector_csv(conn, path="SUMMARY_others_by_sector.csv"):
-    """Breakdown of the 'others' category by sector."""
-    rows = conn.execute(
-        """SELECT strftime('%Y-%m',published) AS month, sector, COUNT(*),
-                  SUM(COALESCE(deaths,0)), SUM(COALESCE(injured,0))
-           FROM articles WHERE is_duplicate=0 AND category='others' AND published!=''
-           GROUP BY month, sector ORDER BY month DESC, 3 DESC""").fetchall()
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["Month", "Sector", "Number of Accidents", "People Killed", "People Injured"])
-        for month, sector, n, k, inj in rows:
-            w.writerow([month, (sector or "unspecified").replace("_", " "), n, k or 0, inj or 0])
-    return len(rows)
-
-
-
-
-def export_casualties_monthly_csv(conn, path="SUMMARY_casualties_monthly.csv"):
-    """Killed and injured per month per category - the casualty view rather than
-    the event-count view. 'Events with a figure' tells you how much of the month
-    the totals actually rest on, so you can judge how solid they are."""
-    rows = conn.execute(
-        """SELECT strftime('%Y-%m',published) AS month, category,
-                  COUNT(*),
-                  SUM(CASE WHEN deaths IS NOT NULL THEN 1 ELSE 0 END),
-                  SUM(COALESCE(deaths,0)), SUM(COALESCE(injured,0)),
-                  MAX(COALESCE(deaths,0))
-           FROM articles WHERE is_duplicate=0 AND published!=''
-           GROUP BY month, category ORDER BY month DESC, 5 DESC""").fetchall()
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["Month", "Accident Type", "Events", "Events with a figure",
-                    "People Killed", "People Injured", "Killed per event (avg)",
-                    "Largest single event (killed)"])
-        for month, cat, ev, withfig, killed, injured, worst in rows:
-            avg = round((killed or 0) / withfig, 1) if withfig else ""
-            w.writerow([month, (cat or "").replace("_", " "), ev, withfig,
-                        killed or 0, injured or 0, avg, worst or 0])
-    return len(rows)
-
-
-def export_cause_histogram_csv(conn, path="SUMMARY_cause_histogram.csv"):
-    """Histogram data: for each month and category, how often each cause appears
-    and how many people were killed/injured in accidents carrying that cause.
-    Sorted so the top causes per category per month come first."""
-    agg = {}
-    for month, cat, tags, d, i in conn.execute(
-            """SELECT strftime('%Y-%m',published), category, cause_tags, deaths, injured
-               FROM articles WHERE is_duplicate=0 AND published!=''"""):
-        labels = [t.strip() for t in (tags or "").split(";") if t.strip()] or ["not reported"]
-        for lab in labels:
-            key = (month, cat or "", lab)
-            a = agg.setdefault(key, [0, 0, 0])
-            a[0] += 1
-            a[1] += d or 0
-            a[2] += i or 0
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["Month", "Accident Type", "Reported Cause", "Number of Accidents",
-                    "People Killed", "People Injured"])
-        for (month, cat, lab), (n, k, i) in sorted(
-                agg.items(), key=lambda kv: (kv[0][0], kv[0][1], -kv[1][0]), reverse=False):
-            w.writerow([month, cat.replace("_", " "), lab.replace("_", " "), n, k, i])
-    return len(agg)
-
-
-def export_weekly_summary_csv(conn, path="SUMMARY_weekly.csv"):
-    """Week-by-week counts per accident type. Weeks are ISO weeks starting Monday
-    and are labelled by their start date, so they sort correctly."""
+def export_monthly(conn, path="TREND_monthly.csv"):
     data, cats = {}, set()
-    for wk, cat, n, killed, injured in conn.execute(
-            """SELECT date(published, 'weekday 0', '-6 days') AS wk, category, COUNT(*),
-                      SUM(COALESCE(deaths,0)), SUM(COALESCE(injured,0))
-               FROM articles WHERE is_duplicate=0 AND published!=''
-               GROUP BY wk, category"""):
-        data.setdefault(wk, {})[cat] = (n, killed or 0, injured or 0)
+    for mth, cat, n, k, i in conn.execute(
+            """SELECT strftime('%Y-%m',published), category, COUNT(*),
+                      COALESCE(SUM(deaths),0), COALESCE(SUM(injured),0)
+               FROM articles WHERE is_duplicate=0 AND published!='' GROUP BY 1,2"""):
+        data.setdefault(mth, {})[cat] = (n, k, i)
         cats.add(cat)
     cats = sorted(cats)
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+    with _w(path) as f:
         w = csv.writer(f)
-        w.writerow(["Week Starting"] + [c.replace("_", " ") for c in cats] +
+        w.writerow(["Month"] + [c.replace("_", " ") for c in cats] +
                    ["TOTAL Accidents", "TOTAL Killed", "TOTAL Injured"])
-        for wk in sorted(data, reverse=True):
-            counts = [data[wk].get(c, (0, 0, 0))[0] for c in cats]
-            k = sum(v[1] for v in data[wk].values())
-            i = sum(v[2] for v in data[wk].values())
-            w.writerow([wk] + counts + [sum(counts), k, i])
+        for mth in sorted(data, reverse=True):
+            ns = [data[mth].get(c, (0, 0, 0))[0] for c in cats]
+            w.writerow([mth] + ns + [sum(ns),
+                                     sum(v[1] for v in data[mth].values()),
+                                     sum(v[2] for v in data[mth].values())])
     return len(data)
 
 
-def export_month_by_type_csv(conn, path="SUMMARY_month_by_type.csv"):
-    """Wide view: one row per month, one column per accident type - easiest to
-    chart, and shows at a glance which type dominates."""
-    data, cats = {}, set()
-    for month, cat, n in conn.execute(
-            """SELECT strftime('%Y-%m',published), category, COUNT(*)
-               FROM articles WHERE is_duplicate=0 AND published!=''
-               GROUP BY 1,2"""):
-        data.setdefault(month, {})[cat] = n
-        cats.add(cat)
-    cats = sorted(cats)
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["Month"] + [c.replace("_", " ") for c in cats] + ["TOTAL"])
-        for month in sorted(data, reverse=True):
-            row = [data[month].get(c, 0) for c in cats]
-            w.writerow([month] + row + [sum(row)])
-    return len(data)
+STALE = ["SUMMARY.csv", "SUMMARY_simple.csv", "SUMMARY_month_by_type.csv", "SUMMARY_weekly.csv",
+         "SUMMARY_by_city.csv", "SUMMARY_casualties_monthly.csv", "SUMMARY_cause_histogram.csv",
+         "SUMMARY_others_by_sector.csv", "SUMMARY_cause_phrases.csv", "cause_summary.csv",
+         "cause_trend_monthly.csv", "monthly_summary.csv", "yearly_summary.csv",
+         "articles.csv", "EVENTS_unique.csv", "index.html"]
 
 
-def export_city_summary_csv(conn, path="SUMMARY_by_city.csv"):
-    """Which places see the most accidents, and of what type."""
-    counter = Counter()
-    killed = Counter()
-    for cities, cat, d in conn.execute(
-            "SELECT cities, category, deaths FROM articles WHERE is_duplicate=0 AND cities!=''"):
-        for c in cities.split(";"):
-            c = c.strip()
-            if c:
-                counter[(c, cat)] += 1
-                killed[(c, cat)] += int(d) if d else 0
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["City / Place", "Accident Type", "Number of Accidents", "People Killed"])
-        for (city, cat), n in counter.most_common():
-            w.writerow([city, cat.replace("_", " "), n, killed[(city, cat)]])
-    return len(counter)
-
-
-
-def export_cause_phrases_csv(conn, path="SUMMARY_cause_phrases.csv"):
-    """Every reported-cause phrase, most repeated first, with its accident type.
-    This is the unfiltered wording from the reports - no preset categories."""
-    counter = Counter()
-    for cat, phrase in conn.execute(
-            "SELECT category, cause FROM articles WHERE is_duplicate=0 AND cause!=''"):
-        counter[((cat or "").replace("_", " "), phrase.strip())] += 1
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["Accident Type", "Reported Cause (as written in the report)", "Times Reported"])
-        for (cat, phrase), n in counter.most_common():
-            w.writerow([cat, phrase, n])
-    return len(counter)
-
-
-def export_cause_summary_csv(conn, path="cause_summary.csv"):
-    """Counts of reported causes per category (unique events only)."""
-    counts = Counter()
-    for cat, cause in conn.execute(
-            "SELECT category, cause_tags FROM articles WHERE is_duplicate=0"):
-        if not cause:
-            counts[(cat, "unstated")] += 1
-            continue
-        for part in cause.split(";"):
-            part = part.strip()
-            if part:
-                counts[(cat, part)] += 1
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["Accident Type", "Reported Cause (tag)", "Number of Accidents"])
-        for (cat, cause), n in sorted(counts.items(), key=lambda x: (x[0][0], -x[1])):
-            w.writerow([(cat or "").replace("_", " "), cause.replace("_", " "), n])
-
-
-def export_cause_trend_csv(conn, path="cause_trend_monthly.csv"):
-    """Month-by-month counts per reported cause (unique events only) - this is
-    the file to chart for 'which causes are repeating / rising'."""
-    counts = Counter()
-    for month, cause in conn.execute(
-            "SELECT strftime('%Y-%m', published), cause_tags FROM articles WHERE is_duplicate=0"):
-        if not cause:
-            counts[(month, "unstated")] += 1
-            continue
-        for part in cause.split(";"):
-            part = part.strip()
-            if part:
-                counts[(month, part)] += 1
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["Month", "Reported Cause (tag)", "Number of Accidents"])
-        for (month, cause), n in sorted(counts.items(), key=lambda x: (x[0][0], -x[1]), reverse=True):
-            w.writerow([month, cause.replace("_", " "), n])
-
-
-def _summary(conn, period):
-    return conn.execute(
-        f"""SELECT strftime('{period}',published) p, category, COUNT(*)
-            FROM articles WHERE is_duplicate=0
-            GROUP BY p, category ORDER BY p DESC, category""").fetchall()
-
-
-def export_summary_csv(conn, period, path):
-    rows = _summary(conn, period)
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["period", "category", "number_of_accidents"])
-        w.writerows(rows)
-
-
-def top_counts(conn, column, limit=15):
-    c = Counter()
-    for (val,) in conn.execute(f"SELECT {column} FROM articles WHERE is_duplicate=0 AND {column}!=''"):
-        for part in val.split(";"):
-            if part.strip():
-                c[part.strip()] += 1
-    return c.most_common(limit)
-
-
-def top_phrases(conn, limit=15):
-    c = Counter()
-    for (p,) in conn.execute("SELECT cause FROM articles WHERE is_duplicate=0 AND cause!=''"):
-        c[p.strip()] += 1
-    return c.most_common(limit)
-
-
-def export_dashboard(conn, path="index.html"):
-    monthly = _summary(conn, "%Y-%m")
-    periods, cats = {}, set()
-    for p, cat, n in monthly:
-        periods.setdefault(p, {})[cat] = n
-        cats.add(cat)
-    cats = sorted(cats)
-    total = conn.execute("SELECT COUNT(*) FROM articles WHERE is_duplicate=0").fetchone()[0]
-    total_raw = conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
-    merged = total_raw - total
-    with_img = conn.execute("SELECT COUNT(*) FROM articles WHERE image_url!=''").fetchone()[0]
-    with_cause = conn.execute("SELECT COUNT(*) FROM articles WHERE is_duplicate=0 AND cause!=''").fetchone()[0]
-    last = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    head = "".join(f"<th>{html.escape(c.replace(chr(95), chr(32)))}</th>" for c in cats)
-    body = ""
-    for p in sorted(periods, reverse=True):
-        cells = "".join(f"<td>{periods[p].get(c,0)}</td>" for c in cats)
-        body += f"<tr><th>{html.escape(p)}</th>{cells}<td class='tot'>{sum(periods[p].values())}</td></tr>"
-
-    def rows_html(pairs):
-        return "".join(f"<tr><td class='k'>{html.escape(k)}</td><td>{n}</td></tr>" for k, n in pairs) or "<tr><td>-</td><td>0</td></tr>"
-
-    doc = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>India Accident News Monitor</title><style>
- body{{font:15px/1.5 system-ui,sans-serif;margin:0;background:#f6f7f9;color:#1a1a1a}}
- .wrap{{max-width:960px;margin:0 auto;padding:24px 16px}} h1{{font-size:22px;margin:0 0 4px}} h2{{font-size:16px;margin:26px 0 8px}}
- .sub{{color:#666;font-size:13px;margin-bottom:16px}}
- .note{{background:#fff8e6;border:1px solid #f0e2b6;border-radius:10px;padding:12px 16px;font-size:13px;color:#5a4b16;margin-bottom:18px}}
- .cards{{display:flex;gap:12px;flex-wrap:wrap}} .card{{background:#fff;border:1px solid #e3e5e9;border-radius:10px;padding:14px 18px;flex:1;min-width:100px}}
- .card .n{{font-size:24px;font-weight:600}} .card .l{{font-size:12px;color:#666}}
- table{{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e3e5e9;border-radius:10px;overflow:hidden;margin-top:6px}}
- th,td{{padding:7px 9px;text-align:right;border-bottom:1px solid #eef0f2;font-variant-numeric:tabular-nums;font-size:13px}}
- thead th{{background:#f0f2f5;font-size:11px;text-transform:uppercase;letter-spacing:.03em}}
- tbody th,td.k{{text-align:left}} td.k{{font-weight:400}} tbody th{{font-weight:600}} td.tot{{font-weight:600;background:#fafbfc}}
- .two{{display:flex;gap:16px;flex-wrap:wrap}} .two>div{{flex:1;min-width:260px}}
-</style></head><body><div class="wrap">
-<h1>India Accident News Monitor</h1><div class="sub">Last updated {last} &middot; infrastructure &amp; transport only &middot; natural calamities excluded</div>
-<div class="note"><b>News-mention counts, not official totals.</b> Cross-language duplicates are merged where facts align (some slip through). Natural calamities (floods, landslides, quakes, etc.) are filtered out. Authoritative figures: MoRTH, NCRB, DGFASLI. Images are publisher links.</div>
-<div class="cards">
- <div class="card"><div class="n">{total}</div><div class="l">unique events</div></div>
- <div class="card"><div class="n">{merged}</div><div class="l">duplicates merged</div></div>
- <div class="card"><div class="n">{total_raw}</div><div class="l">raw records</div></div>
- <div class="card"><div class="n">{with_img}</div><div class="l">with image</div></div>
- <div class="card"><div class="n">{with_cause}</div><div class="l">with stated cause</div></div>
- <div class="card"><div class="n">{len(periods)}</div><div class="l">months</div></div>
-</div>
-<h2>Monthly unique events by category</h2>
-<table><thead><tr><th style="text-align:left">Month</th>{head}<th>Total</th></tr></thead><tbody>{body}</tbody></table>
-<h2>Most repeated reported causes <span style="font-weight:400;color:#888;font-size:12px">(wording taken from the reports; preliminary, not investigated)</span></h2>
-<table><tbody>{rows_html(top_phrases(conn))}</tbody></table>
-<div class="two">
- <div><h2>Top cities</h2><table><tbody>{rows_html(top_counts(conn,'cities'))}</tbody></table></div>
- <div><h2>Top highways</h2><table><tbody>{rows_html(top_counts(conn,'highways'))}</tbody></table></div>
-</div></div></body></html>"""
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(doc)
+def clear_stale():
+    import os
+    gone = [n for n in STALE if os.path.exists(n)]
+    for n in gone:
+        try:
+            os.remove(n)
+        except OSError:
+            pass
+    if gone:
+        print("[cleanup] removed obsolete files:", ", ".join(gone))
 
 
 # ===========================================================================
-# MAIN
+# RUN
 # ===========================================================================
 def run():
     conn = sqlite3.connect(DB_PATH)
     init_db(conn)
-    ebudget, tbudget = MAX_ENRICH_PER_RUN, MAX_TRANSLATE_PER_RUN
-    total_new = 0
-    dead = []
+    stats, tbudget = {}, MAX_TRANSLATE_PER_RUN
 
     for code, (label, ceid) in EDITIONS.items():
         for q in GN_QUERIES.get(code, []):
-            data, _ = http_get(feed_url(q, code, ceid))
-            arts = parse_feed(data, label, q, prefilter=False)
-            added, ebudget, tbudget = store(conn, arts, ebudget, tbudget)
-            total_new += added
-            print(f"[GN {label}] {q!r}: {len(arts)} items, {added} kept")
+            url = f"{RSS_SEARCH}{urllib.parse.quote(q)}&hl={code}-IN&gl=IN&ceid={ceid}"
+            data, _ = http_get(url)
+            items = parse_feed(data, label, q)
+            n, tbudget = store(conn, items, stats, tbudget)
+            print(f"[GN {label}] {q!r}: {len(items)} seen, {n} kept")
             time.sleep(1)
 
     for label, url in NEWSPAPER_FEEDS:
         data, _ = http_get(url)
         if data is None:
-            dead.append(url)
-            print(f"[PAPER {label}] DEAD: {url}")
+            print(f"[PAPER {label}] unreachable: {url}")
             continue
-        arts = parse_feed(data, label, url, prefilter=True)
-        added, ebudget, tbudget = store(conn, arts, ebudget, tbudget)
-        total_new += added
-        print(f"[PAPER {label}] {url}: {len(arts)} candidate items, {added} kept")
+        items = parse_feed(data, label, url)
+        n, tbudget = store(conn, items, stats, tbudget)
+        print(f"[PAPER {label}] {len(items)} seen, {n} kept")
         time.sleep(1)
 
-    # Each maintenance pass is isolated: if one fails, the run still finishes and
-    # still writes the files, instead of losing everything to a single bad record.
-    for label, fn in (("cleanup", lambda: cleanup_stored_data(conn)),
-                      ("purge_old", lambda: purge_old(conn)),
-                      ("purge_foreign", lambda: purge_foreign(conn)),
-                      ("remap_categories", lambda: remap_categories(conn)),
-                      ("article_text", lambda: backfill_article_text(conn, MAX_ENRICH_PER_RUN))):
+    for name, fn in (("rescreen", lambda: rescreen_all(conn)),
+                     ("articles", lambda: backfill_articles(conn, MAX_ARTICLE_FETCH_PER_RUN)),
+                     ("dedupe", lambda: rededupe(conn))):
         try:
             fn()
-        except Exception as exc:                                  # noqa: BLE001
-            print(f"[warn] {label} step failed and was skipped: {type(exc).__name__}: {exc}")
-    for label, fn in (("translations", lambda: backfill_translations(conn, tbudget)),
-                      ("recount", lambda: recompute_counts(conn)),
-                      ("re-dedup", lambda: rededupe(conn))):
-        try:
-            fn()
-        except Exception as exc:                                  # noqa: BLE001
-            print(f"[warn] {label} step failed and was skipped: {type(exc).__name__}: {exc}")
+        except Exception as e:                                      # noqa: BLE001
+            print(f"[warn] {name} failed and was skipped: {type(e).__name__}: {e}")
 
-    remove_stale_outputs()
-    export_unique_events_csv(conn)
-    n = export_articles_csv(conn)
-    export_master_summary_csv(conn, "SUMMARY_all.csv", confirmed_only=False)
-    export_master_summary_csv(conn, "SUMMARY_confirmed.csv", confirmed_only=True)
-    export_month_by_type_csv(conn)           # monthly trend (kept for charting)
-    export_cause_phrases_csv(conn)           # what the reports actually said
-    export_dashboard(conn)
+    clear_stale()
+    n = export_accidents(conn)
+    export_summary(conn, "SUMMARY_all.csv", False)
+    export_summary(conn, "SUMMARY_confirmed.csv", True)
+    export_monthly(conn)
     conn.close()
-    print(f"\nDone. {total_new} new this run. {n} records total. "
-          f"(translate left {tbudget}, enrich left {ebudget})")
-    if dead:
-        print("Dead feeds to fix/remove:", *dead, sep="\n  ")
+
+    print(f"\nACCIDENTS.csv written: {n} unique accidents")
+    print("Screening outcomes this run:")
+    for k, v in sorted(stats.items(), key=lambda kv: -kv[1]):
+        print(f"   {v:6}  {k}")
 
 
+# ===========================================================================
+# SELF TEST
+# ===========================================================================
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
-        # ---- new category grouping ----
-        assert detect_category("School bus overturns near Pune") == "roadway"
-        assert detect_category("Truck rams into cars on NH-19") == "roadway"
-        assert detect_category("Pedestrian run over by speeding SUV") == "roadway"
-        assert detect_category("Two-wheeler skids on highway, rider dead") == "roadway"
-        assert detect_category("Passenger train derails near Kanpur") == "train"
-        assert detect_category("Plane crashes near Delhi airport") == "aviation"
-        assert detect_category("Ferry capsizes near Kochi harbour, 6 missing") == "port_maritime"
-        assert detect_category("Under-construction flyover girder falls, 4 dead") == "construction_ongoing"
-        assert detect_category("Dilapidated four-storey building collapses in Bhiwandi") == "old_structure_collapse"
-        assert detect_category("Boiler blast at chemical factory kills 3") == "others"
-        assert detect_sector("Boiler blast at chemical factory kills 3") == "factory_manufacturing"
-        assert detect_sector("Three die cleaning septic tank") == "sewer_sanitation"
-        assert detect_sector("Two workers die in coal mine") == "mining_quarry"
-        assert detect_category("Minister opens new hospital") is None
-        # ---- natural exclusion ----
-        assert classify("20 dead as floods hit Kerala") is None
-        assert classify("Building collapses after cloudburst, 5 dead") is None  # STRICT default
-        assert classify("Bus falls into river on NH-48, 8 dead") == "roadway"
-        # ---- casualty extraction incl Devanagari digits ----
-        assert extract_counts("3 killed, 2 injured in bus crash") == (3, 2)
-        d, i = extract_counts("बस दुर्घटना में \u0969 की मौत, \u0968 घायल"); assert (d, i) == (3, 2)
-        # ---- reported-cause extraction ----
-        assert "trench_excavation_collapse" in extract_causes("Trench collapses at highway construction site in Bengaluru, 2 workers dead")
-        c2 = extract_causes("Speeding car loses control in dense fog on NH-48, 3 dead")
-        assert "overspeeding" in c2 and "fog_poor_visibility" in c2
-        assert "gas_leak" in extract_causes("Gas leak at chemical factory injures 12")
-        assert extract_causes("New expressway inaugurated by minister") == ""  # no stated cause
-        print("cause sample:", extract_causes("Bus overturns after tyre burst on wet road near Pune"))
-        # ---- translation-assisted cross-language dedup ----
-        _MOCK_TRANSLATE = lambda t: ("3 killed 2 injured in bus accident on NH-48 near Pune"
-                                     if "\u0985" in t or "\u0995" in t or "\u09ac" in t else "")
-        conn = sqlite3.connect(":memory:"); init_db(conn)
-        A = parse_feed(("<rss><channel><item><title>3 killed, 2 injured in bus accident on NH-48 near Pune - TOI</title>"
-                        "<link>http://a</link><pubDate>Fri, 15 Aug 2026 06:00:00 GMT</pubDate></item></channel></rss>").encode(),
-                       "English", "q")
-        store(conn, A, 0, 0)
-        # an ASSAMESE article (no Google News edition) - only translation makes it comparable
-        B = parse_feed(("<rss><channel><item><title>\u0985\u09b8\u09ae\u09c0\u09df\u09be \u0995\u09ac\u09b0 - "
-                        "NH-48 \u09ac\u09be\u09b8 \u09a6\u09c1\u09b0\u09cd\u0998\u099f\u09a8\u09be</title>"
-                        "<link>http://b</link><pubDate>Fri, 15 Aug 2026 09:00:00 GMT</pubDate></item></channel></rss>").encode(),
-                       "Assamese", "paper")
-        store(conn, B, 0, 5)
-        rows = conn.execute("SELECT title,category,is_duplicate,deaths,injured,cities,highways,translated FROM articles").fetchall()
-        for r in rows:
-            print("  ", r)
+        drop = [
+            ("bangladeshi outlet", "Bus accident kills 5 in Dhaka", "Prothom Alo"),
+            ("bangladeshi outlet 2", "Steel factory blast injures 3 in Dhaka", "bd-pratidin.com"),
+            ("alaska", "Plane crash in Alaska kills 10", "NDTV"),
+            ("food safety", "Fungus found in food at Karnataka railway station", "The Hindu"),
+            ("trekking", "Two trekkers die during trek in Himachal", "NDTV"),
+            ("protest", "Transporters block road during student rally in Patna", "Jagran"),
+            ("assault", "School student dies after assault by classmates in Delhi", "NDTV"),
+            ("riot 1984", "1984 riots: victims remember the carnage in Delhi", "The Hindu"),
+            ("murder", "Man murdered in Kanpur, body found", "Amar Ujala"),
+            ("suicide", "Student ends life in Kota", "Dainik Bhaskar"),
+            ("investigation", "AI-171 crash investigation: pilots demand hearing", "NDTV"),
+            ("compensation", "Ex-gratia announced for road accident victims in Bihar", "Jagran"),
+            ("statistic", "418 died in road accidents in one month across the country", "NDTV"),
+            ("natural", "20 dead as floods hit Kerala", "The Hindu"),
+            ("sport", "Cricket tournament begins in Mumbai", "Times of India"),
+        ]
+        for label, t, s in drop:
+            keep, why = screen(t, "", s, "", "2026-08-20")
+            assert not keep, f"{label} SHOULD BE DROPPED: {t}"
+
+        keep_cases = [
+            ("3 killed as bus overturns on NH-48 near Pune", "Dainik Bhaskar", "roadway"),
+            ("Two policemen killed in collision between car and tanker in Shimla", "NDTV", "roadway"),
+            ("Train derails near Kanpur, 4 dead", "Jagran", "train"),
+            ("Under-construction flyover girder collapses in Hardoi, 2 injured", "Amar Ujala", "construction_ongoing"),
+            ("Dilapidated building collapses in Bhiwandi, 3 dead", "Times of India", "old_structure_collapse"),
+            ("Boat capsizes in Godavari near Rajahmundry, 6 missing", "Eenadu", "port_maritime"),
+            ("Plane makes crash landing at Jaipur airport", "ABP Live", "aviation"),
+            ("Boiler blast at chemical factory in Surat, 3 workers hurt", "Sandesh", "others"),
+        ]
+        for t, s, expect in keep_cases:
+            keep, why = screen(t, "", s, "", "2026-08-20")
+            assert keep, f"SHOULD BE KEPT (dropped as {why}): {t}"
+            cat, _ = classify(t)
+            assert cat == expect, f"{t!r} -> {cat}, expected {expect}"
+
+        # Bengali-language INDIAN outlets must be accepted (a correction: these
+        # were wrongly blocked as Bangladeshi in an earlier build)
+        for outlet in ["Kolkata24x7", "najarbandi.in", "Anandabazar", "Ei Samay",
+                       "Bartaman", "News18 Bangla", "TV9 Bangla"]:
+            assert source_verdict(outlet) == "indian", f"{outlet} is Indian"
+        for outlet in ["Prothom Alo", "bdnews24.com", "The Daily Star", "bd-pratidin.com"]:
+            assert source_verdict(outlet) == "foreign", f"{outlet} is Bangladeshi"
+        # Barjora is in Bankura, WEST BENGAL - an Indian accident
+        keep, why = screen("Explosion in steel factory in Barjora, Bankura, 3 workers injured",
+                           "", "Kolkata24x7", "", "2026-08-20")
+        assert keep, f"Barjora/Bankura is in India but was dropped as {why}"
+
+        # regressions the user reported
+        cat, _ = classify("Road accidents in UP; Mother and daughter killed in truck collision in Sambhal")
+        assert cat == "roadway", f"row 57 regression: got {cat}"
+        cat, _ = classify("Young woman dies in car accident in Guntur")
+        assert cat == "roadway", f"row 74 regression: got {cat}"
+
+        assert extract_counts("3 killed, 2 injured in bus crash on NH-48") == (3, 2)
+        assert extract_counts("70-yr-old killed in road accident") == (None, None)
+        assert extract_counts("70 sheep killed in train collision") == (None, None)
+        assert extract_counts("9 Nationals Killed In Kolkata Hotel Fire") == (9, None)
+        assert extract_time_of_day("crash at 12 am") == "Night"
+        assert extract_time_of_day("crash at 12 pm") == "Day"
+
+        # rows 112/117: same blast, different transliteration -> ONE accident
+        conn = sqlite3.connect(":memory:")
+        init_db(conn)
+        st = {}
+        ts = datetime(2026, 8, 20, tzinfo=timezone.utc).timestamp()
+        for t, src in [("Explosion in steel factory in Bankura, 3 workers injured by molten iron", "Anandabazar"),
+                       ("Blast in the steel factory in Bankura, 3 workers burnt", "Ei Samay")]:
+            store(conn, [{"title": t, "snippet": "", "url": "http://x/" + t[:8], "source": src,
+                          "language": "English", "query": "q", "published": "2026-08-20",
+                          "published_ts": ts}], st)
+        rededupe(conn)
         uniq = conn.execute("SELECT COUNT(*) FROM articles WHERE is_duplicate=0").fetchone()[0]
-        assert uniq == 1, "Assamese bus report should merge with English via translation"
-        _MOCK_TRANSLATE = None
+        print(f"steel factory blast: 2 reports -> {uniq} accident(s)")
+        assert uniq == 1, "the two reports of one blast should merge"
         print("SELF-TEST PASSED")
     else:
         run()
