@@ -249,9 +249,19 @@ CITIES = ["Mumbai", "New Delhi", "Kolkata", "Chennai", "Bengaluru", "Bangalore",
 PLACE_LIST = sorted(set(CITIES + STATES), key=len, reverse=True)
 _PLACE_PATTERNS = [(p, re.compile(r"\b" + re.escape(p) + r"\b", re.I)) for p in PLACE_LIST]
 
+# Words that place the EVENT in India. Note what is NOT here: the bare adjective
+# "Indian". "Indian-origin pilot killed in US helicopter crash" describes a
+# person's origin, not where the crash happened, and treating it as proof of
+# location let dozens of foreign crashes through.
 INDIA_WORDS = re.compile(
-    r"\b(?:india|indian|bharat|nh[-\s]?\d{1,3}|national highway|state highway|"
-    r"expressway|indian railways|irctc|dgca|morth|nhai)\b", re.I)
+    r"\bin india\b|\bacross india\b|\bindia'?s\b|"
+    r"\b(?:bharat|nh[-\s]?\d{1,3}|national highway|state highway|expressway|"
+    r"indian railways|irctc|dgca|morth|nhai|vande bharat|rajdhani|shatabdi)\b", re.I)
+
+# Adjectives describing PEOPLE, which say nothing about where an event occurred.
+PERSON_ORIGIN = re.compile(r"\b(?:indian[-\s]origin|indian student|indian couple|"
+                           r"indian national|indian citizen|indian tourist|malayali|"
+                           r"indian[-\s]american|nri)\b", re.I)
 INDIA_NATIVE = ["भारत", "ভারত", "இந்தியா", "భారత", "ಭಾರತ", "ഇന്ത്യ", "ભારત", "ਭਾਰਤ"]
 
 FOREIGN_PLACES = re.compile(
@@ -273,7 +283,13 @@ FOREIGN_PLACES = re.compile(
     r"warsaw|greece|athens|hungary|budapest|austria|vienna|switzerland|netherlands|belgium|"
     r"sweden|norway|denmark|finland|australia|sydney|melbourne|new zealand|auckland|"
     r"kazakhstan|uzbekistan|azerbaijan|cambodia|laos|taiwan|hong kong|malta|cyprus|serbia|"
-    r"croatia|bahamas|africa|europe|middle east)\b", re.I)
+    r"croatia|bahamas|africa|europe|middle east|"
+    r"\bu\.?k\.?\b|\bus\b|\busa\b|wales|welsh|essex|surrey|kent|yorkshire|manchester|"
+    r"birmingham|glasgow|edinburgh|dublin|pennsylvania|ohio|michigan|arizona|nevada|"
+    r"colorado|oregon|utah|kansas|iowa|missouri|virginia|carolina|georgia usa|"
+    r"dominica|dominican republic|jamaica|cuba|haiti|panama|guatemala|honduras|"
+    r"turkiye|azerbaijan|belarus|romania|bulgaria|slovakia|slovenia|estonia|latvia|"
+    r"lithuania|iceland|luxembourg|monaco|qatar airways|emirates)\b", re.I)
 
 
 def india_verdict(text):
@@ -281,12 +297,15 @@ def india_verdict(text):
         return "unknown"
     if FOREIGN_PLACES.search(text):
         return "foreign"
-    if INDIA_WORDS.search(text):
+    # A person's Indian origin is not evidence of an Indian location. If that is
+    # the ONLY Indian signal present, the location remains unproven.
+    stripped = PERSON_ORIGIN.sub(" ", text)
+    if INDIA_WORDS.search(stripped):
         return "india"
     for name, pat in _PLACE_PATTERNS:
-        if pat.search(text):
+        if pat.search(stripped):
             return "india"
-    if any(w in text for w in INDIA_NATIVE):
+    if any(w in stripped for w in INDIA_NATIVE):
         return "india"
     return "unknown"
 
@@ -386,7 +405,21 @@ NOT_EVENT_REPORT = re.compile(
     r"in (?:one|a|the last|the past|first)\s*\d{0,3}\s*(?:month|months|year|years|day|days)|"
     r"across the (?:country|state)|govt informs|assembly told|"
     r"drug test|dope test|breathalyser|licence suspended|grounded|"
-    r"insurance|claim settled|acquitted|convicted|sentenced)\b", re.I)
+    r"insurance|claim settled|acquitted|convicted|sentenced|"
+    r"tells? parliament|told (?:in )?parliament|government (?:says|reveals|told)|"
+    r"black box|aaib|dgca (?:said|report)|final payout|compensation|"
+    r"revelation|reveals|big information|what was the reason|when will the truth|"
+    r"survivor|survived|families? (?:of|grapple|asked|fears)|relatives of|"
+    r"martyred|funeral|last rites|panchatatva|tricolor|sacrificed (?:his|her) life|"
+    r"changed (?:his|her|their) (?:life|fate)|still has not forgotten|"
+    r"sets model|teamwork|controversy over|questions? raised|"
+    r"victim(?:'s)? (?:family|fate|story)|changed (?:his|her|their) family|"
+    r"life of|don't have the courage|do not have the courage|"
+    r"how .{0,30}(?:changed|coped|survived)|the death of|way of the death|"
+    r"perfect wedding|hours after saying|my son was|newlywed|"
+    r"tribute|remembers|recalls|looks back|has (?:not|never) forgot\w*|"
+    r"stirred by|claims of|hidden in the .{0,20}report|"
+    r"asked for|will not be made public|not caused by|did not happen due to)\b", re.I)
 
 
 def currency_verdict(text, published_date):
@@ -436,41 +469,126 @@ def screen(title, snippet, source, url, published_date):
 # CLASSIFICATION
 # ===========================================================================
 CATEGORY_RULES = OrderedDict([
+    # ORDER MATTERS AND IS DELIBERATE.
+    # Construction is tested FIRST: a launching girder that falls onto a road
+    # during metro work is a construction accident, not a road accident, and a
+    # worker killed at a bridge site is construction even though 'bridge' would
+    # otherwise read as a structure. Existing-structure failure is tested next
+    # so that a road caving in is a structure failure, not a traffic accident.
+    # Only then do the transport modes apply.
+    ("construction_ongoing", re.compile(
+        # --- project / site context ---------------------------------------
+        r"\b(?:under[- ]construction|construction site|construction work|construction activity|"
+        r"being (?:built|constructed|erected|laid|dug|widened)|under (?:repair|renovation|"
+        r"widening|expansion|erection|execution)|newly (?:built|constructed)|ongoing (?:work|"
+        r"project|construction)|work (?:site|in progress|zone)|project site|worksite|job site|"
+        r"greenfield|brownfield|site office|labour camp|"
+        # --- plant, equipment, temporary works -----------------------------
+        r"crane|cranes|crawler crane|tower crane|mobile crane|launching girder|launcher|girder|"
+        r"gantry|straddle carrier|scaffold\w*|staging|shuttering|deshuttering|formwork|"
+        r"falsework|centering|props|jack ?post|cuplock|hoist|man ?hoist|winch|derrick|"
+        r"boom lift|scissor lift|man ?lift|cradle|gondola|jhula|bosun chair|"
+        r"batching plant|transit mixer|concrete pump|boom placer|vibrator|"
+        r"piling|pile driver|bore pile|rig|excavator|jcb|backhoe|bulldozer|dozer|"
+        r"road roller|paver|grader|tipper at site|dumper at site|"
+        # --- earthworks -----------------------------------------------------
+        r"excavat\w*|trench|trenching|pit collaps\w*|soil collaps\w*|earth caved|shoring|"
+        r"benching|sloping|dewatering|borewell drilling|tunnel(?:ling|boring)|tbm\b|"
+        r"blasting at site|rock cutting|embankment work|cutting slope|"
+        # --- reinforcement and concrete ------------------------------------
+        r"rebar|re-?bar|reinforcement|binding wire|steel fixing|bar bending|cutting bar|"
+        r"tmt bar|stirrup|concreting|concrete pour|slab casting|casting yard|"
+        r"segment (?:erection|casting)|precast|post-?tensioning|pre-?stress\w*|grouting|"
+        r"curing|column casting|footing|raft|pile cap|"
+        # --- finishing and other trades ------------------------------------
+        r"chipping|plaster\w*|painting work|whitewash\w*|putty work|tiling|flooring work|"
+        r"welding|gas cutting|grinding|cutting wheel|drilling work|carpentry|"
+        r"masonry|brickwork|glazing|facade work|cladding|waterproofing|"
+        r"electrical work|wiring work|conduit|ducting|plumbing work|"
+        r"lift installation|erection work|dismantl\w*|demolition|deconstruction|"
+        # --- workers and roles ---------------------------------------------
+        r"construction (?:worker|labour|labor|labourer|laborer)|site (?:worker|engineer|"
+        r"supervisor|in-?charge|manager)|mason|mistri|beldar|helper at site|"
+        r"contractor|sub-?contractor|petty contractor|migrant labour\w*|"
+        r"labourers? (?:at|working|engaged|died|killed)|workers? (?:at the )?site|"
+        r"safety (?:harness|belt|net|helmet)|ppe\b|fall protection|"
+        # --- named project types -------------------------------------------
+        r"metro (?:work|project|construction|site|corridor|viaduct)|"
+        r"flyover (?:work|construction|project)|bridge (?:work|construction|project)|"
+        r"road (?:work|construction|widening|project)|highway (?:work|construction|project)|"
+        r"station (?:work|construction)|building (?:work|construction)|"
+        r"dam (?:work|construction)|canal (?:work|lining)|pipeline (?:work|laying)|"
+        r"sewer(?:age)? (?:work|line laying)|water line laying|cable laying|"
+        r"power (?:plant|project) (?:work|construction)|refinery (?:work|construction)|"
+        r"expressway (?:work|construction|project)|smart city (?:work|project))\b"
+        # --- native scripts -------------------------------------------------
+        r"|निर्माणाधीन|निर्माण कार्य|निर्माण स्थल|निर्माण साइट|निर्माण मजदूर|क्रेन|मचान|खुदाई|"
+        r"गड्ढा खोद|सरिया|शटरिंग|ढलाई|प्लास्टर|वेल्डिंग|ठेकेदार|मजदूर काम|मेट्रो निर्माण|"
+        r"पुल निर्माण|सड़क निर्माण|गर्डर|"
+        r"নির্মীয়মাণ|নির্মাণ কাজ|নির্মাণস্থল|ক্রেন|ভারা|খননের|শ্রমিক কাজ|ঠিকাদার|ঢালাই|"
+        r"बांधकाम|क्रेन|मजूर|कंत्राटदार|खोदकाम|"
+        r"கட்டுமான|கிரேன்|சாரம்|தொழிலாளர் பணி|ஒப்பந்ததாரர்|தோண்ட|"
+        r"నిర్మాణంలో|నిర్మాణ పనులు|క్రేన్|కూలీలు పని|కాంట్రాక్టర్|తవ్వక|"
+        r"ನಿರ್ಮಾಣ|ಕ್ರೇನ್|ಕಾರ್ಮಿಕರು|ಗುತ್ತಿಗೆದಾರ|ಅಗೆತ|"
+        r"നിർമാണ|ക്രെയിൻ|തൊഴിലാളി|കരാറുകാരൻ|കുഴി|"
+        r"બાંધકામ|ક્રેન|મજૂર|કોન્ટ્રાક્ટર|ખોદકામ|"
+        r"ਉਸਾਰੀ|ਕਰੇਨ|ਮਜ਼ਦੂਰ|ਠੇਕੇਦਾਰ|ਪੁਟਾਈ", re.I)),
+    ("old_structure_collapse", re.compile(
+        r"\b(?:building|house|hut|wall|boundary wall|roof|slab|ceiling|balcony|staircase|"
+        r"stairs|parapet|pillar|column|beam|lintel|chimney|tower|mast|hoarding|billboard|"
+        r"bridge|culvert|overbridge|foot ?over ?bridge|flyover|underpass|subway|"
+        r"structure|dilapidated|old building|godown|warehouse|shed|silo|tank|"
+        r"road (?:cave[sd]?|caving|cave-?in|collaps\w*|sank|sunk|subsid\w*|settl\w*|sinkhole)|"
+        r"sinkhole|cave-?in|land subsidence|retaining wall|embankment|"
+        r"canal breach|dam breach|reservoir wall)\b"
+        r"|इमारत|मकान|दीवार|छत|पुल|भवन|होर्डिंग|सड़क धंस|धंसी|"
+        r"ভবন|বাড়ি|দেয়াল|ছাদ|সেতু|রাস্তা ধস|"
+        r"भिंत|इमारत|पूल|रस्ता खचला|"
+        r"கட்டிடம்|சுவர்|பாலம்|சாலை சரிவு|"
+        r"భవనం|గోడ|వంతెన|రోడ్డు కుంగ|"
+        r"ಕಟ್ಟಡ|ಗೋಡೆ|ಸೇತುವೆ|ರಸ್ತೆ ಕುಸಿ|"
+        r"കെട്ടിടം|ഭിത്തി|പാലം|റോഡ് ഇടിഞ്ഞ|"
+        r"ઇમારત|દીવાલ|પુલ|રસ્તો ધસી|"
+        r"ਇਮਾਰਤ|ਕੰਧ|ਪੁਲ|ਸੜਕ ਧਸ", re.I)),
     ("aviation", re.compile(
-        r"\b(?:aircraft|aeroplane|airplane|plane|helicopter|chopper|flight|airline|"
-        r"airport|airstrip|runway|hangar|microlight|glider|air ?crash)\b"
-        r"|विमान|हेलिकॉप्टर|एयरपोर्ट|বিমান|হেলিকপ্টার|விமான|విమానం|ವಿಮಾನ|വിമാനം|વિમાન|ਜਹਾਜ਼", re.I)),
+        r"\b(?:aircraft|aeroplane|airplane|plane|helicopter|chopper|microlight|glider|"
+        r"air ?crash|crash landing|emergency landing|runway excursion)\b"
+        r"|विमान|हेलिकॉप्टर|বিমান|হেলিকপ্টার|விமான|విమానం|ವಿಮಾನ|വിമാനം|વિમાન|ਜਹਾਜ਼", re.I)),
     ("port_maritime", re.compile(
         r"\b(?:boat|boats|ferry|ferries|ship|ships|vessel|trawler|barge|steamer|"
         r"dredger|tugboat|harbour|harbor|jetty|dockyard|shipyard|seaport)\b"
         r"|नाव|नौका|जहाज|बंदरगाह|নৌকা|জাহাজ|লঞ্চ|বন্দর|படகு|கப்பல்|పడవ|నౌక|ದೋಣಿ|ಹಡಗು|ബോട്ട്|હોડી|ਕਿਸ਼ਤੀ", re.I)),
     ("train", re.compile(
         r"\b(?:train|trains|railway|railways|rail|locomotive|derail\w*|level crossing|"
-        r"railway crossing|goods train|express train|metro rail|bogie)\b"
+        r"railway crossing|goods train|express train|metro rail|bogie|vande bharat|rajdhani|shatabdi|duronto|garib rath|emu|memu|local train|passenger train|mail express|superfast)\b"
         r"|ट्रेन|रेल|রেল|ট্রেন|ரயில்|రైలు|ರೈಲು|ട്രെയിൻ|ટ્રેન|ਰੇਲ", re.I)),
     ("roadway", re.compile(
         r"\b(?:road|roads|highway|expressway|street|bus|buses|truck|trucks|lorry|lorries|"
         r"tanker|trailer|car|cars|jeep|suv|van|tempo|auto|autorickshaw|auto-rickshaw|"
         r"rickshaw|bike|bikes|motorcycle|motorbike|scooter|scooty|two-wheeler|cyclist|"
-        r"pedestrian|dumper|container|traffic|divider)\b"
+        r"pedestrian|dumper|container|traffic|divider|vehicle|vehicles|airport road|hit from behind|hit-and-run)\b"
         r"|सड़क|हाईवे|बस|ट्रक|कार|बाइक|स्कूटर|রাস্তা|সড়ক|বাস|ট্রাক|গাড়ি|रस्ता|महामार्ग|"
         r"சாலை|பேருந்து|லாரி|கார்|రోడ్డు|బస్సు|ట్రక్|కారు|ರಸ್ತೆ|ಬಸ್|ಕಾರು|റോഡ്|ബസ്|കാർ|"
         r"માર્ગ|બસ|ટ્રક|કાર|ਸੜਕ|ਬੱਸ|ਟਰੱਕ|ਕਾਰ", re.I)),
-    ("construction_ongoing", re.compile(
-        r"\b(?:under construction|under-construction|construction site|being built|"
-        r"newly built|newly constructed|scaffolding|girder|crane|shuttering|formwork|"
-        r"excavation|trench|construction work|under repair)\b"
-        r"|निर्माणाधीन|निर्माण कार्य|क्रेन|নির্মীয়মাণ|নির্মাণ|கட்டுமான|నిర్మాణంలో|ನಿರ್ಮಾಣ|നിർമാണ|બાંધકામ|ਉਸਾਰੀ", re.I)),
-    ("old_structure_collapse", re.compile(
-        r"\b(?:building|house|wall|roof|slab|ceiling|balcony|staircase|bridge|culvert|"
-        r"structure|dilapidated|godown|shed)\b"
-        r"|इमारत|मकान|दीवार|छत|पुल|भवन|ভবন|বাড়ি|দেয়াল|ছাদ|সেতু|भिंत|கட்டிடம்|சுவர்|பாலம்|"
-        r"భవనం|గోడ|వంతెన|ಕಟ್ಟಡ|ಗೋಡೆ|ಸೇತುವೆ|കെട്ടിടം|ഭിത്തി|പാലം|ઇમારત|દીવાલ|પુલ|ਇਮਾਰਤ|ਕੰਧ|ਪੁਲ", re.I)),
+    # ONGOING CONSTRUCTION - scoped as a safety programme would scope it:
+    # ANY incident arising from construction activity, on ANY project (building,
+    # road, bridge, metro, station, tunnel, dam, pipeline, plant), affecting
+    # workers OR the public. Includes falls, struck-by, caught-between, crane and
+    # girder failures, excavation and trench collapse, scaffold failure, formwork,
+    # chipping, painting, welding, electrocution and site fires. A launching
+    # girder that falls during metro work belongs here, not under "roadway".,
 ])
 
+
+
+# The verb forms matter: "caves in", "gives way" and "falls" are as common in
+# headlines as the past tense, and were being missed.
 FAILURE_WORDS = re.compile(
-    r"\b(?:collaps\w*|caved? in|gave way|fell|fallen|razed|crumbl\w*)\b"
-    r"|ढह|गिर|ধস|कोसळ|இடிந்து|కూలి|ಕುಸಿ|തകർ|ધરાશાયી|ਢਹਿ", re.I)
+    r"\b(?:collaps\w*|cave[sd]? in|caving in|cave-?in|give[sn]? way|gave way|"
+    r"fall[s]?|fell|fallen|falling|sank|sunk|subsid\w*|settl(?:es|ed|ement)|"
+    r"sinkhole|razed|crumbl\w*|gave in|buckl\w*|snapped|toppl\w*|"
+    r"came (?:down|crashing)|broke (?:off|away))\b"
+    r"|ढह|गिर|धंस|ধস|कोसळ|खचल|இடிந்து|சரிவு|కూలి|కుంగ|ಕುಸಿ|തകർ|ഇടിഞ്ഞ|ધરાશાયી|ધસી|ਢਹਿ|ਧਸ", re.I)
 
 OTHER_SECTORS = OrderedDict([
     ("factory_manufacturing", re.compile(r"\b(?:factory|plant|mill|workshop|boiler|furnace|foundry|manufactur\w*)\b|फैक्ट्री|कारखाना|কারখানা|தொழிற்சாலை|ఫ్యాక్టరీ|ಕಾರ್ಖಾನೆ|ഫാക്ടറി|ફેક્ટરી|ਫੈਕਟਰੀ", re.I)),
@@ -484,7 +602,21 @@ OTHER_SECTORS = OrderedDict([
     ("borewell_well", re.compile(r"\b(?:borewell|bore well|open well)\b|बोरवेल|কূপ", re.I)),
     ("lift_elevator", re.compile(r"\b(?:lift|elevator|escalator)\b|लिफ्ट|লিফট", re.I)),
     ("agriculture", re.compile(r"\b(?:tractor|harvester|thresher)\b|ट्रैक्टर|ট্রাক্টর|டிராக்டர்", re.I)),
+    ("amusement_ride", re.compile(r"\b(?:ferris wheel|giant wheel|joy ?ride|amusement|fair ride|"
+                                  r"roller coaster|merry-go-round|swing ride)\b|झूला|নাগরদোলা", re.I)),
 ])
+
+
+ROAD_EVENT = re.compile(
+    r"\b(?:road accident|road mishap|road crash|hit by a (?:car|bus|truck|bike|vehicle)|"
+    r"run over|knocked down)\b|सड़क हादसा|सड़क दुर्घटना|সড়ক দুর্ঘটনা|रस्ता अपघात|"
+    r"சாலை விபத்து|రోడ్డు ప్రమాదం|ರಸ್ತೆ ಅಪಘಾತ|റോഡ് അപകടം|માર્ગ અકસ્માત|ਸੜਕ ਹਾਦਸਾ", re.I)
+AIRCRAFT_EVENT = re.compile(
+    r"\b(?:plane|aircraft|aeroplane|airplane|helicopter|chopper|microlight|glider)\b"
+    r".{0,60}?\b(?:crash\w*|collid\w*|collision|land\w*|overshot|skidd\w*|caught fire|"
+    r"engine|malfunction\w*|averted)\b"
+    r"|\b(?:crash|collision|collid\w*|averted)\b.{0,60}?"
+    r"\b(?:plane|aircraft|aeroplane|helicopter|chopper|microlight)\b", re.I)
 
 
 def classify(text):
@@ -492,6 +624,15 @@ def classify(text):
         if pat.search(text):
             if cat == "old_structure_collapse" and not FAILURE_WORDS.search(text):
                 continue          # a structure word alone is not a collapse
+            if cat == "aviation":
+                # The Tamil/Telugu words for "airport" contain the word for
+                # "aircraft", so a road accident involving an airport worker was
+                # being filed as aviation. Require a genuine aircraft event, and
+                # never override an explicit road accident.
+                if ROAD_EVENT.search(text) and not AIRCRAFT_EVENT.search(text):
+                    continue
+                if not AIRCRAFT_EVENT.search(text):
+                    continue
             return cat, ""
     for sector, pat in OTHER_SECTORS.items():
         if pat.search(text):
@@ -1060,8 +1201,9 @@ def backfill_articles(conn, budget):
         full = (title or "") + " " + (ten or "") + " " + body + " " + body_en
         cities, highways = extract_places(body_en + " " + (ten or ""))
         deaths, injured = extract_counts(full)
+        cat, sector = classify(full)          # the body often names the activity
         conn.execute(
-            """UPDATE articles SET article_text=?,
+            """UPDATE articles SET article_text=?, category=?, sector=?,
                image_url=CASE WHEN image_url='' THEN ? ELSE image_url END,
                cause=?, cities=CASE WHEN ?!='' THEN ? ELSE cities END,
                highways=CASE WHEN ?!='' THEN ? ELSE highways END,
@@ -1070,7 +1212,7 @@ def backfill_articles(conn, budget):
                victim_gender=CASE WHEN victim_gender='' THEN ? ELSE victim_gender END,
                victim_age=CASE WHEN victim_age='' THEN ? ELSE victim_age END,
                severity=? WHERE id=?""",
-            (body[:1400], img, extract_cause(body_en, ten or title),
+            (body[:1400], cat, sector, img, extract_cause(body_en, ten or title),
              cities, cities, highways, highways, deaths, injured,
              extract_time_of_day(full), extract_gender(body_en), extract_ages(full),
              severity(full, deaths, injured), rid))
@@ -1252,8 +1394,10 @@ def run():
         print(f"[PAPER {label}] {len(items)} seen, {n} kept")
         time.sleep(1)
 
-    for name, fn in (("rescreen", lambda: rescreen_all(conn)),
-                     ("articles", lambda: backfill_articles(conn, MAX_ARTICLE_FETCH_PER_RUN)),
+    # Fetch article bodies FIRST, then screen and classify, so both decisions are
+    # made on the full text rather than the headline alone.
+    for name, fn in (("articles", lambda: backfill_articles(conn, MAX_ARTICLE_FETCH_PER_RUN)),
+                     ("rescreen", lambda: rescreen_all(conn)),
                      ("dedupe", lambda: rededupe(conn))):
         try:
             fn()
@@ -1326,6 +1470,77 @@ if __name__ == "__main__":
         keep, why = screen("Explosion in steel factory in Barjora, Bankura, 3 workers injured",
                            "", "Kolkata24x7", "", "2026-08-20")
         assert keep, f"Barjora/Bankura is in India but was dropped as {why}"
+
+        # AVIATION must mean an aircraft, not merely the word "airport"
+        for t, expect in [("Airport worker killed in road accident", "roadway"),
+                          ("Bike collides with car on Nedumbassery Airport Road", "roadway"),
+                          ("IAF transport plane crashes in Jorhat, 5 killed", "aviation")]:
+            got, _ = classify(t)
+            assert got == expect, f"aviation scope: {t!r} -> {got}, want {expect}"
+        # a person's Indian origin does NOT place the event in India
+        for t in ["Indian Origin Couple Killed In UK Plane Crash",
+                  "Indian-origin pilot killed in helicopter crash in US",
+                  "Indian Student and Pilot Killed in Essex Plane Crash",
+                  "Pennsylvania crash: helicopter and Cessna collide midair"]:
+            keep, _ = screen(t, "", "NDTV", "", "2026-08-20")
+            assert not keep, f"foreign accident kept: {t}"
+        # OTHERS must not swallow road and rail events
+        assert classify("Kinnar dies after being hit by Vande Bharat")[0] == "train"
+        assert classify("Student dies, search for vehicle that hit from behind")[0] == "roadway"
+        assert classify("5 injured after Ferris wheel cabin crashes at Lucknow fair") == ("others", "amusement_ride")
+
+        # CONSTRUCTION - full safety scope, and it must WIN over road/structure
+        for t in ["Launching girder falls during metro construction on NH-24, 2 killed",
+                  "Crane collapses at under-construction building in Noida",
+                  "Worker falls from scaffolding at construction site in Pune",
+                  "Labourer electrocuted while chipping at metro work site",
+                  "Two workers buried as trench caves in during pipeline laying in Delhi",
+                  "Painter falls from cradle at under-construction tower in Mumbai",
+                  "Passerby killed as material falls from construction site in Bengaluru",
+                  "Fire at under-construction metro station in Chennai",
+                  "Worker struck by boom lift at bridge construction project in Patna"]:
+            got, _ = classify(t)
+            assert got == "construction_ongoing", f"construction scope: {t!r} -> {got}"
+        # EXISTING STRUCTURE - including roads caving in and things falling onto people
+        for t in ["Road caves in near Andheri, car falls into pit, 1 dead",
+                  "Road settlement causes truck to overturn in Ghaziabad",
+                  "Hoarding falls on vehicles in Mumbai, 2 killed",
+                  "Old culvert gives way under truck near Nashik",
+                  "Foot overbridge collapses at railway station in Delhi"]:
+            got, _ = classify(t)
+            assert got == "old_structure_collapse", f"structure scope: {t!r} -> {got}"
+        # AVIATION needs a real aircraft event, and aftermath pieces are not events
+        assert classify("Airport worker killed in road accident")[0] == "roadway"
+        for t in ["How Ahmedabad Plane Crash Victim Changed His Family's Fate",
+                  "Plane accident did not happen due to fuel switch",
+                  "Air India plane crash: Relatives asked for black box data"]:
+            keep, _ = screen(t, "", "NDTV", "", "2026-08-20")
+            assert not keep, f"aviation aftermath kept: {t}"
+
+        # the broadened construction vocabulary: activities, formwork, rebar
+        for t in ["Worker dies while binding rebar at slab casting in Noida",
+                  "Labourer falls during deshuttering of formwork at Pune site",
+                  "Two hurt as shuttering collapses during concrete pour in Surat",
+                  "Mason falls from staging while plastering in Lucknow",
+                  "Worker electrocuted during wiring work at under-construction mall",
+                  "Helper crushed by transit mixer at batching plant in Jaipur",
+                  "Fall from cradle during facade cladding work in Gurugram",
+                  "Worker dies during post-tensioning at bridge project in Bihar",
+                  "Contractor's worker dies in fall from tower crane in Hyderabad"]:
+            assert classify(t)[0] == "construction_ongoing", f"construction: {t!r}"
+        # and it must NOT steal ordinary transport or structure events
+        for t, e in [("3 killed as bus overturns on NH-48 near Pune", "roadway"),
+                     ("Train derails near Kanpur, 4 dead", "train"),
+                     ("Dilapidated building collapses in Bhiwandi", "old_structure_collapse"),
+                     ("Road caves in near Andheri, 1 dead", "old_structure_collapse")]:
+            assert classify(t)[0] == e, f"over-capture: {t!r} -> {classify(t)[0]}"
+        # classification must be able to use the ARTICLE BODY, not just the title
+        headline = "Worker dies in Noida"
+        body = ("A 32-year-old labourer died after falling from the scaffolding of an "
+                "under-construction tower in Sector 78 while plastering the seventh floor.")
+        assert classify(headline)[0] != "construction_ongoing", "headline alone lacks evidence"
+        assert classify(headline + " " + body)[0] == "construction_ongoing", \
+            "the article body must drive classification"
 
         # regressions the user reported
         cat, _ = classify("Road accidents in UP; Mother and daughter killed in truck collision in Sambhal")
