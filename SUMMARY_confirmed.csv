@@ -1,7 +1,7 @@
 ﻿City,Accident Type,Sector (others only),Number of Accidents,Near Misses,Fatal Accidents,Injury-only Accidents,People Killed,People Injured
 Madhya Pradesh,others,factory manufacturing,1,0,1,0,100,0
 Mumbai,roadway,,3,0,3,0,78,0
-Kanpur,roadway,,2,0,2,0,47,15
+Kanpur,roadway,,1,0,1,0,45,0
 Bihar,roadway,,1,0,1,0,25,0
 Maharashtra,old structure collapse,,3,0,3,0,24,0
 Mathura,train,,1,0,1,0,24,0
@@ -14,6 +14,7 @@ Himachal Pradesh,roadway,,2,0,2,0,14,0
 Sivakasi,roadway,,2,0,2,0,13,0
 Bhiwandi,old structure collapse,,2,0,2,0,12,0
 Jalandhar,roadway,,2,0,2,0,12,0
+Madhya Pradesh,roadway,,2,0,2,0,12,21
 Saharanpur,others,factory manufacturing,2,0,2,0,12,0
 Palghar,roadway,,1,0,1,0,12,25
 Prime Minister,roadway,,1,0,1,0,12,0
@@ -48,7 +49,6 @@ Amidst,roadway,,1,0,1,0,6,6
 Jharkhand,port maritime,,1,0,1,0,6,0
 Jharkhand,train,,1,0,1,0,6,0
 Latehar,roadway,,1,0,1,0,6,0
-Madhya Pradesh,roadway,,1,0,1,0,6,0
 Pathanamthitta,old structure collapse,,1,0,1,0,6,0
 Pratapgarh,old structure collapse,,1,0,1,0,6,0
 Saiduljab,old structure collapse,,1,0,1,0,6,0
@@ -95,6 +95,7 @@ Giddalur,roadway,,1,0,1,0,2,0
 Gwalior,train,,1,0,1,0,2,0
 Hardoi,train,,1,0,1,0,2,0
 Janagama,roadway,,1,0,1,0,2,0
+Jhansi,roadway,,1,0,1,0,2,15
 Kannauj,others,factory manufacturing,1,0,1,0,2,0
 Majholia,train,,1,0,1,0,2,0
 Mohali,construction ongoing,,1,0,1,0,2,0
@@ -154,6 +155,7 @@ Mahabubnagar,roadway,,1,0,0,1,0,21
 Mankhurd,roadway,,1,0,0,1,0,7
 Mayorpur,train,,1,1,0,0,0,0
 Moradabad,roadway,,1,0,0,1,0,12
+Mumbai,construction ongoing,,1,0,0,1,0,8
 Parbhani,roadway,,1,0,0,1,0,26
 Pilibhit,train,,1,0,0,1,0,10
 Pune,train,,1,1,0,0,0,0
