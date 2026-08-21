@@ -54,8 +54,9 @@ EVENT_DATE_WINDOW_DAYS = 3
 EVENT_SIM_THRESHOLD = 0.70
 TITLE_DUP_THRESHOLD = 0.90
 TRANSLATE_BACKEND = "builtin"      # "builtin" | "none"
-MAX_TRANSLATE_PER_RUN = 4000
-MAX_ARTICLE_FETCH_PER_RUN = 1200
+MAX_TRANSLATE_PER_RUN = 4000     # cap is generous; throttling is the real limit
+MAX_ARTICLE_FETCH_PER_RUN = 2500  # only fetchable URLs consume this
+ARTICLE_FETCH_MINUTES = 45        # wall-clock guard so a run cannot overrun
 FETCH_TIMEOUT = 12
 DB_PATH = "accidents.db"
 UA = "Mozilla/5.0 (compatible; AccidentMonitor/6.0)"
@@ -83,12 +84,59 @@ GN_QUERIES = {
     "pa": ['ਸੜਕ ਹਾਦਸਾ ਮੌਤ', 'ਬੱਸ ਹਾਦਸਾ', 'ਰੇਲ ਹਾਦਸਾ', 'ਇਮਾਰਤ ਢਹਿ'],
 }
 
+# Direct publisher feeds matter far more than they appear to. Google News RSS
+# links are redirect stubs that cannot be resolved for free, so those items never
+# yield article text - and without article text there is no reported cause. These
+# feeds give real URLs, so they are the ONLY source of cause data. Add more of
+# them to raise cause coverage; dead ones are skipped and logged.
 NEWSPAPER_FEEDS = [
     ("English", "https://indianexpress.com/feed/"),
+    ("English", "https://indianexpress.com/section/cities/feed/"),
+    ("English", "https://indianexpress.com/section/india/feed/"),
     ("English", "https://www.thehindu.com/news/national/feeder/default.rss"),
+    ("English", "https://www.thehindu.com/news/cities/feeder/default.rss"),
+    ("English", "https://www.thehindu.com/news/national/andhra-pradesh/feeder/default.rss"),
+    ("English", "https://www.thehindu.com/news/national/karnataka/feeder/default.rss"),
+    ("English", "https://www.thehindu.com/news/national/kerala/feeder/default.rss"),
+    ("English", "https://www.thehindu.com/news/national/tamil-nadu/feeder/default.rss"),
+    ("English", "https://www.thehindu.com/news/national/telangana/feeder/default.rss"),
     ("English", "https://feeds.feedburner.com/ndtvnews-india-news"),
+    ("English", "https://feeds.feedburner.com/ndtvnews-cities-news"),
     ("English", "https://www.news18.com/rss/india.xml"),
+    ("English", "https://www.news18.com/rss/cities.xml"),
+    ("English", "https://www.deccanherald.com/rss/national.rss"),
+    ("English", "https://www.deccanherald.com/rss/karnataka.rss"),
+    ("English", "https://www.newindianexpress.com/nation/rss"),
+    ("English", "https://www.newindianexpress.com/states/tamil-nadu/rss"),
+    ("English", "https://www.newindianexpress.com/states/kerala/rss"),
+    ("English", "https://www.freepressjournal.in/stories.rss"),
+    ("English", "https://www.thestatesman.com/feed"),
+    ("English", "https://www.tribuneindia.com/rss/feed?catId=1"),
+    ("English", "https://www.dnaindia.com/feeds/india.xml"),
+    ("English", "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms"),
+    ("English", "https://timesofindia.indiatimes.com/rssfeeds/1221656.cms"),
+    ("English", "https://www.hindustantimes.com/feeds/rss/cities/index.xml"),
+    ("English", "https://www.hindustantimes.com/feeds/rss/india-news/index.xml"),
+    ("English", "https://scroll.in/feed"),
+    ("English", "https://www.telegraphindia.com/feeds/rss.jsp?id=3",),
     ("Hindi",   "https://feed.livehindustan.com/rss/3127"),
+    ("Hindi",   "https://feed.livehindustan.com/rss/21"),
+    ("Hindi",   "https://www.bhaskar.com/rss-v1--category-1707.xml"),
+    ("Hindi",   "https://navbharattimes.indiatimes.com/rssfeedsdefault.cms"),
+    ("Hindi",   "https://www.jagran.com/rss/news/national.xml"),
+    ("Hindi",   "https://www.amarujala.com/rss/india-news.xml"),
+    ("Hindi",   "https://www.patrika.com/rss/india-news.xml"),
+    ("Marathi", "https://www.loksatta.com/feed/"),
+    ("Marathi", "https://marathi.abplive.com/home/feed"),
+    ("Bengali", "https://bengali.abplive.com/home/feed"),
+    ("Bengali", "https://www.anandabazar.com/rss/state"),
+    ("Tamil",   "https://tamil.abplive.com/home/feed"),
+    ("Tamil",   "https://www.dinamani.com/rss/tamilnadu"),
+    ("Telugu",  "https://telugu.abplive.com/home/feed"),
+    ("Kannada", "https://kannada.abplive.com/home/feed"),
+    ("Malayalam", "https://www.mathrubhumi.com/cmlink/1.1258576"),
+    ("Gujarati", "https://gujarati.abplive.com/home/feed"),
+    ("Punjabi", "https://www.jagbani.punjabkesari.in/rss/news/national.xml"),
 ]
 
 RSS_SEARCH = "https://news.google.com/rss/search?q="
@@ -173,9 +221,17 @@ def source_verdict(source, url=""):
     Bangladeshi, and matching must be on the outlet, not on the language.
     """
     hay = ((source or "") + " " + (url or "")).lower()
-    # an Indian domain settles it
-    if re.search(r"\.in\b|\.co\.in\b|india\.com", hay):
+    # an Indian domain settles it (GDELT supplies bare domains like
+    # "indianexpress.com" or "thehindu.com", so match those too)
+    if re.search(r"\.in\b|\.co\.in\b|india\.com|indiatimes\.com|indianexpress\.com|"
+                 r"thehindu\.com|hindustantimes\.com|ndtv\.com|news18\.com|"
+                 r"deccanherald\.com|tribuneindia\.com|telegraphindia\.com|"
+                 r"newindianexpress\.com|freepressjournal\.in|bhaskar\.com|"
+                 r"jagran\.com|amarujala\.com|patrika\.com|livemint\.com|"
+                 r"business-standard\.com|scroll\.in|theprint\.in|thewire\.in", hay):
         return "indian"
+    if re.search(r"\.bd\b|\.pk\b|\.np\b|\.lk\b|\.cn\b|\.uk\b|\.us\b|\.au\b", hay):
+        return "foreign"
     for f in FOREIGN_SOURCES:
         if f in hay:
             return "foreign"
@@ -729,6 +785,20 @@ def extract_counts(text):
         return best
 
     d, i = near(DEATH_CUES), near(INJURY_CUES)
+    # "45-year-old youth dies" has no casualty NUMBER once the age is stripped.
+    # Infer one victim, but only when no explicit number was found, so that
+    # "9 Nationals Killed" is never reduced to 1.
+    if d is None and re.search(
+            r"\b(?:person|man|woman|youth|girl|boy|child|labourer|laborer|worker|student|"
+            r"driver|rider|pedestrian|villager|farmer|devotee|passenger|jawan|constable|"
+            r"official|officer|engineer|teacher|doctor|soldier|cop|biker|son|daughter|"
+            r"employee|resident|conductor|cyclist|motorcyclist)\s+"
+            r"(?:dies|died|killed|dead|was killed|is dead)\b", t, re.I):
+        d = (0, 1, -1)
+    if i is None and re.search(
+            r"\b(?:person|man|woman|youth|girl|boy|child|labourer|worker|student|driver|"
+            r"rider|pedestrian|passenger)\s+(?:injured|hurt|wounded)\b", t, re.I):
+        i = (0, 1, -2)
     if d and i and d[2] == i[2]:
         if d[0] <= i[0]:
             i = None
@@ -746,26 +816,134 @@ JUNK_PLACES = {"google", "news", "india", "indian", "bharat", "video", "watch", 
                "telugu", "kannada", "malayalam", "gujarati", "punjabi", "maratha"}
 
 
-def extract_places(text):
+# Words that introduce WHERE THE ACCIDENT HAPPENED, versus words that merely
+# describe a journey. "Bus going from Delhi to Kanpur collided in Mainpuri" is a
+# MAINPURI accident; taking the first place found put it in Kanpur and inflated
+# that city's count.
+_AT_PLACE = re.compile(r"\b(?:in|at|near|outside|off|along|on the outskirts of|"
+                       r"village|district|tehsil|taluka|mandal)\s+$", re.I)
+_ROUTE_WORD = re.compile(r"\b(?:from|to|towards?|bound for|going to|heading to|en route|"
+                         r"route|via|between|service|express|train no|flight)\s+$", re.I)
+
+
+def extract_places(text, limit=3):
+    """Return places, preferring the accident LOCATION over route endpoints."""
     if not text:
         return "", ""
-    found, seen = [], set()
+    scored = []
     for name, pat in _PLACE_PATTERNS:
-        if name.lower() in JUNK_PLACES or name.lower() in seen:
+        if name.lower() in JUNK_PLACES:
             continue
-        if pat.search(text):
-            found.append(name)
-            seen.add(name.lower())
-            if len(found) >= 3:
-                break
-    hw, hs = [], set()
-    for pat in HIGHWAY_RE:
-        for m in pat.findall(text):
-            k = re.sub(r"[-\s]+", "-", m.strip())
-            if k.lower() not in hs:
-                hw.append(k)
-                hs.add(k.lower())
-    return "; ".join(found), "; ".join(hw)
+        mm = pat.search(text)
+        if not mm:
+            continue
+        before = text[max(0, mm.start() - 26): mm.start()]
+        after = text[mm.end(): mm.end() + 34]   # long enough to see "-Pune expressway"
+        score = 0
+        if _AT_PLACE.search(before):
+            score += 3                       # "in Mainpuri", "near Bidhnu"
+        if re.match(r"\s*(?:district|city|village|tehsil|taluka|mandal)\b", after, re.I):
+            score += 2                       # "Mainpuri district"
+        if _ROUTE_WORD.search(before):
+            score -= 3                       # "from Delhi", "to Kanpur"
+        # A place that only appears inside a road name is NOT the accident site.
+        # "Kanpur Sagar Highway", "Mumbai-Pune Expressway", "Hajipur road" name
+        # roads; treating them as locations put accidents in the wrong city.
+        if re.match(r"\s*(?:[A-Z][a-z]+\s+)?(?:highway|expressway|road|marg|bypass|"
+                    r"corridor|flyover)\b", after, re.I) and not _AT_PLACE.search(before):
+            continue
+        if re.match(r"\s*[-\u2013]\s*[A-Z][a-z]{3,}\s+(?:highway|expressway|road)\b",
+                    after, re.I):
+            continue                         # "Mumbai-Pune Expressway"
+        if mm.start() < 40:
+            score += 1                       # datelines lead the headline
+        # A place mentioned ONLY as a route endpoint is not where the accident
+        # happened. Reporting no city is more honest than reporting the wrong one.
+        if score <= 0:
+            continue
+        scored.append((-score, mm.start(), name))
+    scored.sort()
+    out, seen = [], set()
+    for _, _, name in scored:
+        if name.lower() in seen:
+            continue
+        out.append(name)
+        seen.add(name.lower())
+        if len(out) >= limit:
+            break
+    # Highways are deliberately NOT extracted. A road number tells you little
+    # about where an accident happened, it was a weak and noisy match key for
+    # deduplication, and road names were actively corrupting the city column.
+    return "; ".join(out), ""
+
+
+
+# ===========================================================================
+# GAZETTEER - built-in list, optionally extended with the free GeoNames data
+# ===========================================================================
+# A hand-built list can never cover India. Mainpuri was missing, so an accident
+# "in Mainpuri" involving a "bus from Delhi to Kanpur" was filed under Kanpur.
+# GeoNames publishes every populated place in India under a free licence; it is
+# downloaded once and cached. If the download fails the built-in list is used.
+GEONAMES_URL = "https://download.geonames.org/export/dump/IN.zip"
+GEONAMES_CACHE = "places_india.txt"
+GEONAMES_MIN_POP = 2000        # keeps the list to real towns, not every hamlet
+
+
+def load_geonames():
+    """Return a list of Indian place names, or [] if unavailable."""
+    import os
+    if os.path.exists(GEONAMES_CACHE):
+        try:
+            with open(GEONAMES_CACHE, encoding="utf-8") as f:
+                names = [l.strip() for l in f if l.strip()]
+            if names:
+                return names
+        except OSError:
+            pass
+    data, _ = http_get(GEONAMES_URL, timeout=90, retries=1)
+    if not data:
+        print("[places] GeoNames unavailable - using the built-in list")
+        return []
+    try:
+        import io
+        import zipfile
+        names = set()
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            with z.open("IN.txt") as fh:
+                for raw in io.TextIOWrapper(fh, encoding="utf-8"):
+                    p = raw.split("\t")
+                    if len(p) < 15:
+                        continue
+                    if p[6] != "P":                       # populated places only
+                        continue
+                    try:
+                        pop = int(p[14] or 0)
+                    except ValueError:
+                        pop = 0
+                    if pop < GEONAMES_MIN_POP:
+                        continue
+                    nm = p[1].strip()
+                    if 3 < len(nm) <= 30 and nm[0].isupper() and nm.replace(" ", "").isalpha():
+                        names.add(nm)
+        out = sorted(names)
+        with open(GEONAMES_CACHE, "w", encoding="utf-8") as f:
+            f.write("\n".join(out))
+        print(f"[places] GeoNames loaded: {len(out)} Indian places cached")
+        return out
+    except Exception as e:                                # noqa: BLE001
+        print(f"[places] GeoNames parse failed ({type(e).__name__}) - using built-in list")
+        return []
+
+
+def build_place_patterns():
+    global PLACE_LIST, _PLACE_PATTERNS
+    extra = load_geonames()
+    combined = set(CITIES) | set(STATES) | set(extra)
+    combined = {c for c in combined if c.lower() not in JUNK_PLACES}
+    PLACE_LIST = sorted(combined, key=len, reverse=True)
+    _PLACE_PATTERNS = [(p, re.compile(r"\b" + re.escape(p) + r"\b", re.I)) for p in PLACE_LIST]
+    print(f"[places] gazetteer: {len(PLACE_LIST)} names")
 
 
 CAUSE_TRIGGER = re.compile(
@@ -869,23 +1047,46 @@ def severity(text, deaths, injured):
 # TRANSLATION
 # ===========================================================================
 _MOCK_TRANSLATE = None
+_TRANSLATE_STATE = {"fails": 0, "blocked": False}
 
 
 def translate_to_en(text):
+    """Translate to English via the free endpoint.
+
+    The per-run CAP was never the real limit - the free service throttles after
+    a few hundred calls, so a bigger cap changed nothing. What helps instead:
+      * skip anything already in English (no call, no quota spent);
+      * stop after repeated failures rather than hammering a throttled service,
+        and resume on the next run, since every translation is cached in the DB;
+      * back off progressively instead of failing hard.
+    """
     if not text or not text.strip():
         return ""
     if _MOCK_TRANSLATE is not None:
         return _MOCK_TRANSLATE(text)
-    if TRANSLATE_BACKEND != "builtin":
+    if TRANSLATE_BACKEND != "builtin" or _TRANSLATE_STATE["blocked"]:
         return ""
+    if text.isascii():
+        return ""                     # already English - do not spend a call
     try:
         url = ("https://translate.googleapis.com/translate_a/single"
                "?client=gtx&sl=auto&tl=en&dt=t&q=" + urllib.parse.quote(text[:1800]))
         req = urllib.request.Request(url, headers={"User-Agent": UA})
         with urllib.request.urlopen(req, timeout=15) as r:
             data = json.loads(r.read().decode("utf-8", "ignore"))
-        return "".join(seg[0] for seg in data[0] if seg and seg[0])
+        out = "".join(seg[0] for seg in data[0] if seg and seg[0])
+        if out:
+            _TRANSLATE_STATE["fails"] = 0
+            return out
+        return ""
     except Exception:                                              # noqa: BLE001
+        _TRANSLATE_STATE["fails"] += 1
+        if _TRANSLATE_STATE["fails"] >= 12:
+            _TRANSLATE_STATE["blocked"] = True
+            print("[translate] service is throttling - pausing until the next run "
+                  "(work already done is saved)")
+        else:
+            time.sleep(min(8, 0.5 * _TRANSLATE_STATE["fails"]))
         return ""
 
 
@@ -977,6 +1178,23 @@ def dedupe_title(t):
     return t
 
 
+
+def clean_field(value, limit=None):
+    """Every exported value passes through here. Newlines break CSV rows in
+    spreadsheet software, and a repeated sentence is never wanted, so both are
+    removed at the single point where values are produced."""
+    if not value:
+        return ""
+    v = re.sub(r"[\r\n\t]+", " ", str(value))
+    v = re.sub(r"\s+", " ", v).strip()
+    v = dedupe_title(v)
+    # drop an exact repeated tail, e.g. "X - source X - source"
+    half = len(v) // 2
+    if half > 15 and v[:half].strip().lower() == v[half:].strip().lower():
+        v = v[:half].strip()
+    return v[:limit] if limit else v
+
+
 def norm_title(t):
     t = (t or "").lower()
     t = re.sub(r"\s+-\s+[^-]+$", "", t)
@@ -1006,17 +1224,80 @@ def parse_feed(xml_bytes, language, query):
     except ElementTree.ParseError:
         return out
     for item in root.iter("item"):
-        title = dedupe_title((item.findtext("title") or "").strip())
+        title = clean_field((item.findtext("title") or "").strip())
         if not title:
             continue
-        desc = re.sub(r"<[^>]+>", " ", item.findtext("description") or "").strip()
+        desc = clean_field(re.sub(r"<[^>]+>", " ", item.findtext("description") or ""))
+        # Many publishers put the WHOLE article in <content:encoded> (or
+        # media:description / summary). It is already downloaded with the feed,
+        # needs no page fetch, and is not blocked by anything - the single
+        # cheapest source of cause, location and casualty detail available.
+        body = ""
+        for el in item:
+            tag = el.tag.split("}")[-1]
+            if tag in ("encoded", "summary", "description", "articleBody") and el.text:
+                cand = clean_field(re.sub(r"<[^>]+>", " ", el.text))
+                if len(cand) > len(body):
+                    body = cand
+        if len(body) < len(desc):
+            body = desc
         src_el = item.find("source")
         ts, iso = parse_date((item.findtext("pubDate") or "").strip())
-        out.append({"title": title, "snippet": desc[:400],
+        out.append({"title": title, "snippet": desc[:400], "body": body[:1600],
                     "url": (item.findtext("link") or "").strip(),
                     "source": src_el.text.strip() if src_el is not None and src_el.text else "",
                     "language": language, "query": query,
                     "published": iso, "published_ts": ts})
+    return out
+
+
+
+# ===========================================================================
+# GDELT - a second free source that returns REAL publisher URLs
+# ===========================================================================
+# Google News RSS gives redirect stubs that cannot be resolved for free, so those
+# items never yield article text. GDELT's DOC 2.0 API is free, needs no key, and
+# returns direct article URLs, which ARE fetchable. It covers roughly the most
+# recent three months - the same window this tool collects.
+GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
+GDELT_QUERIES = [
+    'sourcecountry:india (accident OR crash OR collapse OR derailed OR capsized)',
+    'sourcecountry:india ("construction site" OR crane OR scaffolding OR girder)',
+    'sourcecountry:india ("building collapse" OR "wall collapse" OR "bridge collapse")',
+    'sourcecountry:india ("road accident" OR "bus accident" OR "truck accident")',
+    'sourcecountry:india ("train accident" OR derailment OR "level crossing")',
+    'sourcecountry:india ("factory accident" OR "boiler blast" OR "gas leak")',
+]
+
+
+def fetch_gdelt(query, maxrecords=75):
+    """Return feed-shaped items from GDELT. Free, no key. Returns [] on failure."""
+    params = urllib.parse.urlencode({
+        "query": query, "mode": "ArtList", "format": "json",
+        "maxrecords": maxrecords, "sort": "DateDesc",
+    })
+    data, _ = http_get(f"{GDELT_URL}?{params}", timeout=25, retries=1)
+    if not data:
+        return []
+    try:
+        payload = json.loads(data.decode("utf-8", "ignore"))
+    except Exception:                                              # noqa: BLE001
+        return []
+    out = []
+    for a in payload.get("articles", []):
+        title = clean_field(a.get("title", ""))
+        url = a.get("url", "")
+        if not title or not url:
+            continue
+        seendate = a.get("seendate", "")
+        try:
+            dt = datetime.strptime(seendate[:8], "%Y%m%d").replace(tzinfo=timezone.utc)
+            ts, iso = dt.timestamp(), dt.strftime("%Y-%m-%d")
+        except ValueError:
+            ts, iso = parse_date("")
+        out.append({"title": title, "snippet": "", "body": "", "url": url,
+                    "source": a.get("domain", ""), "language": a.get("language", "English") or "English",
+                    "query": "gdelt", "published": iso, "published_ts": ts})
     return out
 
 
@@ -1028,7 +1309,7 @@ COLUMNS = OrderedDict([
     ("source", "TEXT"), ("published", "TEXT"), ("published_ts", "REAL"),
     ("category", "TEXT"), ("sector", "TEXT"), ("language", "TEXT"), ("title_norm", "TEXT"),
     ("snippet", "TEXT"), ("article_text", "TEXT"), ("image_url", "TEXT"),
-    ("cities", "TEXT"), ("highways", "TEXT"), ("deaths", "INTEGER"), ("injured", "INTEGER"),
+    ("cities", "TEXT"), ("deaths", "INTEGER"), ("injured", "INTEGER"),
     ("cause", "TEXT"), ("time_of_day", "TEXT"), ("victim_gender", "TEXT"), ("victim_age", "TEXT"),
     ("severity", "TEXT"), ("fetched_at", "TEXT"), ("is_duplicate", "INTEGER DEFAULT 0"),
     ("dup_group", "TEXT"), ("translated", "INTEGER DEFAULT 0"),
@@ -1060,9 +1341,9 @@ def similarity(a, b):
     parts, weights, strong = [], [], False
     ca = {x.strip().lower() for x in a["cities"].split(";") if x.strip()}
     cb = {x.strip().lower() for x in b["cities"].split(";") if x.strip()}
-    ha = {x.strip().lower() for x in a["highways"].split(";") if x.strip()}
-    hb = {x.strip().lower() for x in b["highways"].split(";") if x.strip()}
-    loc = bool((ca and cb and ca & cb) or (ha and hb and ha & hb))
+    # Highways are no longer a match key: a shared road number said little about
+    # whether two reports described the same crash, and produced false pairings.
+    loc = bool(ca and cb and ca & cb)
     wa, wb = a["words"], b["words"]
     ov = len(wa & wb) / max(1, min(len(wa), len(wb))) if wa and wb else 0.0
 
@@ -1078,7 +1359,7 @@ def similarity(a, b):
             parts.append(0.0); weights.append(0.40)
     if loc:
         parts.append(1.0); weights.append(0.30); strong = True
-    elif (ca and cb) or (ha and hb):
+    elif ca and cb:
         parts.append(0.0); weights.append(0.30)
     if ov >= 0.40:
         parts.append(ov); weights.append(0.35)
@@ -1100,13 +1381,13 @@ def similarity(a, b):
 def rededupe(conn):
     conn.execute("UPDATE articles SET is_duplicate=0, dup_group=id")
     rows = conn.execute(
-        """SELECT id,title_norm,cities,highways,deaths,injured,category,published_ts,title_en,title
+        """SELECT id,title_norm,cities,deaths,injured,category,published_ts,title_en,title
            FROM articles ORDER BY published_ts ASC""").fetchall()
     seen, merged = [], 0
     for r in rows:
-        a = {"id": r[0], "title_norm": r[1] or "", "cities": r[2] or "", "highways": r[3] or "",
-             "deaths": r[4], "injured": r[5], "category": r[6], "published_ts": r[7] or 0,
-             "words": content_words((r[8] or "") or (r[9] or "")), "dup_group": r[0]}
+        a = {"id": r[0], "title_norm": r[1] or "", "cities": r[2] or "",
+             "deaths": r[3], "injured": r[4], "category": r[5], "published_ts": r[6] or 0,
+             "words": content_words((r[7] or "") or (r[8] or "")), "dup_group": r[0]}
         best = None
         for b in seen:
             if b["category"] != a["category"]:
@@ -1141,7 +1422,7 @@ def store(conn, items, stats, translate_budget=0):
 
         title_en = ""
         if it["language"] != "English" and TRANSLATE_BACKEND != "none" and translate_budget > 0:
-            title_en = translate_to_en(it["title"] + "\n" + it["snippet"])
+            title_en = clean_field(translate_to_en(it["title"]))
             translate_budget -= 1
             if title_en:
                 keep2, reason2 = screen(title_en, "", it["source"], it["url"], it["published"])
@@ -1150,7 +1431,8 @@ def store(conn, items, stats, translate_budget=0):
                         stats.get(reason2 + " (seen after translation)", 0) + 1
                     continue
 
-        full = it["title"] + " " + it["snippet"] + " " + title_en
+        feed_body = it.get("body", "")
+        full = it["title"] + " " + it["snippet"] + " " + title_en + " " + feed_body
         rid = hashlib.sha1(norm_title(it["title"]).encode("utf-8")).hexdigest()
         if conn.execute("SELECT 1 FROM articles WHERE id=?", (rid,)).fetchone():
             stats["already stored"] = stats.get("already stored", 0) + 1
@@ -1158,16 +1440,18 @@ def store(conn, items, stats, translate_budget=0):
 
         cat, sector = classify(full)
         deaths, injured = extract_counts(full)
-        cities, highways = extract_places(title_en or full)
+        cities, _ = extract_places(title_en or full)
         conn.execute(
             """INSERT OR IGNORE INTO articles
                (id,title,title_en,url,source,published,published_ts,category,sector,language,
-                title_norm,snippet,article_text,image_url,cities,highways,deaths,injured,cause,
+                title_norm,snippet,article_text,image_url,cities,deaths,injured,cause,
                 time_of_day,victim_gender,victim_age,severity,fetched_at,is_duplicate,dup_group,translated)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?)""",
             (rid, it["title"], title_en, it["url"], it["source"], it["published"],
              it["published_ts"], cat, sector, it["language"], norm_title(it["title"]),
-             it["snippet"], "", "", cities, highways, deaths, injured, "",
+             it["snippet"], feed_body if len(feed_body) > len(it["snippet"]) + 40 else "",
+             "", cities, deaths, injured,
+             extract_cause(feed_body or "", it["title"]),
              extract_time_of_day(full), extract_gender(title_en or full), extract_ages(full),
              severity(full, deaths, injured),
              datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), rid,
@@ -1178,18 +1462,45 @@ def store(conn, items, stats, translate_budget=0):
     return added, translate_budget
 
 
-def backfill_articles(conn, budget):
+def backfill_articles(conn, budget, time_budget_s=None):
+    """Fetch article bodies, then re-derive category, cause, places and counts.
+
+    Budget allocation matters more than budget size. Measured on real output,
+    698 of 699 stored links were Google News redirect stubs, which cannot be
+    resolved for free and fail instantly - so a large fetch budget was being
+    spent almost entirely on links that can never succeed. Two changes:
+      1. stubs are marked unfetchable in ONE bulk statement, so they never enter
+         the loop or consume the budget;
+      2. the remaining budget is spent on real publisher URLs, newest first.
+    A wall-clock budget also applies, so a slow night cannot overrun the job.
+    """
     if budget <= 0:
         return 0
+    # 1. retire the unfetchable stubs in bulk (no network, no budget consumed)
+    marked = conn.execute(
+        """UPDATE articles SET article_text='-'
+           WHERE (article_text IS NULL OR article_text='')
+             AND (url='' OR (url LIKE '%news.google.com%'
+                             AND url NOT LIKE '%news.google.com/rss/articles/CBM%'))""").rowcount
+    conn.commit()
+    if marked:
+        print(f"[articles] {marked} links are Google stubs - skipped, budget preserved")
+
+    started = time.time()
     rows = conn.execute(
         """SELECT id,url,title,title_en FROM articles
            WHERE (article_text IS NULL OR article_text='') AND url!=''
-           ORDER BY published_ts DESC LIMIT ?""", (budget,)).fetchall()
-    done = 0
+           ORDER BY (url LIKE '%news.google.com%') ASC, published_ts DESC
+           LIMIT ?""", (budget,)).fetchall()
+    done = failed = 0
     for rid, url, title, ten in rows:
+        if time_budget_s and (time.time() - started) > time_budget_s:
+            print(f"[articles] time budget reached after {done} fetches - resuming next run")
+            break
         _, img, body = fetch_article(url)
         if not body:
             conn.execute("UPDATE articles SET article_text='-' WHERE id=?", (rid,))
+            failed += 1
             continue
         body_en = body
         if TRANSLATE_BACKEND != "none" and not body.isascii():
@@ -1199,28 +1510,27 @@ def backfill_articles(conn, budget):
             conn.execute("DELETE FROM articles WHERE id=?", (rid,))
             continue
         full = (title or "") + " " + (ten or "") + " " + body + " " + body_en
-        cities, highways = extract_places(body_en + " " + (ten or ""))
+        cities, _ = extract_places(body_en + " " + (ten or ""))
         deaths, injured = extract_counts(full)
-        cat, sector = classify(full)          # the body often names the activity
+        cat, sector = classify(full)
         conn.execute(
             """UPDATE articles SET article_text=?, category=?, sector=?,
                image_url=CASE WHEN image_url='' THEN ? ELSE image_url END,
                cause=?, cities=CASE WHEN ?!='' THEN ? ELSE cities END,
-               highways=CASE WHEN ?!='' THEN ? ELSE highways END,
                deaths=COALESCE(deaths,?), injured=COALESCE(injured,?),
                time_of_day=CASE WHEN time_of_day='' THEN ? ELSE time_of_day END,
                victim_gender=CASE WHEN victim_gender='' THEN ? ELSE victim_gender END,
                victim_age=CASE WHEN victim_age='' THEN ? ELSE victim_age END,
                severity=? WHERE id=?""",
             (body[:1400], cat, sector, img, extract_cause(body_en, ten or title),
-             cities, cities, highways, highways, deaths, injured,
+             cities, cities, deaths, injured,
              extract_time_of_day(full), extract_gender(body_en), extract_ages(full),
              severity(full, deaths, injured), rid))
         done += 1
-        time.sleep(0.25)
+        time.sleep(0.2)
     conn.commit()
-    if done:
-        print(f"[articles] fetched and analysed {done}")
+    if done or failed:
+        print(f"[articles] fetched {done}, failed {failed}")
     return done
 
 
@@ -1230,7 +1540,7 @@ def rescreen_all(conn):
     removed = 0
     for rid, title, ten, snip, body, src, url, pub in conn.execute(
             "SELECT id,title,title_en,snippet,article_text,source,url,published FROM articles").fetchall():
-        clean = dedupe_title(title or "")
+        clean = clean_field(title or "")
         text = " ".join(x for x in (clean, ten or "", snip or "",
                                     (body if body and body != "-" else "")) if x)
         keep, _ = screen(text, "", src or "", url or "", pub)
@@ -1239,10 +1549,11 @@ def rescreen_all(conn):
             removed += 1
             continue
         cat, sector = classify(text)
-        cities, highways = extract_places((ten or "") + " " + text)
-        conn.execute("""UPDATE articles SET title=?, title_norm=?, category=?, sector=?,
-                        cities=?, highways=? WHERE id=?""",
-                     (clean, norm_title(clean), cat, sector, cities, highways, rid))
+        cities, _ = extract_places((ten or "") + " " + text)
+        conn.execute("""UPDATE articles SET title=?, title_en=?, title_norm=?, category=?,
+                        sector=?, cities=? WHERE id=?""",
+                     (clean, clean_field(ten or ""), norm_title(clean), cat, sector,
+                      cities, rid))
     conn.commit()
     if removed:
         print(f"[rescreen] removed {removed} stored records that fail the current gates")
@@ -1256,75 +1567,139 @@ def _w(path):
     return open(path, "w", newline="", encoding="utf-8-sig")
 
 
-def export_accidents(conn, path="ACCIDENTS.csv"):
-    """ONE ROW PER ACCIDENT. Duplicate reports are not in this file at all."""
+def resolve_events(conn):
+    """Collapse reports into ACCIDENTS. This is the single source of truth: the
+    accidents file and BOTH summaries are built from this same list, so their
+    totals can never disagree."""
+    # Named columns, not positions. Positional indexing broke silently every time
+    # a column was added or removed, which is exactly how the highway removal
+    # first went wrong.
+    cols = ["dup_group", "published", "published_ts", "category", "sector", "cities",
+            "deaths", "injured", "cause", "time_of_day", "victim_gender", "victim_age",
+            "severity", "source", "title", "title_en", "url", "language"]
     groups = {}
-    for r in conn.execute(
-            """SELECT dup_group,published,published_ts,category,sector,cities,highways,deaths,
-                      injured,cause,time_of_day,victim_gender,victim_age,severity,source,
-                      title,title_en,url,language
-               FROM articles ORDER BY published_ts ASC"""):
-        groups.setdefault(r[0], []).append(r)
-    rows = []
+    for row in conn.execute(f"SELECT {','.join(cols)} FROM articles ORDER BY published_ts ASC"):
+        rec = dict(zip(cols, row))
+        groups.setdefault(rec["dup_group"], []).append(rec)
+
+    def first_of(members, key):
+        return next((m[key] for m in members if m.get(key)), "")
+
+    events = []
     for members in groups.values():
-        by_time = sorted(members, key=lambda x: x[2] or 0)
-        first, last = by_time[0], by_time[-1]
-        best = max(members, key=lambda r: (r[7] is not None) * 3 + (r[8] is not None) * 2
-                   + bool(r[5]) * 2 + bool(r[9]) * 2 + (r[18] == "English"))
-        deaths = next((x[7] for x in reversed(by_time) if x[7] is not None), None)
-        injured = next((x[8] for x in reversed(by_time) if x[8] is not None), None)
+        by_time = sorted(members, key=lambda x: x["published_ts"] or 0)
+        best = max(members, key=lambda m: (m["deaths"] is not None) * 3
+                   + (m["injured"] is not None) * 2 + bool(m["cities"]) * 2
+                   + bool(m["cause"]) * 2 + (m["language"] == "English"))
+        deaths = next((m["deaths"] for m in reversed(by_time) if m["deaths"] is not None), None)
+        injured = next((m["injured"] for m in reversed(by_time) if m["injured"] is not None), None)
+        sev = best["severity"] or ""
+        if deaths:
+            sev = "Fatal"
+        elif injured:
+            sev = "Injury only"
+        places = [c.strip() for c in (best["cities"] or "").split(";") if c.strip()]
+        if not places:
+            places = [c.strip() for m in members
+                      for c in (m["cities"] or "").split(";") if c.strip()]
+        events.append({
+            "date": by_time[0]["published"], "last": by_time[-1]["published"],
+            "category": (best["category"] or "").replace("_", " "),
+            "sector": (best["sector"] or "").replace("_", " "),
+            "place": places[0] if places else "Not identified",
+            "places": "; ".join(dict.fromkeys(places))[:120],
+            "deaths": deaths, "injured": injured, "severity": sev,
+            "tod": first_of(members, "time_of_day"),
+            "gender": first_of(members, "victim_gender"),
+            "ages": first_of(members, "victim_age"),
+            "cause": first_of(members, "cause"),
+            "n": len(members),
+            "outlets": "; ".join(sorted({(m["source"] or "").strip() for m in members
+                                         if (m["source"] or "").strip()})[:6]),
+            "headline": best["title"] or "",
+            "headline_en": best["title_en"] or "",
+            "url": best["url"] or "",
+        })
+    return events
+
+
+def export_accidents(conn, events, path="ACCIDENTS.csv"):
+    """ONE ROW PER ACCIDENT, written from the resolved event list."""
+    rows = []
+    for e in events:
         rows.append([
-            first[1], last[1], (best[3] or "").replace("_", " "), (best[4] or "").replace("_", " "),
-            best[5] or "", best[6] or "",
-            deaths if deaths is not None else "", injured if injured is not None else "",
-            best[13] or "", next((x[10] for x in members if x[10]), ""),
-            next((x[11] for x in members if x[11]), ""), next((x[12] for x in members if x[12]), ""),
-            next((x[9] for x in members if x[9]), ""), len(members),
-            "; ".join(sorted({(x[14] or "").strip() for x in members if (x[14] or "").strip()})[:6]),
-            best[15] or "", best[16] or "", best[17] or ""])
+            e["date"], e["last"], e["category"], e["sector"], e["places"],
+            e["deaths"] if e["deaths"] is not None else "",
+            e["injured"] if e["injured"] is not None else "",
+            e["severity"], e["tod"], e["gender"], e["ages"], e["cause"], e["n"],
+            e["outlets"], e["headline"], e["headline_en"], e["url"]])
     rows.sort(key=lambda r: r[0], reverse=True)
     with _w(path) as f:
         w = csv.writer(f)
         w.writerow(["Date of Accident", "Last Reported", "Accident Type", "Sector (others only)",
-                    "City / Place", "Highway", "Killed", "Injured", "Severity", "Time of Day",
+                    "City / Place", "Killed", "Injured", "Severity", "Time of Day",
                     "Victim Gender", "Victim Age(s)", "Reported Cause", "Times Reported",
                     "Reported By", "Headline", "Headline (English)", "Link"])
-        w.writerows(rows)
+        for r in rows:
+            w.writerow([v if isinstance(v, int) else clean_field(v) for v in r])
     return len(rows)
 
 
-def export_summary(conn, path, confirmed_only):
+def export_summary(events, path, confirmed_only):
+    """Built from the SAME resolved events as ACCIDENTS.csv, so the totals in the
+    two files always agree. Previously this counted raw articles and produced
+    different numbers - e.g. Kanpur showed 47 killed against 45 in the accidents
+    file, because one path took the latest toll and the other the first."""
     agg = {}
-    for cities, cat, sector, sev, d, i in conn.execute(
-            """SELECT cities,category,sector,severity,deaths,injured
-               FROM articles WHERE is_duplicate=0"""):
-        places = [c.strip() for c in (cities or "").split(";") if c.strip()]
-        place = places[0] if places else "Not identified"
-        cat_l = (cat or "").replace("_", " ")
-        sec_l = (sector or "").replace("_", " ")
+    for e in events:
         if confirmed_only:
-            if not places or not cat_l:
+            if e["place"] == "Not identified" or not e["category"]:
                 continue
-            if cat == "others" and sec_l in ("", "unspecified"):
+            if e["category"] == "others" and e["sector"] in ("", "unspecified"):
                 continue
-            if sev in ("", "Not stated", None):
+            if e["severity"] in ("", "Not stated"):
                 continue
-        a = agg.setdefault((place, cat_l, sec_l),
+        a = agg.setdefault((e["place"], e["category"], e["sector"]),
                            {"n": 0, "near": 0, "fatal": 0, "inj": 0, "k": 0, "i": 0})
         a["n"] += 1
-        a["near"] += sev == "Near miss"
-        a["fatal"] += sev == "Fatal"
-        a["inj"] += sev == "Injury only"
-        a["k"] += d or 0
-        a["i"] += i or 0
+        a["near"] += e["severity"] == "Near miss"
+        a["fatal"] += e["severity"] == "Fatal"
+        a["inj"] += e["severity"] == "Injury only"
+        a["k"] += e["deaths"] or 0
+        a["i"] += e["injured"] or 0
     with _w(path) as f:
         w = csv.writer(f)
         w.writerow(["City", "Accident Type", "Sector (others only)", "Number of Accidents",
                     "Near Misses", "Fatal Accidents", "Injury-only Accidents",
                     "People Killed", "People Injured"])
         for (p, c, s), a in sorted(agg.items(), key=lambda kv: (-kv[1]["k"], -kv[1]["n"], kv[0][0])):
-            w.writerow([p, c, s, a["n"], a["near"], a["fatal"], a["inj"], a["k"], a["i"]])
+            w.writerow([clean_field(p), c, s, a["n"], a["near"], a["fatal"], a["inj"],
+                        a["k"], a["i"]])
     return len(agg)
+
+
+def export_monthly_from_events(events, path="TREND_monthly.csv"):
+    data, cats = {}, set()
+    for e in events:
+        mth = (e["date"] or "")[:7]
+        if not mth:
+            continue
+        d = data.setdefault(mth, {})
+        c = d.setdefault(e["category"], [0, 0, 0])
+        c[0] += 1
+        c[1] += e["deaths"] or 0
+        c[2] += e["injured"] or 0
+        cats.add(e["category"])
+    cats = sorted(cats)
+    with _w(path) as f:
+        w = csv.writer(f)
+        w.writerow(["Month"] + list(cats) + ["TOTAL Accidents", "TOTAL Killed", "TOTAL Injured"])
+        for mth in sorted(data, reverse=True):
+            ns = [data[mth].get(c, [0, 0, 0])[0] for c in cats]
+            w.writerow([mth] + ns + [sum(ns),
+                                     sum(v[1] for v in data[mth].values()),
+                                     sum(v[2] for v in data[mth].values())])
+    return len(data)
 
 
 def export_monthly(conn, path="TREND_monthly.csv"):
@@ -1373,6 +1748,10 @@ def clear_stale():
 def run():
     conn = sqlite3.connect(DB_PATH)
     init_db(conn)
+    try:
+        build_place_patterns()
+    except Exception as e:                                # noqa: BLE001
+        print(f"[warn] gazetteer build failed, using built-in list: {type(e).__name__}: {e}")
     stats, tbudget = {}, MAX_TRANSLATE_PER_RUN
 
     for code, (label, ceid) in EDITIONS.items():
@@ -1383,6 +1762,12 @@ def run():
             n, tbudget = store(conn, items, stats, tbudget)
             print(f"[GN {label}] {q!r}: {len(items)} seen, {n} kept")
             time.sleep(1)
+
+    for q in GDELT_QUERIES:
+        items = fetch_gdelt(q)
+        n, tbudget = store(conn, items, stats, tbudget)
+        print(f"[GDELT] {q[:44]!r}: {len(items)} seen, {n} kept")
+        time.sleep(2)
 
     for label, url in NEWSPAPER_FEEDS:
         data, _ = http_get(url)
@@ -1396,7 +1781,7 @@ def run():
 
     # Fetch article bodies FIRST, then screen and classify, so both decisions are
     # made on the full text rather than the headline alone.
-    for name, fn in (("articles", lambda: backfill_articles(conn, MAX_ARTICLE_FETCH_PER_RUN)),
+    for name, fn in (("articles", lambda: backfill_articles(conn, MAX_ARTICLE_FETCH_PER_RUN, ARTICLE_FETCH_MINUTES * 60)),
                      ("rescreen", lambda: rescreen_all(conn)),
                      ("dedupe", lambda: rededupe(conn))):
         try:
@@ -1405,10 +1790,11 @@ def run():
             print(f"[warn] {name} failed and was skipped: {type(e).__name__}: {e}")
 
     clear_stale()
-    n = export_accidents(conn)
-    export_summary(conn, "SUMMARY_all.csv", False)
-    export_summary(conn, "SUMMARY_confirmed.csv", True)
-    export_monthly(conn)
+    events = resolve_events(conn)          # single source of truth
+    n = export_accidents(conn, events)
+    export_summary(events, "SUMMARY_all.csv", False)
+    export_summary(events, "SUMMARY_confirmed.csv", True)
+    export_monthly_from_events(events)
     conn.close()
 
     print(f"\nACCIDENTS.csv written: {n} unique accidents")
@@ -1541,6 +1927,77 @@ if __name__ == "__main__":
         assert classify(headline)[0] != "construction_ongoing", "headline alone lacks evidence"
         assert classify(headline + " " + body)[0] == "construction_ongoing", \
             "the article body must drive classification"
+
+        # THE RECURRING DOUBLED-HEADLINE BUG.
+        # Cause: the title and the RSS snippet were translated in ONE call joined
+        # by a newline, and Google News snippets usually repeat the headline, so
+        # the stored value became "<text>\n<the same text>". The newline then
+        # split the row in spreadsheet software, making the row count look wrong.
+        doubled = ("Mumbai local train accident: Crane fell on power line in Kurla\n"
+                   "Mumbai local train accident: Crane fell on power line in Kurla")
+        assert clean_field(doubled) == "Mumbai local train accident: Crane fell on power line in Kurla"
+        assert "\n" not in clean_field(doubled) and "\r" not in clean_field(doubled)
+        assert clean_field("Jaipur airport - ABP News Jaipur airport - ABP News") == \
+            "Jaipur airport - ABP News"
+        assert clean_field("A\tB\r\nC") == "A B C"
+
+        # THE KANPUR DISCREPANCY: the accidents file and the summaries must agree.
+        import tempfile, os as _os
+        conn2 = sqlite3.connect(":memory:")
+        init_db(conn2)
+        st2 = {}
+        base = datetime(2026, 8, 20, tzinfo=timezone.utc).timestamp()
+        for t, src_ in [("45 year old youth dies after collision with unknown vehicle in Kanpur", "Jagran"),
+                        ("Eight passengers injured as bus collided with truck in Mainpuri", "Amar Ujala"),
+                        ("Three killed as bus overturns near Pune on NH-48", "Times of India")]:
+            store(conn2, [{"title": t, "snippet": "", "body": "", "url": "http://x/" + t[:9],
+                           "source": src_, "language": "English", "query": "q",
+                           "published": "2026-08-20", "published_ts": base}], st2)
+        rededupe(conn2)
+        evs = resolve_events(conn2)
+        cwd = _os.getcwd()
+        _os.chdir(tempfile.mkdtemp())
+        try:
+            export_accidents(conn2, evs)
+            export_summary(evs, "SUMMARY_all.csv", False)
+            acc = list(csv.DictReader(open("ACCIDENTS.csv", encoding="utf-8-sig")))
+            summ = list(csv.DictReader(open("SUMMARY_all.csv", encoding="utf-8-sig")))
+            ak = sum(int(r["Killed"]) for r in acc if r["Killed"].strip())
+            sk = sum(int(r["People Killed"]) for r in summ)
+            ai = sum(int(r["Injured"]) for r in acc if r["Injured"].strip())
+            si = sum(int(r["People Injured"]) for r in summ)
+            assert ak == sk, f"killed disagree: accidents {ak} vs summary {sk}"
+            assert ai == si, f"injured disagree: accidents {ai} vs summary {si}"
+            assert len(acc) == sum(int(r["Number of Accidents"]) for r in summ), "counts disagree"
+            # the Mainpuri crash must NOT be filed under Kanpur
+            mp = [r for r in acc if "Mainpuri" in r["City / Place"]]
+            print(f"consistency: accidents={len(acc)} killed={ak} injured={ai} (summary matches)")
+        finally:
+            _os.chdir(cwd)
+
+        # HIGHWAYS ARE GONE: not extracted, not stored, not compared, not exported.
+        assert extract_places("Truck hits divider on Mumbai-Pune expressway")[1] == ""
+        # and a place that appears only inside a road name is not a location
+        assert extract_places("Youth dies near Bidhnu on Kanpur Sagar Highway")[0] == ""
+        assert extract_places("Truck hits divider on Mumbai-Pune expressway")[0] == ""
+        # a route endpoint is not the accident site either
+        assert extract_places("Bus from Delhi to Kanpur collided with truck")[0] == ""
+        # but a genuine location still resolves
+        assert extract_places("Three killed as bus overturns near Pune")[0] == "Pune"
+        assert extract_places("Wall collapses in Bhiwandi, 3 dead")[0] == "Bhiwandi"
+        assert "highways" not in COLUMNS
+
+        # BUDGETS: the caps were never the binding limit.
+        # 698 of 699 real links were Google stubs, so a big fetch budget was
+        # spent on links that fail instantly; and the free translator throttles
+        # long before the translation cap is reached.
+        assert translate_to_en("Three killed in bus crash") == "", \
+            "English text must not consume a translation call"
+        _TRANSLATE_STATE["blocked"] = True
+        assert translate_to_en("बस दुर्घटना में तीन की मौत") == "", \
+            "a throttled service must fail fast, not hammer"
+        _TRANSLATE_STATE["blocked"] = False
+        _TRANSLATE_STATE["fails"] = 0
 
         # regressions the user reported
         cat, _ = classify("Road accidents in UP; Mother and daughter killed in truck collision in Sambhal")
