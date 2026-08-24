@@ -269,7 +269,8 @@ CITIES = ["Mumbai", "New Delhi", "Kolkata", "Chennai", "Bengaluru", "Bangalore",
     "Navi Mumbai", "Kalyan", "Sangli", "Latur", "Akola", "Ratlam", "Sagar", "Satna", "Rewa",
     "Bilaspur", "Korba", "Sambalpur", "Berhampur", "Puri", "Dibrugarh", "Silchar", "Tezpur",
     "Jorhat", "Nagaon", "Bhiwandi", "Palghar", "Chandrapur", "Jalgaon", "Ahmednagar",
-    "Muzaffarnagar", "Firozabad", "Mathura", "Ayodhya", "Jaunpur", "Azamgarh", "Ballia",
+    "Muzaffarnagar", "Firozabad", "Mathura", "Vrindavan", "Ayodhya", "Barsana",
+    "Govardhan", "Gokul", "Nandgaon", "Shamli", "Baghpat", "Kasganj", "Sambhal", "Jaunpur", "Azamgarh", "Ballia",
     "Deoria", "Basti", "Gonda", "Bahraich", "Mirzapur", "Etah", "Hathras", "Hapur", "Rampur",
     "Pilibhit", "Sitapur", "Hardoi", "Unnao", "Raebareli", "Fatehpur", "Banda", "Etawah",
     "Sultanpur", "Pratapgarh", "Ghazipur", "Chandauli", "Bhadohi", "Kushinagar", "Amroha",
@@ -314,10 +315,39 @@ INDIA_WORDS = re.compile(
     r"\b(?:bharat|nh[-\s]?\d{1,3}|national highway|state highway|expressway|"
     r"indian railways|irctc|dgca|morth|nhai|vande bharat|rajdhani|shatabdi)\b", re.I)
 
-# Adjectives describing PEOPLE, which say nothing about where an event occurred.
+# Phrases describing a PERSON'S nationality, which say nothing about where an
+# event occurred. This cuts BOTH ways:
+#   * "Indian-origin pilot killed in US crash" is a US accident, not an Indian one;
+#   * "Nepali worker among 3 killed at Vrindavan site" is an INDIAN accident, and
+#     dropping it because the word "Nepal" appears would lose a real event.
+# Migrant labour on Indian construction sites frequently comes from Nepal,
+# Bangladesh and Bihar's neighbouring countries, so this matters for exactly the
+# category we care most about.
 PERSON_ORIGIN = re.compile(r"\b(?:indian[-\s]origin|indian student|indian couple|"
                            r"indian national|indian citizen|indian tourist|malayali|"
                            r"indian[-\s]american|nri)\b", re.I)
+
+FOREIGN_PERSON = re.compile(
+    # "<Country> National among 3 killed" - the actual Times of India phrasing.
+    # A country name followed by a PERSON word names a nationality, not a place.
+    r"\b(?:nepal|bangladesh|pakistan|sri ?lanka|bhutan|myanmar|afghanistan|tibet|china|"
+    r"nigeria|kenya|uganda|sudan|somalia)\s+"
+    r"(?:national|nationals|native|natives|citizen|citizens|worker|workers|labourer|"
+    r"labourers|labour|migrant|migrants|man|men|woman|women|youth|student|students|"
+    r"family|origin)\b"
+    r"|\b(?:nepali|nepalese|bangladeshi|pakistani|sri ?lankan|bhutanese|burmese|"
+    r"afghan|tibetan|chinese|nigerian|kenyan|ugandan|sudanese|somali)"
+    r"(?:[-\s](?:origin|national|nationals|citizen|citizens|worker|workers|labourer|"
+    r"labourers|labour|migrant|migrants|man|woman|youth|student|family|native|natives))?\b"
+    r"|\b(?:native|citizen|resident|worker|workers|labourer|labourers|migrant|migrants|"
+    r"man|woman|youth|student|national|nationals)\s+(?:of|from)\s+"
+    r"(?:nepal|bangladesh|pakistan|sri lanka|bhutan|myanmar|afghanistan|tibet)\b"
+    r"|\b(?:from|of)\s+(?:nepal|bangladesh|bhutan)\b(?=[^.]{0,60}\b(?:worker|labour\w*|"
+    r"migrant|national|native|man|woman|youth|student|among|including|die|dies|died|"
+    r"killed|construction|site)\b)"
+    r"|\b(?:including|among|along with|besides)\s+(?:one|two|three|a|an|some|several)?\s*"
+    r"(?:person|worker|labourer|migrant|national|native|man|woman|youth)?\s*"
+    r"(?:from|of)?\s*(?:nepal|bangladesh|bhutan|pakistan|sri lanka)\b", re.I)
 INDIA_NATIVE = ["भारत", "ভারত", "இந்தியா", "భారత", "ಭಾರತ", "ഇന്ത്യ", "ભારત", "ਭਾਰਤ"]
 
 FOREIGN_PLACES = re.compile(
@@ -348,14 +378,46 @@ FOREIGN_PLACES = re.compile(
     r"lithuania|iceland|luxembourg|monaco|qatar airways|emirates)\b", re.I)
 
 
+_INDIA_LOCATIVE = None      # built lazily from the gazetteer
+_FOREIGN_LOCATIVE = re.compile(
+    r"\b(?:in|at|near|outside|inside)\s+(?:the\s+)?(?:[A-Z][a-z]+\s+)?(?:" +
+    FOREIGN_PLACES.pattern.split("(?:", 1)[1].rstrip(")\\b") + r")", re.I)
+
+
+def _india_locative(text):
+    """True when the text says the event happened IN/AT/NEAR an Indian place."""
+    for name, _pat in _PLACE_PATTERNS[:4000]:
+        i = text.lower().find(name.lower())
+        while i > 0:
+            before = text[max(0, i - 12):i]
+            if re.search(r"\b(?:in|at|near|outside|inside)\s+$", before, re.I):
+                return True
+            i = text.lower().find(name.lower(), i + 1)
+    return False
+
+
 def india_verdict(text):
     if not text:
         return "unknown"
-    if FOREIGN_PLACES.search(text):
+    # Strip person-nationality phrases FIRST, so "Nepali worker killed in
+    # Vrindavan" is judged on "killed in Vrindavan" and reads as India.
+    without_people = FOREIGN_PERSON.sub(" ", text)
+
+    # Decide on the LOCATIVE phrase - the one that states where it happened.
+    # "Nepal native among 3 dead as wall collapses AT MATHURA site" is Indian;
+    # "Bus plunges into gorge IN NEPAL" is not. A bare country name that is not
+    # introduced by in/at/near is describing a person, not a place.
+    foreign_here = bool(_FOREIGN_LOCATIVE.search(without_people))
+    india_here = _india_locative(without_people)
+    if india_here and not foreign_here:
+        return "india"
+    if foreign_here:
         return "foreign"
-    # A person's Indian origin is not evidence of an Indian location. If that is
-    # the ONLY Indian signal present, the location remains unproven.
-    stripped = PERSON_ORIGIN.sub(" ", text)
+    if FOREIGN_PLACES.search(without_people):
+        return "foreign"
+    # A person's nationality is not evidence of WHERE the accident happened, in
+    # either direction. Remove those phrases before judging the location.
+    stripped = PERSON_ORIGIN.sub(" ", without_people)
     if INDIA_WORDS.search(stripped):
         return "india"
     for name, pat in _PLACE_PATTERNS:
@@ -379,9 +441,28 @@ ACCIDENT_EVENT = re.compile(
     r"electrocut(?:ed|ion)|asphyxiat\w*|suffocat\w*|"
     r"trapped under|buried under|crushed under|"
     r"fire broke out|caught fire|gutted|"
-    r"emergency landing|crash landing|runway excursion|hit and run|head-on)\b", re.I)
+    r"emergency landing|crash landing|runway excursion|hit and run|head-on)\b"
+    # A death or injury AT a workplace or construction site is an accident even
+    # when the headline uses no crash word: "labourers die at Vrindavan temple
+    # construction site" describes an accident as plainly as "collapse" does.
+    r"|\b(?:die|dies|died|killed|kills|dead|injured|hurt|crushed|buried|trapped|"
+    r"electrocuted|drowned|burnt|burned)\b[^.]{0,50}?\b(?:construction|worksite|"
+    r"work site|building site|project site|factory|plant|mill|mine|quarry|godown|"
+    r"warehouse|workshop|scaffold\w*|shuttering|formwork|crane|girder|excavation|"
+    r"trench|metro site|site)\b"
+    r"|\b(?:at|on|during)\s+(?:the\s+)?(?:construction|building|project|metro|bridge|"
+    r"factory|plant|mine|quarry)\s*(?:site|work|works)?\b[^.]{0,50}?"
+    r"\b(?:die|dies|died|killed|dead|injured|hurt|crushed|buried|trapped)\b"
+    # Workers dying or being injured is itself the accident. Deliberate violence
+    # is already excluded earlier, so this does not admit murders.
+    r"|\b(?:worker|workers|labourer|labourers|labour|employee|employees|staff|"
+    r"mazdoor|mistri|mason)\b[^.]{0,40}?"
+    r"\b(?:die|dies|died|killed|dead|injured|hurt|crushed|buried|trapped|electrocuted)\b"
+    r"|\b(?:killed|died|dies|injured|hurt|crushed|buried|trapped)\b[^.]{0,40}?"
+    r"\b(?:worker|workers|labourer|labourers|mazdoor|mason)\b", re.I)
 
-ACCIDENT_NATIVE = ["दुर्घटना", "हादसा", "टक्कर", "पलटी", "ढह", "धमाका", "विस्फोट", "आग लग",
+ACCIDENT_NATIVE = ["दुर्घटना", "हादस", "टक्कर", "पलट", "ढह", "गिर", "धमाका", "विस्फोट", "आग लग",
+    "मलबे", "दब", "कुचल", "शटरिंग", "मचान", "क्रेन",
     "দুর্ঘটনা", "ধস", "সংঘর্ষ", "উল্টে", "বিস্ফোরণ", "আগুন", "অগ্নিকাণ্ড",
     "अपघात", "कोसळ", "स्फोट", "விபத்து", "மோதி", "இடிந்து", "வெடிப்பு",
     "ప్రమాదం", "ఢీ", "కూలి", "పేలుడు", "ಅಪಘಾತ", "ಕುಸಿತ", "ಸ್ಫೋಟ",
@@ -716,7 +797,8 @@ WORD_NUM = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "sev
             "ఇద్దరు": 2, "ముగ్గురు": 3, "నలుగురు": 4, "ఐదుగురు": 5, "ఏడుగురు": 7,
             "ఐదుగురికి": 5, "ఏడుగురికి": 7, "ಇಬ್ಬರು": 2, "ಮೂವರು": 3, "બે": 2, "ਦੋ": 2}
 
-DEATH_CUES = ["killed", "kills", "dead", "death", "deaths", "died", "dies", "deceased",
+DEATH_CUES = ["killed", "kills", "dead", "death", "deaths", "died", "dies", "die",
+              "deceased", "lost lives", "lose life", "perished",
               "lost life", "lives lost", "मौत", "मृत", "मरे", "मृत्यु", "ठार",
               "নিহত", "মৃত", "মৃত্যু", "இறந்த", "உயிரிழ", "பலி", "మృతి", "మరణ", "చనిపో",
               "ಸಾವು", "ಮೃತ", "ಬಲಿ", "മരണം", "മരിച്ച", "મોત", "મૃત્યુ", "ਮੌਤ", "ਮਰੇ"]
@@ -755,55 +837,110 @@ def _clean_numbers(text):
 def extract_counts(text):
     t = _clean_numbers(text)
 
-    def near(cues, window=34):
-        best = None
-        for cue in cues:
+    def _positions(cue):
+        """Every position where this cue occurs, as a whole word for ASCII cues."""
+        c = cue.lower().strip()
+        if not c:
+            return
+        if c.isascii():
+            for mm in re.finditer(r"\b" + re.escape(c) + r"\b", t):
+                yield mm.start(), len(c)
+        else:
             start = 0
             while True:
-                i = t.find(cue.lower(), start)
+                i = t.find(c, start)
                 if i == -1:
-                    break
-                lo, hi = max(0, i - window), min(len(t), i + len(cue) + window)
-                while lo > 0 and t[lo - 1].isdigit():
-                    lo -= 1
-                while hi < len(t) and t[hi].isdigit():
-                    hi += 1
-                seg = t[lo:hi]
-                for mm in re.finditer(r"\d+", seg):
-                    val = int(mm.group())
-                    if val <= 0 or val > 500 or 1900 <= val <= 2100:
-                        continue
-                    after = seg[mm.end(): mm.end() + 26]
-                    am, hm = ANIMALS.search(after), HUMANS.search(after)
-                    if am and (not hm or am.start() < hm.start()):
-                        continue
-                    pos = mm.start() + lo
-                    dist = abs(pos - i) * (2.0 if pos > i else 1.0)
-                    if best is None or dist < best[0]:
-                        best = (dist, val, pos)
-                start = i + len(cue)
-        return best
+                    return
+                yield i, len(c)
+                start = i + len(c)
 
-    d, i = near(DEATH_CUES), near(INJURY_CUES)
-    # "45-year-old youth dies" has no casualty NUMBER once the age is stripped.
-    # Infer one victim, but only when no explicit number was found, so that
-    # "9 Nationals Killed" is never reduced to 1.
-    if d is None and re.search(
-            r"\b(?:person|man|woman|youth|girl|boy|child|labourer|laborer|worker|student|"
-            r"driver|rider|pedestrian|villager|farmer|devotee|passenger|jawan|constable|"
-            r"official|officer|engineer|teacher|doctor|soldier|cop|biker|son|daughter|"
-            r"employee|resident|conductor|cyclist|motorcyclist)\s+"
-            r"(?:dies|died|killed|dead|was killed|is dead)\b", t, re.I):
-        d = (0, 1, -1)
-    if i is None and re.search(
-            r"\b(?:person|man|woman|youth|girl|boy|child|labourer|worker|student|driver|"
-            r"rider|pedestrian|passenger)\s+(?:injured|hurt|wounded)\b", t, re.I):
-        i = (0, 1, -2)
+    def _cue_positions(cues):
+        out = []
+        for cue in cues:
+            out.extend(p for p, _ in _positions(cue))
+        return sorted(set(out))
+
+    death_pos = _cue_positions(DEATH_CUES)
+    injury_pos = _cue_positions(INJURY_CUES)
+
+    def _cost(num_pos, cue_pos):
+        """Distance from a number to a cue. A count almost always PRECEDES its
+        own cue ("3 killed", "2 injured"), so a number sitting AFTER a cue is
+        penalised heavily - otherwise "a worker died. Two others were injured"
+        assigns the 2 to the deaths."""
+        d = abs(num_pos - cue_pos)
+        return d * (3.0 if num_pos > cue_pos else 1.0)
+
+    # Assign EACH number to its own nearest cue, then take the best per type.
+    best_d = best_i = None
+    for mm in re.finditer(r"\d+", t):
+        val = int(mm.group())
+        if val <= 0 or val > 500 or 1900 <= val <= 2100:
+            continue
+        after = t[mm.end(): mm.end() + 26]
+        am, hm = ANIMALS.search(after), HUMANS.search(after)
+        if am and (not hm or am.start() < hm.start()):
+            continue                       # animals are not casualties
+        before_num = t[max(0, mm.start() - 16): mm.start()]
+        # "3 workers INCLUDING ONE from Nepal" - the 1 is a subset, not the toll.
+        # But "Nepal national AMONG 3 killed" means 3 in total, so "among" is
+        # deliberately NOT treated as a subset marker.
+        if re.search(r"\b(?:including|includes|of whom|of them|out of|apart from|"
+                     r"besides|along with)\s*$", before_num, re.I):
+            continue
+        pos = mm.start()
+        dc = min((_cost(pos, c) for c in death_pos), default=None)
+        ic = min((_cost(pos, c) for c in injury_pos), default=None)
+        if dc is None and ic is None:
+            continue
+        if ic is None or (dc is not None and dc <= ic):
+            if dc is not None and dc <= 140 and (best_d is None or dc < best_d[0]):
+                nearest = min(death_pos, key=lambda c: _cost(pos, c))
+                best_d = (dc, val, pos, nearest)
+        else:
+            if ic <= 140 and (best_i is None or ic < best_i[0]):
+                nearest = min(injury_pos, key=lambda c: _cost(pos, c))
+                best_i = (ic, val, pos, nearest)
+
+    d, i = best_d, best_i
+
+    # STEP 1 - resolve a number claimed by BOTH cues, before any inference.
+    # "a worker died. Two others were injured" - the 2 belongs to "injured".
+    # In English the count precedes its own cue, so award it to the cue that
+    # FOLLOWS the number. Doing this first matters: inferring a single victim
+    # beforehand would be undone here.
     if d and i and d[2] == i[2]:
-        if d[0] <= i[0]:
+        d_after, i_after = d[3] > d[2], i[3] > i[2]
+        if i_after and not d_after:
+            d = None
+        elif d_after and not i_after:
+            i = None
+        elif d[0] <= i[0]:
             i = None
         else:
             d = None
+
+    # STEP 2 - infer a single victim ONLY where no number was found, so an
+    # explicit count is never overridden ("9 Nationals Killed" stays 9).
+    person = (r"person|man|woman|youth|girl|boy|child|labourer|laborer|worker|student|"
+              r"driver|rider|pedestrian|villager|farmer|devotee|passenger|jawan|constable|"
+              r"official|officer|engineer|teacher|doctor|soldier|cop|biker|son|daughter|"
+              r"employee|resident|conductor|cyclist|motorcyclist|mason|helper|mistri|"
+              r"grandmother|grandfather|mother|father|wife|husband|brother|sister|"
+              r"minor|toddler|infant|elderly")
+    death_verb = r"dies|died|killed|dead|was killed|is dead|lost (?:his|her) life"
+    if d is None:
+        if re.search(rf"\b(?:{person})\b(?:\s+\w+){{0,4}}?\s+(?:{death_verb})\b", t, re.I) \
+           or (re.search(rf"\b(?:a|an|one)\s+(?:\d{{1,3}}[-\s]?year[-\s]?old\s+)?(?:{person})\b", t, re.I)
+               and re.search(rf"\b(?:{death_verb})\b", t, re.I)):
+            d = (0, 1, -1, -1)
+    if i is None:
+        if re.search(rf"\b(?:{person})\b(?:\s+\w+){{0,4}}?\s+(?:injured|hurt|wounded)\b", t, re.I) \
+           or (re.search(rf"\b(?:a|an|one)\s+(?:{person})\b", t, re.I)
+               and re.search(r"\b(?:injured|hurt|wounded)\b", t, re.I)
+               and not re.search(r"\d+\s*(?:others?\s+)?(?:were\s+)?(?:injured|hurt)", t, re.I)):
+            i = (0, 1, -2, -2)
+
     return (d[1] if d else None), (i[1] if i else None)
 
 
@@ -944,6 +1081,84 @@ def build_place_patterns():
     PLACE_LIST = sorted(combined, key=len, reverse=True)
     _PLACE_PATTERNS = [(p, re.compile(r"\b" + re.escape(p) + r"\b", re.I)) for p in PLACE_LIST]
     print(f"[places] gazetteer: {len(PLACE_LIST)} names")
+
+
+
+# ===========================================================================
+# CAUSE MECHANISM
+# ===========================================================================
+# The article BODY gives the fullest explanation, but most items are Google News
+# stubs whose body cannot be fetched - which left the cause column 0% populated
+# even when the headline said plainly what happened ("building SHUTTERING
+# COLLAPSES", "brake failure", "tyre burst"). This names the mechanism from
+# whatever text exists. It is a short standardised phrase, not a copy of the
+# headline, so it stays informative without simply echoing the title back.
+CAUSE_MECHANISMS = OrderedDict([
+    # construction and structural
+    ("Shuttering / formwork failure", r"shuttering|formwork|centering|falsework|staging collaps"),
+    ("Scaffolding failure", r"scaffold\w*"),
+    ("Crane failure", r"\bcrane\b|gantry|hoist fail|derrick"),
+    ("Launching girder / segment failure", r"launching girder|girder|segment (?:erection|fell)"),
+    ("Lift / hoist failure", r"\blift\b|elevator|cradle fell|gondola"),
+    ("Excavation or trench collapse", r"excavat\w*|trench|pit collaps|soil collaps|cave-?in|shoring"),
+    ("Slab or roof collapse", r"slab|roof|ceiling|lintel|beam collaps"),
+    ("Wall collapse", r"wall collaps|boundary wall|wall fell|wall gave way"),
+    ("Building collapse", r"building collaps|structure collaps|house collaps|portion of .{0,20}building"),
+    ("Bridge or flyover failure", r"bridge collaps|flyover collaps|culvert|overbridge"),
+    ("Road cave-in or subsidence", r"road cave|road collaps|sinkhole|subsid\w*|road sank"),
+    ("Fall from height", r"fall from|fell from (?:the )?(?:roof|floor|height|building|tower|scaffold)"),
+    ("Struck by falling material", r"fell on|falling (?:material|object|debris|slab|rod)|struck by"),
+    ("Demolition failure", r"demolition|dismantl\w*"),
+    # transport
+    ("Brake failure", r"brake fail|brakes fail|brake burst"),
+    ("Tyre burst", r"tyre burst|tire burst|tyre blow"),
+    ("Overspeeding", r"overspeed\w*|speeding|rash driving|high speed"),
+    ("Driver lost control", r"lost control|uncontroll\w*|out of control"),
+    ("Head-on collision", r"head-?on|face to face collision"),
+    ("Rear-end collision", r"hit from behind|rear-?end|rammed from behind"),
+    ("Hit stationary vehicle", r"stationary|parked (?:truck|vehicle|trailer)"),
+    ("Hit divider or barrier", r"divider|median|crash barrier|guardrail|railing"),
+    ("Vehicle fell into gorge or water", r"fell into (?:gorge|ravine|river|canal|pond|water)|plunged into"),
+    ("Overturning", r"overturn\w*|toppl\w*|capsiz\w*"),
+    ("Derailment", r"derail\w*"),
+    ("Level crossing", r"level crossing|unmanned crossing|railway crossing"),
+    ("Hit while on track", r"(?:hit|run over) by (?:a )?train|on the (?:railway )?track"),
+    ("Drunk driving", r"drunk|inebriated|under the influence"),
+    ("Driver fatigue", r"dozed off|fell asleep|fatigue|drowsy"),
+    ("Fog or poor visibility", r"\bfog\b|poor visibility|low visibility|smog"),
+    ("Wet or slippery road", r"slipper\w*|wet road|skidd\w*"),
+    ("Pothole or bad road", r"pothole|bad road|damaged road|crater"),
+    ("Overloading", r"overload\w*|overcrowd\w*|beyond capacity"),
+    ("Wrong-side driving", r"wrong side|wrong lane|wrong direction"),
+    # industrial and others
+    ("Boiler explosion", r"boiler"),
+    ("Gas leak", r"gas leak|toxic gas|ammonia|chlorine"),
+    ("Cylinder or LPG explosion", r"cylinder|lpg"),
+    ("Explosion / blast", r"blast|explosion|exploded"),
+    ("Fire", r"fire broke|caught fire|blaze|gutted|\bfire\b"),
+    ("Electrocution", r"electrocut\w*|live wire|current|high tension"),
+    ("Suffocation / toxic fumes", r"asphyxiat\w*|suffocat\w*|toxic fume|poisonous gas"),
+    ("Septic tank / sewer", r"septic tank|sewer|manhole"),
+    ("Machinery entrapment", r"caught in (?:the )?machine|conveyor|crushed by machine|grinder|lathe"),
+    ("Drowning", r"drown\w*"),
+    ("Stampede", r"stampede|crowd crush"),
+    ("Aircraft technical failure", r"technical snag|engine fail|engine fire|hydraulic|bird hit"),
+    ("Runway excursion", r"overshot|skidded off runway|veered off runway"),
+])
+CAUSE_MECH_PATTERNS = [(label, re.compile(rx, re.I)) for label, rx in CAUSE_MECHANISMS.items()]
+
+
+def derive_cause_mechanism(text, limit=2):
+    """Name the mechanism(s) from any available text. Empty if nothing matches."""
+    if not text:
+        return ""
+    found = []
+    for label, pat in CAUSE_MECH_PATTERNS:
+        if pat.search(text):
+            found.append(label)
+            if len(found) >= limit:
+                break
+    return "; ".join(found)
 
 
 CAUSE_TRIGGER = re.compile(
@@ -1409,30 +1624,60 @@ def rededupe(conn):
     return merged
 
 
+
+def all_text(*parts):
+    """Every text we hold for an item, joined once.
+
+    Each stage must see EVERY source: the headline, the RSS snippet, the
+    <content:encoded> full text that arrives inside the feed, the English
+    translation, and the fetched article body. Gaps here are silent - an item
+    whose only accident evidence sits in paragraph two was being dropped at the
+    gate because the gate could only see the headline.
+    """
+    seen, out = set(), []
+    for p in parts:
+        p = (p or "").strip()
+        if not p:
+            continue
+        key = p[:80].lower()
+        if key in seen:            # avoid repeating a snippet that echoes the title
+            continue
+        seen.add(key)
+        out.append(p)
+    return " ".join(out)
+
+
 # ===========================================================================
 # STORE
 # ===========================================================================
 def store(conn, items, stats, translate_budget=0):
     added = 0
     for it in items:
-        keep, reason = screen(it["title"], it["snippet"], it["source"], it["url"], it["published"])
+        feed_body = it.get("body", "")
+        native_text = all_text(it["title"], it["snippet"], feed_body)
+
+        # ORDER MATTERS: translate BEFORE screening for non-English items.
+        # The gates are written mainly in English, so screening Hindi text first
+        # rejected genuine accidents ("शटरिंग गिरी") before translation could
+        # make them readable. Non-English items are now rendered into English
+        # first, then judged on the native text and the translation together.
+        title_en = body_en = ""
+        if TRANSLATE_BACKEND != "none" and translate_budget > 0 and not native_text.isascii():
+            if not it["title"].isascii():
+                title_en = clean_field(translate_to_en(it["title"]))
+                translate_budget -= 1
+            rest = all_text(it["snippet"], feed_body)
+            if rest and not rest.isascii() and translate_budget > 0:
+                body_en = clean_field(translate_to_en(rest[:1700]))
+                translate_budget -= 1
+
+        gate_text = all_text(title_en, body_en, native_text)
+        keep, reason = screen(gate_text, "", it["source"], it["url"], it["published"])
         if not keep:
             stats[reason] = stats.get(reason, 0) + 1
             continue
 
-        title_en = ""
-        if it["language"] != "English" and TRANSLATE_BACKEND != "none" and translate_budget > 0:
-            title_en = clean_field(translate_to_en(it["title"]))
-            translate_budget -= 1
-            if title_en:
-                keep2, reason2 = screen(title_en, "", it["source"], it["url"], it["published"])
-                if not keep2:
-                    stats[reason2 + " (seen after translation)"] = \
-                        stats.get(reason2 + " (seen after translation)", 0) + 1
-                    continue
-
-        feed_body = it.get("body", "")
-        full = it["title"] + " " + it["snippet"] + " " + title_en + " " + feed_body
+        full = all_text(it["title"], title_en, body_en, it["snippet"], feed_body)
         rid = hashlib.sha1(norm_title(it["title"]).encode("utf-8")).hexdigest()
         if conn.execute("SELECT 1 FROM articles WHERE id=?", (rid,)).fetchone():
             stats["already stored"] = stats.get("already stored", 0) + 1
@@ -1440,7 +1685,7 @@ def store(conn, items, stats, translate_budget=0):
 
         cat, sector = classify(full)
         deaths, injured = extract_counts(full)
-        cities, _ = extract_places(title_en or full)
+        cities, _ = extract_places(full)
         conn.execute(
             """INSERT OR IGNORE INTO articles
                (id,title,title_en,url,source,published,published_ts,category,sector,language,
@@ -1451,11 +1696,13 @@ def store(conn, items, stats, translate_budget=0):
              it["published_ts"], cat, sector, it["language"], norm_title(it["title"]),
              it["snippet"], feed_body if len(feed_body) > len(it["snippet"]) + 40 else "",
              "", cities, deaths, injured,
-             extract_cause(feed_body or "", it["title"]),
-             extract_time_of_day(full), extract_gender(title_en or full), extract_ages(full),
+             (extract_cause(body_en or feed_body or "", title_en or it["title"])
+              or derive_cause_mechanism(full)),
+             extract_time_of_day(full), extract_gender(all_text(title_en, body_en) or full),
+             extract_ages(full),
              severity(full, deaths, injured),
              datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), rid,
-             1 if title_en else 0))
+             1 if (title_en or body_en) else 0))
         added += 1
         stats["KEPT"] = stats.get("KEPT", 0) + 1
     conn.commit()
@@ -1505,12 +1752,12 @@ def backfill_articles(conn, budget, time_budget_s=None):
         body_en = body
         if TRANSLATE_BACKEND != "none" and not body.isascii():
             body_en = translate_to_en(body[:1500]) or body
-        keep, _ = screen((ten or title or "") + " " + body_en, "", "", url, None)
+        keep, _ = screen(all_text(title, ten, body, body_en), "", "", url, None)
         if not keep:
             conn.execute("DELETE FROM articles WHERE id=?", (rid,))
             continue
-        full = (title or "") + " " + (ten or "") + " " + body + " " + body_en
-        cities, _ = extract_places(body_en + " " + (ten or ""))
+        full = all_text(title, ten, body_en, body)
+        cities, _ = extract_places(full)
         deaths, injured = extract_counts(full)
         cat, sector = classify(full)
         conn.execute(
@@ -1522,9 +1769,11 @@ def backfill_articles(conn, budget, time_budget_s=None):
                victim_gender=CASE WHEN victim_gender='' THEN ? ELSE victim_gender END,
                victim_age=CASE WHEN victim_age='' THEN ? ELSE victim_age END,
                severity=? WHERE id=?""",
-            (body[:1400], cat, sector, img, extract_cause(body_en, ten or title),
+            (body[:1400], cat, sector, img,
+             (extract_cause(body_en, ten or title) or derive_cause_mechanism(full)),
              cities, cities, deaths, injured,
-             extract_time_of_day(full), extract_gender(body_en), extract_ages(full),
+             extract_time_of_day(full), extract_gender(body_en if body_en.isascii() else full),
+             extract_ages(full),
              severity(full, deaths, injured), rid))
         done += 1
         time.sleep(0.2)
@@ -1541,8 +1790,7 @@ def rescreen_all(conn):
     for rid, title, ten, snip, body, src, url, pub in conn.execute(
             "SELECT id,title,title_en,snippet,article_text,source,url,published FROM articles").fetchall():
         clean = clean_field(title or "")
-        text = " ".join(x for x in (clean, ten or "", snip or "",
-                                    (body if body and body != "-" else "")) if x)
+        text = all_text(clean, ten, snip, body if body and body != "-" else "")
         keep, _ = screen(text, "", src or "", url or "", pub)
         if not keep:
             conn.execute("DELETE FROM articles WHERE id=?", (rid,))
@@ -1550,10 +1798,19 @@ def rescreen_all(conn):
             continue
         cat, sector = classify(text)
         cities, _ = extract_places((ten or "") + " " + text)
+        # Recompute the FACTS too. Extraction rules change; without this, a wrong
+        # figure written by an earlier version (an age read as a death toll, for
+        # example) would survive untouched no matter how often the rule was fixed.
+        deaths, injured = extract_counts(text)
         conn.execute("""UPDATE articles SET title=?, title_en=?, title_norm=?, category=?,
-                        sector=?, cities=? WHERE id=?""",
+                        sector=?, cities=?, deaths=?, injured=?, severity=?,
+                        time_of_day=?, victim_gender=?, victim_age=?,
+                        cause=CASE WHEN cause IS NULL OR cause='' THEN ? ELSE cause END
+                        WHERE id=?""",
                      (clean, clean_field(ten or ""), norm_title(clean), cat, sector,
-                      cities, rid))
+                      cities, deaths, injured, severity(text, deaths, injured),
+                      extract_time_of_day(text), extract_gender(ten or text),
+                      extract_ages(text), derive_cause_mechanism(text), rid))
     conn.commit()
     if removed:
         print(f"[rescreen] removed {removed} stored records that fail the current gates")
@@ -1723,11 +1980,111 @@ def export_monthly(conn, path="TREND_monthly.csv"):
     return len(data)
 
 
+
+def export_dashboard(events, path="index.html"):
+    """A single self-contained page for people who should never have to look at
+    code or spreadsheets: headline numbers, a monthly table, the leading places,
+    and download links for the CSVs. Publishable free via GitHub Pages."""
+    total = len(events)
+    killed = sum(e["deaths"] or 0 for e in events)
+    injured = sum(e["injured"] or 0 for e in events)
+    near = sum(1 for e in events if e["severity"] == "Near miss")
+    cats, months, places = {}, {}, {}
+    for e in events:
+        c = cats.setdefault(e["category"] or "unclassified", [0, 0, 0])
+        c[0] += 1; c[1] += e["deaths"] or 0; c[2] += e["injured"] or 0
+        mth = (e["date"] or "")[:7]
+        if mth:
+            m_ = months.setdefault(mth, {})
+            m_[e["category"]] = m_.get(e["category"], 0) + 1
+        if e["place"] != "Not identified":
+            p = places.setdefault(e["place"], [0, 0])
+            p[0] += 1; p[1] += e["deaths"] or 0
+    cat_names = sorted(cats)
+    head = "".join(f"<th>{html.escape(c)}</th>" for c in cat_names)
+    mrows = ""
+    for mth in sorted(months, reverse=True):
+        cells = "".join(f"<td>{months[mth].get(c, 0)}</td>" for c in cat_names)
+        mrows += f"<tr><th>{mth}</th>{cells}<td class=t>{sum(months[mth].values())}</td></tr>"
+    crows = "".join(
+        f"<tr><td class=k>{html.escape(c.replace('_', ' '))}</td><td>{v[0]}</td>"
+        f"<td>{v[1]}</td><td>{v[2]}</td></tr>"
+        for c, v in sorted(cats.items(), key=lambda kv: -kv[1][1]))
+    prows = "".join(
+        f"<tr><td class=k>{html.escape(p)}</td><td>{v[0]}</td><td>{v[1]}</td></tr>"
+        for p, v in sorted(places.items(), key=lambda kv: (-kv[1][1], -kv[1][0]))[:20])
+    updated = datetime.now(timezone.utc).strftime("%d %B %Y, %H:%M UTC")
+    doc = f"""<!doctype html><html lang=en><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>India Accident Monitor</title><style>
+body{{font:15px/1.6 system-ui,-apple-system,sans-serif;margin:0;background:#f5f6f8;color:#16181d}}
+.w{{max-width:960px;margin:0 auto;padding:28px 18px 60px}}
+h1{{font-size:24px;margin:0 0 4px}} h2{{font-size:17px;margin:30px 0 8px}}
+.sub{{color:#5b6169;font-size:13px;margin-bottom:18px}}
+.note{{background:#fff7e6;border:1px solid #f0dcb0;border-radius:10px;padding:14px 18px;
+font-size:13px;color:#5a4718;margin:18px 0}}
+.cards{{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px}}
+.card{{background:#fff;border:1px solid #e2e5ea;border-radius:12px;padding:16px 20px;flex:1;min-width:120px}}
+.card .n{{font-size:26px;font-weight:600}} .card .l{{font-size:12px;color:#5b6169}}
+table{{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e5ea;
+border-radius:12px;overflow:hidden;margin-top:6px;font-size:13.5px}}
+th,td{{padding:8px 11px;text-align:right;border-bottom:1px solid #eff1f4;font-variant-numeric:tabular-nums}}
+thead th{{background:#eef1f5;font-size:11px;text-transform:uppercase;letter-spacing:.04em}}
+tbody th,td.k{{text-align:left}} td.t{{font-weight:600;background:#fafbfc}}
+a.dl{{display:inline-block;background:#1a56db;color:#fff;text-decoration:none;padding:9px 15px;
+border-radius:8px;font-size:13px;margin:4px 8px 4px 0}}
+.two{{display:flex;gap:16px;flex-wrap:wrap}} .two>div{{flex:1;min-width:280px}}
+footer{{margin-top:34px;font-size:12px;color:#6b7280}}
+</style></head><body><div class=w>
+<h1>India Accident Monitor</h1>
+<div class=sub>Infrastructure and transport accidents reported in Indian news &middot;
+updated {updated}</div>
+
+<div class=cards>
+<div class=card><div class=n>{total}</div><div class=l>accidents</div></div>
+<div class=card><div class=n>{killed}</div><div class=l>people killed</div></div>
+<div class=card><div class=n>{injured}</div><div class=l>people injured</div></div>
+<div class=card><div class=n>{near}</div><div class=l>near misses</div></div>
+</div>
+
+<div class=note><b>These are counts of accidents reported in the news, not official
+totals.</b> Most accidents in India never reach the news, so these figures are an
+undercount by design. They are useful for comparing categories and spotting
+patterns, not for measuring how many accidents occur. Official annual figures:
+MoRTH, NCRB and DGFASLI.</div>
+
+<h2>By accident type</h2>
+<table><thead><tr><th class=k style="text-align:left">Type</th><th>Accidents</th>
+<th>Killed</th><th>Injured</th></tr></thead><tbody>{crows}</tbody></table>
+
+<h2>By month</h2>
+<table><thead><tr><th style="text-align:left">Month</th>{head}<th>Total</th></tr></thead>
+<tbody>{mrows}</tbody></table>
+
+<h2>Places most affected</h2>
+<table><thead><tr><th class=k style="text-align:left">Place</th><th>Accidents</th>
+<th>Killed</th></tr></thead><tbody>{prows}</tbody></table>
+
+<h2>Download the data</h2>
+<a class=dl href="ACCIDENTS.csv">Every accident (CSV)</a>
+<a class=dl href="SUMMARY_confirmed.csv">Summary &ndash; confirmed only</a>
+<a class=dl href="SUMMARY_all.csv">Summary &ndash; everything</a>
+<a class=dl href="TREND_monthly.csv">Monthly trend</a>
+
+<footer>Each row in the accident file is one accident, with duplicate reports of the
+same event already merged. "Confirmed only" keeps just the accidents whose place,
+type and outcome are all known.</footer>
+</div></body></html>"""
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(doc)
+    return total
+
+
 STALE = ["SUMMARY.csv", "SUMMARY_simple.csv", "SUMMARY_month_by_type.csv", "SUMMARY_weekly.csv",
          "SUMMARY_by_city.csv", "SUMMARY_casualties_monthly.csv", "SUMMARY_cause_histogram.csv",
          "SUMMARY_others_by_sector.csv", "SUMMARY_cause_phrases.csv", "cause_summary.csv",
          "cause_trend_monthly.csv", "monthly_summary.csv", "yearly_summary.csv",
-         "articles.csv", "EVENTS_unique.csv", "index.html"]
+         "articles.csv", "EVENTS_unique.csv"]
 
 
 def clear_stale():
@@ -1795,6 +2152,7 @@ def run():
     export_summary(events, "SUMMARY_all.csv", False)
     export_summary(events, "SUMMARY_confirmed.csv", True)
     export_monthly_from_events(events)
+    export_dashboard(events)
     conn.close()
 
     print(f"\nACCIDENTS.csv written: {n} unique accidents")
@@ -1998,6 +2356,139 @@ if __name__ == "__main__":
             "a throttled service must fail fast, not hammer"
         _TRANSLATE_STATE["blocked"] = False
         _TRANSLATE_STATE["fails"] = 0
+
+        # AGES MUST NEVER BE A CASUALTY FIGURE - the recurring bug
+        for t, e in [("20-year-old youth dies in Nawada road accident", (1, None)),
+                     ("45 year old youth dies due to collision", (1, None)),
+                     ("19-year-old girl tragically dies in Keshod", (1, None)),
+                     ("27-year-old youth of Ulhasnagar died", (1, None)),
+                     ("32-year-old worker seriously injured at site", (None, 1)),
+                     ("Six women laborers die in Zaheerabad", (6, None)),
+                     ("9 Nationals Killed In Kolkata Hotel Fire", (9, None))]:
+            assert extract_counts(t) == e, f"casualty: {t!r} -> {extract_counts(t)}, want {e}"
+        # and the repair pass must RECOMPUTE stored figures, not just categories
+        import inspect as _insp
+        assert "extract_counts" in _insp.getsource(rescreen_all), \
+            "rescreen must recompute casualty figures or old wrong values survive"
+
+        # A VICTIM'S NATIONALITY IS NOT A LOCATION - in either direction.
+        # Migrant workers from Nepal and Bangladesh are common on Indian sites,
+        # so vetoing on the word "Nepal" silently lost real Indian accidents.
+        for t in ["Nepal native among 3 dead as wall collapses at Mathura construction site",
+                  "Three labourers including one from Nepal die at Vrindavan temple construction site",
+                  "Nepali national among 3 workers killed as under-construction building collapses in Vrindavan",
+                  "Bangladeshi migrant worker dies at Kolkata metro site"]:
+            keep, why = screen(t, "", "Amar Ujala", "", "2026-08-20")
+            assert keep, f"Indian accident with a foreign victim was dropped as {why}: {t}"
+            assert classify(t)[0] in ("construction_ongoing", "others"), t
+        for t in ["Bus plunges into gorge in Nepal, 20 dead",
+                  "Building collapses in Dhaka, Bangladesh, 5 killed",
+                  "Road accident in Kathmandu kills 12",
+                  "Factory fire in Bangladesh kills 16 workers"]:
+            keep, _ = screen(t, "", "NDTV", "", "2026-08-20")
+            assert not keep, f"a genuinely foreign accident was kept: {t}"
+        # a workplace fatality is an accident even with no crash word
+        keep, _ = screen("Two workers killed at a factory in Surat", "", "Sandesh", "", "2026-08-20")
+        assert keep
+        # but a death that is not an accident still is not one
+        for t in ["Veteran actor dies at 85 in Mumbai",
+                  "Worker murdered at construction site in Delhi"]:
+            keep, _ = screen(t, "", "NDTV", "", "2026-08-20")
+            assert not keep, f"non-accident kept: {t}"
+
+        # THE EXACT TIMES OF INDIA HEADLINE that exposed this class of bug.
+        # "Nepal National" names a nationality, not a country location.
+        toi = "Nepal National among 3 killed at construction site"
+        keep, why = screen(toi, "", "The Times of India", "", "2026-08-21")
+        assert keep, f"the TOI headline was dropped as {why}"
+        assert classify(toi)[0] == "construction_ongoing", classify(toi)
+        assert extract_counts(toi) == (3, None), extract_counts(toi)
+        for t in ["Nepali national among 3 workers killed in Vrindavan",
+                  "Bangladesh national dies at Kolkata metro site",
+                  "Nepal workers among 4 injured in scaffolding collapse",
+                  "Two labourers died in Noida"]:
+            k2, w2 = screen(t, "", "The Times of India", "", "2026-08-21")
+            assert k2, f"kept-case failed ({w2}): {t}"
+        for t in ["Factory fire in Bangladesh kills 16 workers",
+                  "Bangladesh workers die in Dhaka factory collapse",
+                  "Worker murdered at construction site in Delhi",
+                  "Migrant worker commits suicide in Surat",
+                  "Minister meets workers at Pune factory"]:
+            k2, _ = screen(t, "", "The Times of India", "", "2026-08-21")
+            assert not k2, f"should have been dropped: {t}"
+
+        # CAUSE MUST NOT BE EMPTY WHEN THE HEADLINE STATES IT.
+        # The Vrindavan collapse said "building shuttering collapses" and the
+        # cause column was still blank, because only article BODIES were used and
+        # most bodies cannot be fetched.
+        assert derive_cause_mechanism(
+            "3 workers killed as building shuttering collapses in Vrindavan"
+        ) == "Shuttering / formwork failure"
+        assert "Tyre burst" in derive_cause_mechanism("bus overturns after tyre burst on NH-48")
+        assert "Derailment" in derive_cause_mechanism("Train derails near Kanpur, 4 dead")
+        assert derive_cause_mechanism("Minister opens new hospital") == ""
+
+        # EVERY TEXT SOURCE MUST REACH EVERY STAGE.
+        # The gate previously saw only the headline, so an item whose accident
+        # evidence sat in the feed body was dropped before the body was read.
+        head_only = "Tragedy in Noida"
+        feed_body = ("A 32-year-old labourer died after falling from the scaffolding of an "
+                     "under-construction tower in Sector 78, Noida. Two others were injured.")
+        assert not screen(head_only, "", "Unknown Portal", "", "2026-08-20")[0]
+        assert screen(all_text(head_only, "", feed_body), "", "Unknown Portal", "", "2026-08-20")[0], \
+            "evidence in the feed body must reach the gate"
+        # and every field must be filled from that body
+        conn3 = sqlite3.connect(":memory:")
+        init_db(conn3)
+        store(conn3, [{"title": head_only, "snippet": "", "body": feed_body,
+                       "url": "http://x/9", "source": "Unknown Portal", "language": "English",
+                       "query": "q", "published": "2026-08-20",
+                       "published_ts": datetime(2026, 8, 20, tzinfo=timezone.utc).timestamp()}], {})
+        got = conn3.execute("SELECT category,cities,deaths,injured,victim_age,time_of_day "
+                            "FROM articles").fetchone()
+        assert got and got[0] == "construction_ongoing", got
+        assert got[1] == "Noida" and got[2] == 1 and got[3] == 2 and got[4] == "32", got
+        # a contested number belongs to the cue that follows it
+        assert extract_counts("A worker died. Two others were injured.") == (1, 2)
+
+        # TRANSLATION MUST HAPPEN BEFORE SCREENING FOR NON-ENGLISH ITEMS.
+        # The gates are written mainly in English, so a Hindi article was being
+        # rejected as "no accident evidence" before translation could make it
+        # readable - and its whole article sat untranslated in the feed body.
+        _saved = globals().get("_MOCK_TRANSLATE")
+        globals()["_MOCK_TRANSLATE"] = lambda x: (
+            "Shuttering of under-construction building collapsed in Vrindavan, Mathura"
+            if "मथुरा" in x else
+            "Three workers including one from Nepal died. Two others were injured at 11 pm."
+            if "हादसे" in x else "")
+        conn4 = sqlite3.connect(":memory:")
+        init_db(conn4)
+        st4 = {}
+        store(conn4, [{"title": "मथुरा के वृंदावन में निर्माणाधीन इमारत की शटरिंग गिरी",
+                       "snippet": "",
+                       "body": "हादसे में नेपाल के एक मजदूर समेत तीन श्रमिकों की मौत हो गई।",
+                       "url": "https://www.bhaskar.com/x", "source": "Dainik Bhaskar",
+                       "language": "Hindi", "query": "q", "published": "2026-08-20",
+                       "published_ts": datetime(2026, 8, 20, tzinfo=timezone.utc).timestamp()}],
+              st4, translate_budget=10)
+        got4 = conn4.execute("SELECT category,cities,deaths,title_en,translated "
+                             "FROM articles").fetchone()
+        assert got4, f"Hindi item was dropped: {st4}"
+        assert got4[0] == "construction_ongoing" and got4[1] == "Vrindavan", got4
+        assert got4[2] == 3 and got4[4] == 1, got4
+        # a FOREIGN item must still be caught once translated
+        globals()["_MOCK_TRANSLATE"] = lambda x: "Bus falls into gorge in Nepal, 20 dead"
+        st5 = {}
+        conn5 = sqlite3.connect(":memory:")
+        init_db(conn5)
+        store(conn5, [{"title": "नेपाल में बस खाई में गिरी, 20 की मौत", "snippet": "", "body": "",
+                       "url": "http://x", "source": "Dainik Bhaskar", "language": "Hindi",
+                       "query": "q", "published": "2026-08-20",
+                       "published_ts": datetime(2026, 8, 20, tzinfo=timezone.utc).timestamp()}],
+              st5, translate_budget=10)
+        assert conn5.execute("SELECT COUNT(*) FROM articles").fetchone()[0] == 0, \
+            "a foreign accident must still be dropped after translation"
+        globals()["_MOCK_TRANSLATE"] = _saved
 
         # regressions the user reported
         cat, _ = classify("Road accidents in UP; Mother and daughter killed in truck collision in Sambhal")
