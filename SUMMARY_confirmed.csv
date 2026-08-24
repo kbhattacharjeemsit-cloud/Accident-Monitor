@@ -16,14 +16,12 @@ Delhi,roadway,,3,0,2,1,16,6
 Ghazipur,roadway,,1,0,1,0,15,0
 Madurai,roadway,,3,0,3,0,14,41
 Himachal Pradesh,roadway,,2,0,2,0,13,0
-Jaipur,others,factory manufacturing,2,0,2,0,11,0
 Jharkhand,roadway,,2,0,2,0,11,0
 Mirzapur,roadway,,1,0,1,0,11,0
 Bhiwandi,old structure collapse,,1,0,1,0,10,0
 Junagadh,roadway,,2,0,2,0,9,0
 Punjab,roadway,,1,0,1,0,9,15
 Bihar,roadway,,2,0,2,0,8,4
-Ahmedabad,others,factory manufacturing,1,0,1,0,8,0
 Bhiwandi,construction ongoing,,1,0,1,0,8,0
 Gwalior,roadway,,1,0,1,0,8,0
 Visakhapatnam,others,factory manufacturing,1,0,1,0,8,0
@@ -39,6 +37,7 @@ Hamirpur,construction ongoing,,1,0,1,0,6,0
 Morena,train,,1,0,1,0,6,0
 Pratapgarh,old structure collapse,,1,0,1,0,6,0
 Faridkot,roadway,,2,0,2,0,5,3
+Ahmedabad,others,factory manufacturing,1,0,1,0,5,0
 Balotra,roadway,,1,0,1,0,5,3
 Coimbatore,roadway,,1,0,1,0,5,0
 Etah,roadway,,1,0,1,0,5,0
@@ -67,6 +66,7 @@ Solapur,roadway,,2,0,2,0,3,10
 Amravati,roadway,,1,0,1,0,3,0
 Chhattisgarh,others,factory manufacturing,1,0,1,0,3,0
 Gondia,roadway,,1,0,1,0,3,0
+Jaipur,others,factory manufacturing,1,0,1,0,3,0
 Kawardha,roadway,,1,0,1,0,3,0
 Latur,roadway,,1,0,1,0,3,0
 Ludhiana,others,factory manufacturing,1,0,1,0,3,3
@@ -150,7 +150,6 @@ Mumbra,train,,1,0,1,0,1,0
 Mumbra,old structure collapse,,1,0,1,0,1,0
 Nagpur,roadway,,1,0,1,0,1,0
 Panipat,others,factory manufacturing,1,0,1,0,1,0
-Ponnampet,roadway,,1,0,1,0,1,0
 Pune,roadway,,1,0,1,0,1,10
 Rajouri,roadway,,1,0,1,0,1,1
 Sambalpur,train,,1,0,1,0,1,12
@@ -207,6 +206,7 @@ Rail,train,,1,1,0,0,0,0
 Rajkot,roadway,,1,1,0,0,0,0
 Ratnagiri,roadway,,1,0,0,1,0,22
 Sakri,roadway,,1,0,0,1,0,16
+Satna,others,factory manufacturing,1,1,0,0,0,0
 Suryapet,roadway,,1,0,0,1,0,18
 Thanjavur,roadway,,1,0,0,1,0,2
 Thiruvananthapuram,old structure collapse,,1,1,0,0,0,0
