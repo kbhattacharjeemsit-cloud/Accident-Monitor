@@ -818,6 +818,16 @@ def _clean_numbers(text):
     t = re.sub(r"\|\s*\d+\s*$", " ", t)
     t = re.sub(r"\b(?:nh|sh|mdr|national highway|state highway|route)\s*[-\u2013]?\s*\d+[a-z]?\b", " ", t, flags=re.I)
     t = re.sub(r"\b\d{1,3}\s*[-\u2013]?\s*(?:year|yr|yrs|years)\s*[-\u2013]?\s*old\b", " ", t, flags=re.I)
+    # Ages in Indian scripts. These were NOT being stripped, so "25 वर्षीय मजदूर
+    # की मौत" (a 25-year-old labourer died) was recorded as 25 deaths.
+    t = re.sub(r"\d{1,3}\s*(?:वर्षीय|वर्ष|साल|बरस|वयाच्या|वर्षांच्या|वर्षीया)", " ", t)
+    t = re.sub(r"\d{1,3}\s*(?:বছরের|বছর|বয়সী)", " ", t)
+    t = re.sub(r"\d{1,3}\s*(?:வயது|வயதான|வயதுடைய)", " ", t)
+    t = re.sub(r"\d{1,3}\s*(?:సంవత్సరాల|ఏళ్ల|ఏండ్ల|వయసు)", " ", t)
+    t = re.sub(r"\d{1,3}\s*(?:ವರ್ಷದ|ವರ್ಷ|ವಯಸ್ಸಿನ)", " ", t)
+    t = re.sub(r"\d{1,3}\s*(?:വയസ്സുള്ള|വയസ്സ്|വയസ്)", " ", t)
+    t = re.sub(r"\d{1,3}\s*(?:વર્ષીય|વર્ષના|વર્ષ)", " ", t)
+    t = re.sub(r"\d{1,3}\s*(?:ਸਾਲਾ|ਸਾਲ|ਵਰ੍ਹੇ)", " ", t)
     t = re.sub(r"\b(?:aged|age)\s*\d{1,3}\b", " ", t, flags=re.I)
     t = re.sub(r"\b([A-Za-z]+)\s*,\s*\d{1,3}\s*,", r" \1 ", t)
     t = re.sub(r"\b\d+(?:\.\d+)?\s*(?:%|per\s*cent|percent)", " ", t, flags=re.I)
@@ -929,6 +939,23 @@ def extract_counts(text):
               r"grandmother|grandfather|mother|father|wife|husband|brother|sister|"
               r"minor|toddler|infant|elderly")
     death_verb = r"dies|died|killed|dead|was killed|is dead|lost (?:his|her) life"
+    # Singular victims described in an Indian language: "25 वर्षीय मजदूर की मौत"
+    # (a 25-year-old labourer died) carries no casualty NUMBER once the age is
+    # stripped, so without this the death goes unrecorded.
+    NATIVE_PERSON = ["मजदूर", "युवक", "युवती", "व्यक्ति", "व्यक्तीचा", "छात्र", "किशोर",
+                     "चालक", "महिला", "बुजुर्ग", "श्रमिक", "कामगार", "बालक", "बालिका",
+                     "শ্রমিক", "যুবক", "ব্যক্তি", "চালক", "মহিলা", "ছাত্র",
+                     "மாணவ", "இளைஞர்", "தொழிலாளி", "ஓட்டுநர்", "பெண்",
+                     "కూలీ", "యువకుడు", "వ్యక్తి", "డ్రైవర్", "మహిళ", "విద్యార్థి",
+                     "ಕಾರ್ಮಿಕ", "ಯುವಕ", "ವ್ಯಕ್ತಿ", "ಚಾಲಕ", "ಮಹಿಳೆ",
+                     "തൊഴിലാളി", "യുവാവ്", "വ്യക്തി", "ഡ്രൈവർ", "സ്ത്രീ",
+                     "મજૂર", "યુવક", "વ્યક્તિ", "ડ્રાઈવર", "મહિલા",
+                     "ਮਜ਼ਦੂਰ", "ਨੌਜਵਾਨ", "ਵਿਅਕਤੀ", "ਡਰਾਈਵਰ", "ਔਰਤ"]
+    NATIVE_DEATH = ["मौत", "मृत्यु", "निधन", "ठार", "मृत", "নিহত", "মৃত্যু", "মৃত",
+                    "மரணம்", "உயிரிழ", "பலி", "మృతి", "మరణ", "చనిపో",
+                    "ಸಾವು", "ಮೃತ", "മരണം", "മരിച്ച", "મોત", "મૃત્યુ", "ਮੌਤ"]
+    if d is None and any(p in t for p in NATIVE_PERSON) and any(c in t for c in NATIVE_DEATH):
+        d = (0, 1, -1, -1)
     if d is None:
         if re.search(rf"\b(?:{person})\b(?:\s+\w+){{0,4}}?\s+(?:{death_verb})\b", t, re.I) \
            or (re.search(rf"\b(?:a|an|one)\s+(?:\d{{1,3}}[-\s]?year[-\s]?old\s+)?(?:{person})\b", t, re.I)
@@ -1222,7 +1249,15 @@ def extract_time_of_day(text):
 MALE_RE = re.compile(r"\b(?:man|men|male|boy|boys|father|husband|son|brother|youth|jawan)\b", re.I)
 FEMALE_RE = re.compile(r"\b(?:woman|women|female|girl|girls|mother|wife|daughter|sister|lady)\b", re.I)
 AGE_RE = [re.compile(r"\b(\d{1,3})\s*[-\u2013]?\s*(?:year|yr|yrs|years)\s*[-\u2013]?\s*old\b", re.I),
-          re.compile(r"\b(?:aged|age)\s*(\d{1,3})\b", re.I)]
+          re.compile(r"\b(?:aged|age)\s*(\d{1,3})\b", re.I),
+          re.compile(r"(\d{1,3})\s*(?:वर्षीय|वर्ष|साल|बरस|वयाच्या|वर्षांच्या)"),
+          re.compile(r"(\d{1,3})\s*(?:বছরের|বছর|বয়সী)"),
+          re.compile(r"(\d{1,3})\s*(?:வயது|வயதான)"),
+          re.compile(r"(\d{1,3})\s*(?:సంవత్సరాల|ఏళ్ల|ఏండ్ల)"),
+          re.compile(r"(\d{1,3})\s*(?:ವರ್ಷದ|ವರ್ಷ)"),
+          re.compile(r"(\d{1,3})\s*(?:വയസ്സുള്ള|വയസ്സ്)"),
+          re.compile(r"(\d{1,3})\s*(?:વર્ષીય|વર્ષના)"),
+          re.compile(r"(\d{1,3})\s*(?:ਸਾਲਾ|ਸਾਲ)")]
 
 
 def extract_gender(text):
@@ -1874,7 +1909,13 @@ def resolve_events(conn):
             "outlets": "; ".join(sorted({(m["source"] or "").strip() for m in members
                                          if (m["source"] or "").strip()})[:6]),
             "headline": best["title"] or "",
-            "headline_en": best["title_en"] or "",
+            # If the item is already in English there is nothing to translate, so
+            # show the headline itself rather than an empty cell. A blank here
+            # now means one thing only: a non-English item still awaiting
+            # translation.
+            "headline_en": (best["title_en"]
+                            or (best["title"] if (best["title"] or "").isascii() else "")
+                            or next((m["title_en"] for m in members if m["title_en"]), "")),
             "url": best["url"] or "",
         })
     return events
@@ -2489,6 +2530,19 @@ if __name__ == "__main__":
         assert conn5.execute("SELECT COUNT(*) FROM articles").fetchone()[0] == 0, \
             "a foreign accident must still be dropped after translation"
         globals()["_MOCK_TRANSLATE"] = _saved
+
+        # AGES IN INDIAN SCRIPTS were not being stripped, so "25 वर्षीय मजदूर
+        # की मौत" (a 25-year-old labourer died) was recorded as 25 deaths.
+        for t, e in [("फैक्ट्री में गिरने से 25 वर्षीय मजदूर की मौत", (1, None)),
+                     ("शेखपुरा में ट्रेन से कटकर 23 वर्षीय युवक की मौत", (1, None)),
+                     ("23 సంవత్సరాల యువకుడు మృతి", (1, None)),
+                     ("बस दुर्घटना में ३ की मौत, २ घायल", (3, 2))]:
+            assert extract_counts(t) == e, f"indic age: {t!r} -> {extract_counts(t)}"
+        assert "25" in extract_ages("25 वर्षीय मजदूर की मौत")
+        # a school bus in a canal is a ROAD accident, not a structure collapse
+        assert classify("School bus overturns into canal in NTR district, six students injured")[0] == "roadway"
+        # a bus hitting a roadside crowd is a ROAD accident, not maritime
+        assert classify("Speeding bus rammed into people watching an orchestra on the roadside")[0] == "roadway"
 
         # regressions the user reported
         cat, _ = classify("Road accidents in UP; Mother and daughter killed in truck collision in Sambhal")
