@@ -559,8 +559,26 @@ NOT_EVENT_REPORT = re.compile(
     r"asked for|will not be made public|not caused by|did not happen due to)\b", re.I)
 
 
+AGGREGATE_NATIVE = [
+    # "in N months / years", "per year", "so far this year" in Indian scripts
+    "महीनों में", "महीने में", "वर्षों में", "सालों में", "साल में", "प्रतिवर्ष", "हर साल",
+    "अब तक", "आंकड़ों के अनुसार", "रिपोर्ट के अनुसार", "औसतन",
+    "মাসে", "বছরে", "প্রতি বছর", "পরিসংখ্যান", "গড়ে",
+    "महिन्यांत", "वर्षांत", "दरवर्षी", "सरासरी",
+    "மாதங்களில்", "ஆண்டுகளில்", "ஆண்டில்", "சராசரியாக", "புள்ளிவிவர",
+    "నెలల్లో", "సంవత్సరాల్లో", "ఏటా", "సగటున", "గణాంకాల",
+    "ತಿಂಗಳಲ್ಲಿ", "ವರ್ಷಗಳಲ್ಲಿ", "ಪ್ರತಿ ವರ್ಷ", "ಸರಾಸರಿ",
+    "മാസങ്ങളിൽ", "വർഷങ്ങളിൽ", "പ്രതിവർഷം", "ശരാശരി",
+    "મહિનામાં", "વર્ષોમાં", "દર વર્ષે", "સરેરાશ",
+    "ਮਹੀਨਿਆਂ ਵਿੱਚ", "ਸਾਲਾਂ ਵਿੱਚ", "ਹਰ ਸਾਲ", "ਔਸਤਨ",
+]
+
+
 def currency_verdict(text, published_date):
     if not text:
+        return "not_event"
+    # a statistical round-up written in an Indian language
+    if any(w in text for w in AGGREGATE_NATIVE):
         return "not_event"
     if NOT_EVENT_REPORT.search(text):
         return "not_event"
@@ -828,6 +846,16 @@ def _clean_numbers(text):
     t = re.sub(r"\d{1,3}\s*(?:വയസ്സുള്ള|വയസ്സ്|വയസ്)", " ", t)
     t = re.sub(r"\d{1,3}\s*(?:વર્ષીય|વર્ષના|વર્ષ)", " ", t)
     t = re.sub(r"\d{1,3}\s*(?:ਸਾਲਾ|ਸਾਲ|ਵਰ੍ਹੇ)", " ", t)
+    # durations, not casualties: "19 மாதங்களில்" = "in 19 months"
+    t = re.sub(r"\d{1,4}\s*(?:महीनों|महीने|माह|दिनों|दिन|घंटे|सप्ताह|हफ्ते)", " ", t)
+    t = re.sub(r"\d{1,4}\s*(?:মাসে|মাস|দিনে|দিন|ঘণ্টা|সপ্তাহ)", " ", t)
+    t = re.sub(r"\d{1,4}\s*(?:महिन्यांत|महिने|दिवसांत|दिवस|तासांत)", " ", t)
+    t = re.sub(r"\d{1,4}\s*(?:மாதங்களில்|மாதங்கள்|மாத|நாட்களில்|நாள்|மணி)", " ", t)
+    t = re.sub(r"\d{1,4}\s*(?:నెలల్లో|నెలల|నెల|రోజుల్లో|రోజుల|గంటల)", " ", t)
+    t = re.sub(r"\d{1,4}\s*(?:ತಿಂಗಳಲ್ಲಿ|ತಿಂಗಳ|ದಿನಗಳಲ್ಲಿ|ದಿನ|ಗಂಟೆ)", " ", t)
+    t = re.sub(r"\d{1,4}\s*(?:മാസങ്ങളിൽ|മാസം|ദിവസം|മണിക്കൂർ)", " ", t)
+    t = re.sub(r"\d{1,4}\s*(?:મહિનામાં|મહિના|દિવસ|કલાક)", " ", t)
+    t = re.sub(r"\d{1,4}\s*(?:ਮਹੀਨਿਆਂ|ਮਹੀਨੇ|ਦਿਨ|ਘੰਟੇ)", " ", t)
     t = re.sub(r"\b(?:aged|age)\s*\d{1,3}\b", " ", t, flags=re.I)
     t = re.sub(r"\b([A-Za-z]+)\s*,\s*\d{1,3}\s*,", r" \1 ", t)
     t = re.sub(r"\b\d+(?:\.\d+)?\s*(?:%|per\s*cent|percent)", " ", t, flags=re.I)
@@ -1818,6 +1846,70 @@ def backfill_articles(conn, budget, time_budget_s=None):
     return done
 
 
+
+NUMBER_CONTEXT = re.compile(
+    r"(\d{1,4})\s*(?:-|\u2013)?\s*(?:year|yr|yrs|years|month|months|day|days|hour|hours|"
+    r"वर्षीय|वर्ष|साल|महीनों|महीने|दिन|বছর|মাস|வயது|மாதங்களில்|மாத|సంవత్సరాల|నెలల|"
+    r"ವರ್ಷ|ತಿಂಗಳ|വയസ്സ്|മാസം|વર્ષ|મહિના|ਸਾਲ|ਮਹੀਨੇ)", re.I)
+STAT_HINT = re.compile(
+    r"\b(?:per (?:day|year|month)|every (?:hour|day|year)|on average|average of|"
+    r"statistics|data shows|figures|so far this year|in the last \d+|total of \d+)\b"
+    r"|महीनों में|वर्षों में|மாதங்களில்|ஆண்டுகளில்|నెలల్లో|ತಿಂಗಳಲ್ಲಿ|મહિનામાં", re.I)
+
+
+
+def backfill_translations(conn, budget=1500):
+    """Retry items that arrived when the translator was unavailable.
+
+    Translation was previously attempted ONCE, as an item arrived. The free
+    service throttles after a few hundred calls, so everything that arrived
+    after the throttle kicked in stayed untranslated for ever - which is why
+    coverage got worse as the archive grew (43% of August rows had no English
+    text against 28% of June). Each run now works through the backlog, oldest
+    gap first, and every success is stored, so coverage only ever improves.
+    """
+    if TRANSLATE_BACKEND == "none" or budget <= 0:
+        return 0
+    rows = conn.execute(
+        """SELECT id, title, snippet, article_text FROM articles
+           WHERE (title_en IS NULL OR title_en='')
+           ORDER BY published_ts DESC LIMIT ?""", (budget,)).fetchall()
+    done = skipped = 0
+    for rid, title, snip, body in rows:
+        if (title or "").isascii():
+            # already English - record it so the row is not retried for ever
+            conn.execute("UPDATE articles SET title_en=? WHERE id=?", (clean_field(title), rid))
+            skipped += 1
+            continue
+        tx = clean_field(translate_to_en(title))
+        if not tx:
+            break                       # throttled: stop and resume next run
+        text = all_text(tx, title, snip, body if body and body != "-" else "")
+        cities, _ = extract_places(text)
+        deaths, injured = extract_counts(text)
+        cat, sector = classify(text)
+        conn.execute(
+            """UPDATE articles SET title_en=?, translated=1, category=?, sector=?,
+               cities=CASE WHEN ?!='' THEN ? ELSE cities END,
+               deaths=COALESCE(?, deaths), injured=COALESCE(?, injured),
+               cause=CASE WHEN cause IS NULL OR cause='' THEN ? ELSE cause END,
+               time_of_day=CASE WHEN time_of_day='' THEN ? ELSE time_of_day END,
+               victim_age=CASE WHEN victim_age='' THEN ? ELSE victim_age END,
+               severity=? WHERE id=?""",
+            (tx, cat, sector, cities, cities, deaths, injured,
+             derive_cause_mechanism(text), extract_time_of_day(text),
+             extract_ages(text), severity(text, deaths, injured), rid))
+        done += 1
+        time.sleep(0.2)
+    conn.commit()
+    left = conn.execute("SELECT COUNT(*) FROM articles "
+                        "WHERE title_en IS NULL OR title_en=''").fetchone()[0]
+    print(f"[translate] {done} translated, {skipped} already English, {left} still waiting")
+    if done:
+        auto_repair(conn, "after translation")
+    return done
+
+
 def rescreen_all(conn):
     """Apply the CURRENT gates to everything already stored, so a rule change
     cleans history instead of only affecting new items."""
@@ -2121,6 +2213,164 @@ type and outcome are all known.</footer>
     return total
 
 
+
+# ===========================================================================
+# SELF-AUDIT
+# ===========================================================================
+# Every error found so far was found by a human reading rows. That does not
+# scale. These checks look for the SHAPES of those errors automatically, so the
+# tool reports its own suspect records instead of waiting to be caught.
+# Each rule below exists because a specific real bug got through.
+def auto_repair(conn, label=""):
+    """Detect AND FIX the known error shapes, automatically.
+
+    Runs at the end of every collection cycle and again after every batch of
+    translations, because a fresh translation changes the text an error can hide
+    in. Nothing here asks a human to look at anything: a figure that is really an
+    age is cleared, a statistical round-up is deleted, and an unmerged duplicate
+    is merged. Each rule exists because a specific real error reached the output.
+    """
+    cleared = deleted = 0
+    rows = conn.execute(
+        """SELECT id,title,title_en,snippet,article_text,deaths,injured,published
+           FROM articles""").fetchall()
+    for rid, title, ten, snip, body, d, i, pub in rows:
+        text = all_text(ten, title, snip, body if body and body != "-" else "")
+        if not text:
+            continue
+
+        # 1. a statistical round-up is not an accident - remove it entirely
+        if STAT_HINT.search(text) or currency_verdict(text, pub) == "not_event":
+            conn.execute("DELETE FROM articles WHERE id=?", (rid,))
+            deleted += 1
+            continue
+
+        # 2. a casualty figure that is really an age or a duration
+        fixed_d, fixed_i = d, i
+        for mm in NUMBER_CONTEXT.finditer(text):
+            n = mm.group(1)
+            if fixed_d is not None and str(fixed_d) == n:
+                fixed_d = None
+            if fixed_i is not None and str(fixed_i) == n:
+                fixed_i = None
+        if (fixed_d, fixed_i) != (d, i):
+            # re-extract properly rather than simply blanking
+            rd, ri = extract_counts(text)
+            conn.execute("UPDATE articles SET deaths=?, injured=?, severity=? WHERE id=?",
+                         (rd, ri, severity(text, rd, ri), rid))
+            cleared += 1
+    conn.commit()
+
+    # 3. duplicates that survived: identical day, category, place and toll
+    merged = 0
+    seen = {}
+    for rid, pub, cat, cities, d, grp in conn.execute(
+            """SELECT id,published,category,cities,deaths,dup_group FROM articles
+               WHERE is_duplicate=0 ORDER BY published_ts ASC"""):
+        place = (cities or "").split(";")[0].strip()
+        if not place:
+            continue
+        key = (pub, cat, place.lower(), d)
+        if key in seen:
+            conn.execute("UPDATE articles SET is_duplicate=1, dup_group=? WHERE dup_group=?",
+                         (seen[key], grp))
+            merged += 1
+        else:
+            seen[key] = grp
+    conn.commit()
+
+    if cleared or deleted or merged:
+        tag = f" ({label})" if label else ""
+        print(f"[auto-repair{tag}] corrected {cleared} figures, "
+              f"removed {deleted} statistics, merged {merged} duplicates")
+    return cleared + deleted + merged
+
+
+def audit_events(events, conn):
+    """Return (flags, summary). Flags are rows a human should look at."""
+    flags = []
+
+    def flag(ev, level, issue, detail=""):
+        flags.append({
+            "level": level, "issue": issue, "detail": detail,
+            "date": ev["date"], "type": ev["category"], "place": ev["place"],
+            "killed": ev["deaths"], "injured": ev["injured"],
+            "headline": ev["headline_en"] or ev["headline"], "url": ev["url"],
+        })
+
+    tolls = [e["deaths"] for e in events if e["deaths"]]
+    tolls.sort()
+    p95 = tolls[int(len(tolls) * 0.95)] if len(tolls) > 20 else 999
+
+    by_key = {}
+    for e in events:
+        text = all_text(e["headline_en"], e["headline"])
+
+        # 1. a casualty figure that also appears as an age or a duration
+        for mm in NUMBER_CONTEXT.finditer(text):
+            n = mm.group(1)
+            if n and (str(e["deaths"]) == n or str(e["injured"]) == n):
+                flag(e, "HIGH", "figure may be an age or a time period",
+                     f"{n} appears as '{mm.group(0).strip()}'")
+                break
+
+        # 2. statistical language - a round-up, not a single accident
+        if STAT_HINT.search(text):
+            flag(e, "HIGH", "looks like a statistic, not one accident")
+
+        # 3. an implausibly large toll
+        if e["deaths"] and e["deaths"] > max(p95, 25):
+            flag(e, "MEDIUM", "unusually high death toll",
+                 f"{e['deaths']} vs 95th percentile {p95}")
+
+        # 4. still not translated
+        if not (e["headline_en"] or "").strip():
+            flag(e, "MEDIUM", "no English text yet (awaiting translation)")
+
+        # 5. classified with no location at all
+        if e["place"] == "Not identified" and (e["deaths"] or 0) >= 3:
+            flag(e, "MEDIUM", "no place identified despite a significant toll")
+
+        # 6. 'others' with no sector - the catch-all bucket
+        if e["category"] == "others" and e["sector"] in ("", "unspecified"):
+            flag(e, "LOW", "in 'others' with no sector identified")
+
+        # 7. probable duplicate that did not merge: same day, type, place, toll
+        key = (e["date"], e["category"], e["place"], e["deaths"])
+        if e["place"] != "Not identified" and key in by_key:
+            flag(e, "HIGH", "possible duplicate of another row",
+                 f"same day, type, place and toll as: {by_key[key][:60]}")
+        else:
+            by_key[key] = e["headline_en"] or e["headline"]
+
+    summary = {
+        "accidents": len(events),
+        "with place": sum(1 for e in events if e["place"] != "Not identified"),
+        "with killed": sum(1 for e in events if e["deaths"] is not None),
+        "with cause": sum(1 for e in events if (e["cause"] or "").strip()),
+        "with english": sum(1 for e in events if (e["headline_en"] or "").strip()),
+        "flags HIGH": sum(1 for f in flags if f["level"] == "HIGH"),
+        "flags MEDIUM": sum(1 for f in flags if f["level"] == "MEDIUM"),
+        "flags LOW": sum(1 for f in flags if f["level"] == "LOW"),
+    }
+    return flags, summary
+
+
+def export_review(flags, path="REVIEW_these_rows.csv"):
+    order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+    flags = sorted(flags, key=lambda f: (order.get(f["level"], 3), f["date"]), reverse=False)
+    with _w(path) as f:
+        w = csv.writer(f)
+        w.writerow(["Priority", "What looks wrong", "Detail", "Date", "Accident Type",
+                    "City / Place", "Killed", "Injured", "Headline", "Link"])
+        for x in flags:
+            w.writerow([x["level"], x["issue"], x["detail"], x["date"], x["type"],
+                        x["place"], x["killed"] if x["killed"] is not None else "",
+                        x["injured"] if x["injured"] is not None else "",
+                        clean_field(x["headline"]), x["url"]])
+    return len(flags)
+
+
 STALE = ["SUMMARY.csv", "SUMMARY_simple.csv", "SUMMARY_month_by_type.csv", "SUMMARY_weekly.csv",
          "SUMMARY_by_city.csv", "SUMMARY_casualties_monthly.csv", "SUMMARY_cause_histogram.csv",
          "SUMMARY_others_by_sector.csv", "SUMMARY_cause_phrases.csv", "cause_summary.csv",
@@ -2179,9 +2429,11 @@ def run():
 
     # Fetch article bodies FIRST, then screen and classify, so both decisions are
     # made on the full text rather than the headline alone.
-    for name, fn in (("articles", lambda: backfill_articles(conn, MAX_ARTICLE_FETCH_PER_RUN, ARTICLE_FETCH_MINUTES * 60)),
+    for name, fn in (("translate", lambda: backfill_translations(conn)),
+                     ("articles", lambda: backfill_articles(conn, MAX_ARTICLE_FETCH_PER_RUN, ARTICLE_FETCH_MINUTES * 60)),
                      ("rescreen", lambda: rescreen_all(conn)),
-                     ("dedupe", lambda: rededupe(conn))):
+                     ("dedupe", lambda: rededupe(conn)),
+                     ("auto-repair", lambda: auto_repair(conn, "end of run"))):
         try:
             fn()
         except Exception as e:                                      # noqa: BLE001
@@ -2194,6 +2446,15 @@ def run():
     export_summary(events, "SUMMARY_confirmed.csv", True)
     export_monthly_from_events(events)
     export_dashboard(events)
+
+    flags, qa = audit_events(events, conn)
+    export_review(flags)
+    print("\nDATA QUALITY (the tool checking its own work):")
+    total = max(qa["accidents"], 1)
+    for k in ("with place", "with killed", "with cause", "with english"):
+        print(f"   {k:14} {qa[k]:5} / {qa['accidents']}  ({100*qa[k]//total}%)")
+    print(f"   rows to review {qa['flags HIGH']} high, {qa['flags MEDIUM']} medium, "
+          f"{qa['flags LOW']} low  -> REVIEW_these_rows.csv")
     conn.close()
 
     print(f"\nACCIDENTS.csv written: {n} unique accidents")
@@ -2543,6 +2804,74 @@ if __name__ == "__main__":
         assert classify("School bus overturns into canal in NTR district, six students injured")[0] == "roadway"
         # a bus hitting a roadside crowd is a ROAD accident, not maritime
         assert classify("Speeding bus rammed into people watching an orchestra on the roadside")[0] == "roadway"
+
+        # STATISTICAL ROUND-UPS IN INDIAN LANGUAGES.
+        # "19 மாதங்களில் 28,309 பேர் உயிரிழப்பு" = 28,309 died over 19 months.
+        # That is a statistic, and the 19 was being recorded as a death toll.
+        tamil_stat = "சாலை விபத்துகளில் கடந்து 19 மாதங்களில் 28,309 பேர் உயிரிழப்பு"
+        assert not screen(tamil_stat, "", "Lokal Tamil", "", "2026-08-20")[0]
+        assert extract_counts(tamil_stat) == (None, None), extract_counts(tamil_stat)
+        assert not screen("सड़क हादसों में पिछले 19 महीनों में 28309 लोगों की मौत",
+                          "", "Jagran", "", "2026-08-20")[0]
+        # a real Hindi accident must still pass
+        assert screen("बस दुर्घटना में ३ की मौत, २ घायल", "", "Jagran", "", "2026-08-20")[0]
+        # TRANSLATION MUST BE RETRIED, not attempted once and abandoned
+        import inspect as _i2
+        assert "backfill_translations" in _i2.getsource(run), \
+            "untranslated rows must be retried on later runs"
+
+        # THE SELF-AUDIT must catch the shapes of every bug found by hand.
+        probe = [
+            {"date": "2026-08-01", "last": "2026-08-01", "category": "roadway", "sector": "",
+             "place": "Chennai", "places": "Chennai", "deaths": 19, "injured": None,
+             "severity": "Fatal", "tod": "", "gender": "", "ages": "", "cause": "", "n": 1,
+             "outlets": "x", "headline": "19 மாதங்களில் 28309 பேர் உயிரிழப்பு",
+             "headline_en": "28309 died in road accidents over 19 months", "url": ""},
+            {"date": "2026-08-02", "last": "2026-08-02", "category": "others",
+             "sector": "unspecified", "place": "Not identified", "places": "",
+             "deaths": 5, "injured": None, "severity": "Fatal", "tod": "", "gender": "",
+             "ages": "", "cause": "", "n": 1, "outlets": "x",
+             "headline": "कुछ हुआ", "headline_en": "", "url": ""},
+        ]
+        fl, qa_ = audit_events(probe, None)
+        issues = {f["issue"] for f in fl}
+        assert any("age or a time period" in i for i in issues), issues
+        assert any("statistic" in i for i in issues), issues
+        assert any("no English text" in i for i in issues), issues
+        assert any("no place identified" in i for i in issues), issues
+        assert any("no sector" in i for i in issues), issues
+
+        # AUTO-REPAIR must FIX errors, not report them, and must run after every
+        # translation batch as well as at the end of a run.
+        conn6 = sqlite3.connect(":memory:")
+        init_db(conn6)
+        ts6 = datetime(2026, 8, 20, tzinfo=timezone.utc).timestamp()
+        for rid, ttl, dd, place in [
+                ("a", "19 மாதங்களில் 28309 பேர் உயிரிழப்பு", 19, "Chennai"),
+                ("b", "Railway worker married 10 months ago, killed in train accident", 10, "Kanpur"),
+                ("d", "Wall collapses in Bhiwandi, 3 dead", 3, "Bhiwandi"),
+                ("e", "Wall collapse in Bhiwandi kills 3 labourers", 3, "Bhiwandi"),
+                ("f", "Three killed as bus overturns near Pune", 3, "Pune")]:
+            conn6.execute(
+                """INSERT INTO articles (id,title,title_en,published,published_ts,category,
+                   language,title_norm,cities,deaths,severity,is_duplicate,dup_group)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?)""",
+                (rid, ttl, ttl if ttl.isascii() else "", "2026-08-20", ts6, "roadway",
+                 "English", norm_title(ttl), place, dd, "Fatal", rid))
+        conn6.commit()
+        auto_repair(conn6, "test")
+        assert conn6.execute("SELECT COUNT(*) FROM articles WHERE id='a'").fetchone()[0] == 0, \
+            "a statistical round-up must be deleted automatically"
+        assert conn6.execute("SELECT deaths FROM articles WHERE id='b'").fetchone()[0] is None, \
+            "'married 10 months ago' must not remain a death toll"
+        assert conn6.execute("SELECT is_duplicate FROM articles WHERE id='e'").fetchone()[0] == 1, \
+            "an unmerged duplicate must be merged automatically"
+        assert conn6.execute("SELECT deaths FROM articles WHERE id='f'").fetchone()[0] == 3, \
+            "a correct row must be left alone"
+        import inspect as _i3
+        assert "auto_repair" in _i3.getsource(backfill_translations), \
+            "repair must run after every translation batch"
+        assert "auto-repair" in _i3.getsource(run), "repair must run at the end of every run"
 
         # regressions the user reported
         cat, _ = classify("Road accidents in UP; Mother and daughter killed in truck collision in Sambhal")
