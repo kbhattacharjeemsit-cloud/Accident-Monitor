@@ -1,9 +1,9 @@
 ﻿City,Accident Type,Sector (others only),Number of Accidents,Near Misses,Fatal Accidents,Injury-only Accidents,People Killed,People Injured
-Not identified,roadway,,370,1,207,39,1464,957
+Not identified,roadway,,374,1,210,39,1474,968
 Not identified,port maritime,,10,0,5,2,529,28
 Not identified,train,,115,2,47,0,451,126
 Not identified,others,unspecified,76,1,32,6,409,193
-Maharashtra,others,factory manufacturing,1,0,1,0,280,0
+Maharashtra,others,factory manufacturing,2,0,1,0,280,0
 Not identified,others,factory manufacturing,39,0,25,7,269,42
 Not identified,old structure collapse,,116,4,33,9,256,295
 Saharanpur,others,factory manufacturing,2,0,2,0,102,0
@@ -79,7 +79,9 @@ Nashik,roadway,,3,0,2,0,4,0
 Chandauli,roadway,,2,0,1,0,4,0
 Hyderabad,construction ongoing,,2,0,2,0,4,2
 Hyderabad,old structure collapse,,2,0,2,0,4,1
+Kannur,roadway,,2,0,1,0,4,1
 Ludhiana,roadway,,2,0,2,0,4,0
+Pune,port maritime,,2,0,1,0,4,1
 Telangana,roadway,,2,0,2,0,4,0
 Trichy,roadway,,2,0,2,0,4,7
 Andhra Pradesh,roadway,,1,0,1,0,4,0
@@ -171,7 +173,7 @@ Sultanpur,roadway,,1,0,1,0,2,0
 Telangana,construction ongoing,,1,0,1,0,2,2
 Thane,roadway,,1,0,1,0,2,1
 Thoothukudi,roadway,,1,0,1,0,2,0
-Pune,roadway,,4,0,1,0,1,0
+Pune,roadway,,5,0,1,0,1,0
 Aurangabad,roadway,,2,0,1,1,1,42
 Delhi,others,unspecified,2,0,1,0,1,0
 Dombivli,old structure collapse,,2,0,1,0,1,0
@@ -228,6 +230,7 @@ Pratapgarh,roadway,,1,0,1,0,1,0
 Purnia,roadway,,1,0,1,0,1,0
 Rohtak,roadway,,1,0,1,0,1,0
 Saharanpur,roadway,,1,0,1,0,1,0
+Sakri,roadway,,1,0,1,0,1,18
 Sambalpur,train,,1,0,1,0,1,12
 Sambhal,roadway,,1,0,1,0,1,2
 Seoni,roadway,,1,0,1,0,1,15
@@ -240,6 +243,7 @@ Thrissur,roadway,,1,0,1,0,1,0
 Visakhapatnam,train,,1,0,1,0,1,0
 West Bengal,roadway,,1,0,1,0,1,0
 Kolhapur,roadway,,3,2,0,0,0,0
+Mumbai,construction ongoing,,3,0,0,2,0,26
 Mumbai,train,,3,1,0,0,0,0
 Anand,roadway,,2,0,0,1,0,3
 Bihar,train,,2,0,0,0,0,0
@@ -249,7 +253,6 @@ Indore,roadway,,2,0,0,1,0,4
 Kalyan,old structure collapse,,2,1,0,0,0,0
 Kushinagar,roadway,,2,0,0,1,0,8
 Ludhiana,train,,2,0,0,0,0,0
-Mumbai,construction ongoing,,2,0,0,2,0,26
 Palamu,train,,2,0,0,1,0,11
 Pune,train,,2,0,0,0,0,0
 Rajkot,roadway,,2,1,0,0,0,0
@@ -316,7 +319,6 @@ Kangra,old structure collapse,,1,0,0,0,0,0
 Kannad,roadway,,1,0,0,0,0,0
 Kannad,others,unspecified,1,0,0,0,0,0
 Kannur,old structure collapse,,1,0,0,0,0,0
-Kannur,roadway,,1,0,0,0,0,0
 Kanpur,roadway,,1,0,0,0,0,0
 Karimnagar,roadway,,1,0,0,0,0,0
 Karnal,roadway,,1,0,0,1,0,8
@@ -352,12 +354,11 @@ Pimpri,old structure collapse,,1,0,0,0,0,0
 Poladpur,roadway,,1,0,0,1,0,2
 Poonamalle,others,unspecified,1,0,0,0,0,0
 Prayagraj,old structure collapse,,1,0,0,0,0,0
-Pune,port maritime,,1,0,0,0,0,0
 Pune,aviation,,1,1,0,0,0,0
+Pune,others,unspecified,1,0,0,0,0,0
 Puri,train,,1,0,0,0,0,0
 Rampur,old structure collapse,,1,0,0,0,0,0
 Rewari,others,unspecified,1,0,0,0,0,0
-Sakri,roadway,,1,0,0,1,0,16
 Satna,others,factory manufacturing,1,1,0,0,0,0
 Savarkundla,roadway,,1,0,0,0,0,0
 Simdega,roadway,,1,0,0,0,0,0
