@@ -50,7 +50,12 @@ from xml.etree import ElementTree
 # CONFIG
 # ===========================================================================
 MIN_DATE = "2026-06-01"
-EVENT_DATE_WINDOW_DAYS = 3
+EVENT_DATE_WINDOW_DAYS = 3        # normal matching window
+FOLLOWUP_WINDOW_DAYS = 30         # follow-up coverage of one accident can run for
+                                  # weeks (the Bhiwandi collapse was reported from
+                                  # 30 July to 22 August). Merging across that span
+                                  # is allowed ONLY on a strong match: same place,
+                                  # same category and high content overlap.
 EVENT_SIM_THRESHOLD = 0.70
 TITLE_DUP_THRESHOLD = 0.90
 TRANSLATE_BACKEND = "builtin"      # "builtin" | "none"
@@ -396,6 +401,43 @@ def _india_locative(text):
     return False
 
 
+
+# Foreign country names written in INDIAN SCRIPTS. Without these, a Tamil report
+# of a Ugandan school-bus crash or a Colombian earthquake passed as Indian,
+# because the foreign-place list was Latin-only.
+FOREIGN_NATIVE = [
+    # Hindi / Marathi
+    "बांग्लादेश", "पाकिस्तान", "नेपाल", "श्रीलंका", "अफगानिस्तान", "म्यांमार", "भूटान",
+    "चीन", "अमेरिका", "ब्रिटेन", "इंग्लैंड", "रूस", "यूक्रेन", "जापान", "कोरिया",
+    "इंडोनेशिया", "फिलीपींस", "थाईलैंड", "वियतनाम", "मलेशिया", "सिंगापुर", "सऊदी",
+    "दुबई", "कतर", "कुवैत", "ओमान", "इराक", "ईरान", "इजरायल", "मिस्र", "तुर्की",
+    "नाइजीरिया", "केन्या", "युगांडा", "इथियोपिया", "दक्षिण अफ्रीका", "ब्राजील",
+    "मैक्सिको", "कोलंबिया", "पेरू", "अर्जेंटीना", "कनाडा", "ऑस्ट्रेलिया", "जर्मनी",
+    "फ्रांस", "इटली", "स्पेन", "पोलैंड", "हंगरी", "ग्रीस", "ढाका", "कराची", "लाहौर",
+    "काठमांडू", "कोलंबो",
+    # Bengali
+    "বাংলাদেশ", "পাকিস্তান", "নেপাল", "শ্রীলঙ্কা", "চীন", "আমেরিকা", "ব্রিটেন", "রাশিয়া",
+    "জাপান", "ইন্দোনেশিয়া", "সৌদি", "দুবাই", "নাইজেরিয়া", "উগান্ডা", "কলম্বিয়া",
+    "ব্রাজিল", "কানাডা", "অস্ট্রেলিয়া", "ঢাকা", "করাচি", "কাঠমান্ডু",
+    # Tamil
+    "பங்களாதேஷ்", "வங்கதேசம்", "பாகிஸ்தான்", "நேபாள", "இலங்கை", "சீனா", "அமெரிக்க",
+    "பிரிட்டன்", "ரஷ்யா", "ஜப்பான்", "இந்தோனேசிய", "சவுதி", "துபாய்", "நைஜீரிய",
+    "உகாண்டா", "கொலம்பிய", "பிரேசில்", "கனடா", "ஆஸ்திரேலிய", "டாக்கா", "கராச்சி",
+    # Telugu
+    "బంగ్లాదేశ్", "పాకిస్తాన్", "నేపాల్", "శ్రీలంక", "చైనా", "అమెరికా", "బ్రిటన్", "రష్యా",
+    "జపాన్", "సౌదీ", "దుబాయ్", "నైజీరియా", "ఉగాండా", "కొలంబియా", "బ్రెజిల్", "ఢాకా",
+    # Kannada
+    "ಬಾಂಗ್ಲಾದೇಶ", "ಪಾಕಿಸ್ತಾನ", "ನೇಪಾಳ", "ಶ್ರೀಲಂಕಾ", "ಚೀನಾ", "ಅಮೆರಿಕ", "ಬ್ರಿಟನ್",
+    "ರಷ್ಯಾ", "ಜಪಾನ್", "ಸೌದಿ", "ದುಬೈ", "ಉಗಾಂಡಾ", "ಕೊಲಂಬಿಯಾ", "ಬ್ರೆಜಿಲ್",
+    # Malayalam
+    "ബംഗ്ലാദേശ്", "പാകിസ്ഥാൻ", "നേപ്പാൾ", "ശ്രീലങ്ക", "ചൈന", "അമേരിക്ക", "ബ്രിട്ടൻ",
+    "റഷ്യ", "ജപ്പാൻ", "സൗദി", "ദുബായ്", "ഉഗാണ്ട", "കൊളംബിയ", "ബ്രസീൽ",
+    # Gujarati / Punjabi
+    "બાંગ્લાદેશ", "પાકિસ્તાન", "નેપાળ", "શ્રીલંકા", "ચીન", "અમેરિકા", "સાઉદી", "દુબઈ",
+    "ਬੰਗਲਾਦੇਸ਼", "ਪਾਕਿਸਤਾਨ", "ਨੇਪਾਲ", "ਸ਼੍ਰੀਲੰਕਾ", "ਚੀਨ", "ਅਮਰੀਕਾ", "ਸਾਊਦੀ", "ਦੁਬਈ",
+]
+
+
 def india_verdict(text):
     if not text:
         return "unknown"
@@ -407,6 +449,20 @@ def india_verdict(text):
     # "Nepal native among 3 dead as wall collapses AT MATHURA site" is Indian;
     # "Bus plunges into gorge IN NEPAL" is not. A bare country name that is not
     # introduced by in/at/near is describing a person, not a place.
+    # Nationality phrases in Indian scripts describe PEOPLE, not the location:
+    # "नेपाल के एक मजदूर" = "a labourer from Nepal".
+    native_people = re.sub(
+        r"(?:नेपाल|बांग्लादेश|पाकिस्तान|श्रीलंका|भूटान)\s*(?:के|की|का|से)?\s*"
+        r"(?:एक\s*)?(?:मजदूर|श्रमिक|नागरिक|मूल|निवासी|युवक|व्यक्ति|महिला|कामगार)"
+        r"|नेपाली|बांग्लादेशी|पाकिस्तानी"
+        r"|(?:নেপাল|বাংলাদেশ|পাকিস্তান)\s*(?:এর|থেকে)?\s*(?:শ্রমিক|নাগরিক|যুবক|ব্যক্তি)"
+        r"|নেপালি|বাংলাদেশি"
+        r"|(?:நேபாள|பங்களாதேஷ்)\s*(?:தொழிலாளி|நாட்டவர்)"
+        r"|(?:నేపాల్|బంగ్లాదేశ్)\s*(?:కూలీ|జాతీయుడు)",
+        " ", without_people)
+    if any(w in native_people for w in FOREIGN_NATIVE):
+        return "foreign"
+    without_people = native_people
     foreign_here = bool(_FOREIGN_LOCATIVE.search(without_people))
     india_here = _india_locative(without_people)
     if india_here and not foreign_here:
@@ -1606,13 +1662,29 @@ def init_db(conn):
 # ===========================================================================
 # DEDUPLICATION
 # ===========================================================================
+# Stemmed, because content_words() stems: "killed" becomes "kill", so the raw
+# word list was letting generic terms through and inflating overlap between
+# unrelated accidents ("3 killed near Pune" vs "4 killed near Pune").
 STOPW = {"the", "and", "for", "with", "after", "near", "from", "were", "was", "has", "had",
-         "accident", "accidents", "news", "video", "killed", "dead", "death", "died", "injured",
-         "people", "person", "police", "said", "report", "update", "horrific", "terrible"}
+         "accident", "news", "video", "kill", "dead", "death", "die", "injur", "injuri",
+         "peopl", "person", "polic", "said", "report", "updat", "horrif", "terribl",
+         "tragic", "major", "big", "massiv", "seriou", "sever", "incid", "case", "spot",
+         "area", "district", "state", "hous", "famili", "victim", "driver", "man", "woman",
+         "year", "old", "today", "yesterday", "morn", "night", "live", "lost", "due"}
 
 
 def content_words(t):
-    return {w for w in re.findall(r"[a-z]{4,}", (t or "").lower()) if w not in STOPW}
+    """Meaningful words, lightly stemmed so 'collapse' and 'collapses' match."""
+    out = set()
+    for w in re.findall(r"[a-z]{4,}", (t or "").lower()):
+        if w in STOPW:
+            continue
+        for suf in ("ing", "ed", "es", "s"):
+            if len(w) > 4 and w.endswith(suf):
+                w = w[: -len(suf)]
+                break
+        out.add(w)
+    return out
 
 
 def similarity(a, b):
@@ -1656,32 +1728,187 @@ def similarity(a, b):
     return score, strong
 
 
+
+# ===========================================================================
+# EVENT FINGERPRINT
+# ===========================================================================
+# Word overlap alone is a blunt instrument: two building collapses in the same
+# city share most of their vocabulary. Before merging, compare the concrete
+# FACTS of the two reports - place, day, time of day, what was being done, what
+# failed, what was involved, who was hurt - and refuse to merge when any of them
+# actively CONTRADICT. A contradiction is much stronger evidence of two separate
+# accidents than shared wording is of one.
+WEEKDAYS = re.compile(r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", re.I)
+
+ACTIVITY_WORDS = re.compile(
+    r"\b(shuttering|formwork|scaffold\w*|centering|staging|crane|girder|gantry|hoist|"
+    r"excavat\w*|trench|piling|concreting|casting|plaster\w*|painting|welding|chipping|"
+    r"demolition|dismantl\w*|rebar|reinforcement|curing|erection|repair|renovation|"
+    r"cleaning|loading|unloading|blasting|drilling|tunnel\w*|wiring)\b", re.I)
+
+OBJECT_WORDS = re.compile(
+    r"\b(bus|truck|lorry|tanker|trailer|car|jeep|van|tempo|auto|rickshaw|bike|scooter|"
+    r"train|locomotive|coach|bogie|boat|ferry|ship|launch|aircraft|plane|helicopter|"
+    r"building|wall|roof|slab|ceiling|balcony|staircase|bridge|culvert|flyover|tower|"
+    r"godown|warehouse|shed|factory|plant|mill|boiler|cylinder|transformer|lift|"
+    r"borewell|septic|sewer|manhole|tank)\b", re.I)
+
+STOREY = re.compile(r"\b(single|two|three|four|five|six|seven|eight|nine|ten|\d{1,2})[\s-]"
+                    r"(?:storey|storeys|story|storied|floor)\b", re.I)
+
+
+def event_fingerprint(text, tod="", ages="", deaths=None, injured=None, place=""):
+    """The concrete facts of one report, for comparison against another."""
+    t = text or ""
+    return {
+        # A STATE is not a location for this purpose. Fifteen unrelated crashes
+        # across Uttarakhand in a week share the state and nothing else, so state
+        # matches are kept separate and count for far less than a town does.
+        "place": {p.strip().lower() for p in (place or "").split(";")
+                  if p.strip() and p.strip().lower() != "not identified"
+                  and p.strip() not in STATES},
+        "region": {p.strip().lower() for p in (place or "").split(";")
+                   if p.strip() in STATES},
+        "day": {d.lower() for d in WEEKDAYS.findall(t)},
+        "tod": (tod or "").strip(),
+        "activity": {a.lower() for a in ACTIVITY_WORDS.findall(t)},
+        "mechanism": {x.strip() for x in derive_cause_mechanism(t, limit=4).split(";") if x.strip()},
+        "objects": {o.lower() for o in OBJECT_WORDS.findall(t)},
+        "storey": {s.lower() for s in STOREY.findall(t)},
+        "ages": {a.strip() for a in (ages or "").split(";") if a.strip()},
+        "deaths": deaths,
+        "injured": injured,
+    }
+
+
+def _jaccard(x, y):
+    if not x or not y:
+        return None                 # silence, not disagreement
+    return len(x & y) / len(x | y)
+
+
+# How much each fact matters when judging whether two reports describe the same
+# accident. Only fields present on BOTH sides are scored, and the result is a
+# weighted average - so a single difference lowers the score without vetoing.
+FP_WEIGHTS = {
+    "place": 2.0,        # a town or city - the strongest single signal
+    "region": 0.4,       # a state only - very weak on its own
+    "objects": 1.4,      # bus / truck / building / boiler
+    "activity": 1.3,     # shuttering / crane / excavation
+    "storey": 1.2,       # four-storey vs two-storey
+    "tod": 1.0,          # day vs night
+    "day": 1.0,          # day of week
+    "mechanism": 0.8,    # weaker: one report says "shuttering", another "building"
+    "ages": 0.8,
+    "casualty": 0.7,     # tolls change as a story develops
+}
+MERGE_SIMILARITY = 0.80      # 80% agreement across the facts, not 100%
+
+
+def fingerprint_similarity(a, b, text_overlap=0.0, followup=False):
+    """Graded 0-1 agreement between two reports.
+
+    Deliberately NOT all-or-nothing. Two reports of one accident routinely differ
+    in emphasis - one names the bus, the other the truck it hit - so a single
+    mismatch should lower the score, not veto the pair. Fields absent on either
+    side are skipped rather than counted against.
+    """
+    parts, weights = [], []
+    for field in ("place", "region", "objects", "activity", "storey", "day",
+                  "mechanism", "ages"):
+        j = _jaccard(a[field], b[field])
+        if j is not None:
+            parts.append(j)
+            weights.append(FP_WEIGHTS[field])
+    if a["tod"] and b["tod"]:
+        parts.append(1.0 if a["tod"] == b["tod"] else 0.0)
+        weights.append(FP_WEIGHTS["tod"])
+    da, db = a["deaths"], b["deaths"]
+    if da is not None and db is not None and not followup:
+        if da == db:
+            c = 1.0
+        elif max(da, db) and min(da, db) / max(da, db) >= 0.5:
+            c = 0.7                 # a rising toll, not a different accident
+        else:
+            c = 0.2
+        parts.append(c)
+        weights.append(FP_WEIGHTS["casualty"])
+    # In FOLLOW-UP coverage the toll is expected to change - that is what a
+    # follow-up is for. Scoring it as disagreement penalised exactly the pairs we
+    # are trying to join (9 dead on day one, 12 a week later), so it is ignored.
+    # the wording itself always counts
+    # Wording counts, but road-accident headlines are formulaic ("Three killed
+    # as bus overturns near X"), so it cannot carry a merge on its own.
+    parts.append(text_overlap)
+    weights.append(1.0)
+    if not weights:
+        return 0.0
+    return sum(p * w for p, w in zip(parts, weights)) / sum(weights)
+
+
 def rededupe(conn):
     conn.execute("UPDATE articles SET is_duplicate=0, dup_group=id")
     rows = conn.execute(
-        """SELECT id,title_norm,cities,deaths,injured,category,published_ts,title_en,title
+        """SELECT id,title_norm,cities,deaths,injured,category,published_ts,title_en,title,
+                  time_of_day,victim_age,snippet,article_text
            FROM articles ORDER BY published_ts ASC""").fetchall()
     seen, merged = [], 0
     for r in rows:
+        full_text = all_text(r[7], r[8], r[11], r[12] if r[12] and r[12] != "-" else "")
         a = {"id": r[0], "title_norm": r[1] or "", "cities": r[2] or "",
              "deaths": r[3], "injured": r[4], "category": r[5], "published_ts": r[6] or 0,
-             "words": content_words((r[7] or "") or (r[8] or "")), "dup_group": r[0]}
+             "words": content_words((r[7] or "") or (r[8] or "")), "dup_group": r[0],
+             "fp": event_fingerprint(full_text, r[9] or "", r[10] or "",
+                                     r[3], r[4], r[2] or "")}
         best = None
         for b in seen:
             if b["category"] != a["category"]:
                 continue
-            if abs(b["published_ts"] - a["published_ts"]) > EVENT_DATE_WINDOW_DAYS * 86400:
+            gap = abs(b["published_ts"] - a["published_ts"])
+            if gap > FOLLOWUP_WINDOW_DAYS * 86400:
                 continue
-            s, strong = similarity(a, b)
-            if s >= EVENT_SIM_THRESHOLD and strong and (best is None or s > best[1]):
-                best = (b["dup_group"], s)
+            wa, wb = a["words"], b["words"]
+            ov = len(wa & wb) / max(1, min(len(wa), len(wb))) if wa and wb else 0.0
+            if gap > EVENT_DATE_WINDOW_DAYS * 86400:
+                # Days later, only follow-up coverage of the SAME accident should
+                # merge. Without a shared, named place there is nothing anchoring
+                # the pair, and formulaic headlines merge unrelated accidents.
+                if not (a["fp"]["place"] and b["fp"]["place"]
+                        and a["fp"]["place"] & b["fp"]["place"]):
+                    continue          # a shared state is not enough
+                if len(wa & wb) < 3:
+                    continue          # some shared wording is still required
+            # Every merge needs a real anchor, not just similar wording: a shared
+            # town, matching casualty figures, or near-identical text. Without
+            # this, formulaic headlines with no place merge into large clusters.
+            same_town = bool(a["fp"]["place"] and b["fp"]["place"]
+                             and a["fp"]["place"] & b["fp"]["place"])
+            da_, db_ = a["deaths"], b["deaths"]
+            same_toll = da_ is not None and db_ is not None and abs(da_ - db_) <= 1
+            if not (same_town or same_toll or ov >= 0.60):
+                continue
+            is_followup = gap > EVENT_DATE_WINDOW_DAYS * 86400
+            sim = fingerprint_similarity(a["fp"], b["fp"], ov, followup=is_followup)
+            # ONE BAR: 80% agreement across the facts both reports state.
+            # Not 100% - two reports of one accident routinely differ on a
+            # detail - and no stricter bar for follow-ups, now that a changing
+            # death toll no longer counts against them.
+            bar = MERGE_SIMILARITY
+            if sim >= bar and (best is None or sim > best[1]):
+                best = (b["dup_group"], sim)
+
         if best:
             conn.execute("UPDATE articles SET is_duplicate=1, dup_group=? WHERE id=?", (best[0], a["id"]))
             a["dup_group"] = best[0]
             merged += 1
-        seen.append(a)
-        if len(seen) > 3000:
-            seen = seen[-3000:]
+        # Only CANONICAL records become comparison points. Otherwise merges chain:
+        # A matches B, B matches C, C matches D, and a fortnight of unrelated
+        # crashes in one state ends up as a single accident even though the first
+        # and last reports have nothing in common.
+        if best is None:
+            seen.append(a)
+            if len(seen) > 3000:
+                seen = seen[-3000:]
     conn.commit()
     print(f"[dedupe] {merged} duplicate reports merged")
     return merged
@@ -2873,6 +3100,84 @@ if __name__ == "__main__":
             "repair must run after every translation batch"
         assert "auto-repair" in _i3.getsource(run), "repair must run at the end of every run"
 
+        # FOLLOW-UP COVERAGE OF ONE ACCIDENT, spread over weeks and languages,
+        # must collapse to a single row: date = first reported, toll = last.
+        conn7 = sqlite3.connect(":memory:")
+        init_db(conn7)
+        def _t(mo, dy):
+            return datetime(2026, mo, dy, tzinfo=timezone.utc).timestamp()
+        seed = [("Maharashtra: Bhiwandi four-storey building collapse kills 9, rescue on", _t(7, 30), 9, "Bhiwandi", "old_structure_collapse"),
+                ("Bhiwandi building collapse: contractor and owner under lens, collapse probe", _t(7, 31), None, "Bhiwandi", "old_structure_collapse"),
+                ("PM expresses grief over loss of lives in Bhiwandi building collapse", _t(7, 31), None, "Bhiwandi", "old_structure_collapse"),
+                ("Civic lapse led to Bhiwandi building collapse, wrongly classified building", _t(8, 10), 12, "Bhiwandi", "old_structure_collapse"),
+                ("Two die as wall collapses at Bhiwandi godown during rain", _t(8, 20), 2, "Bhiwandi", "old_structure_collapse"),
+                ("Three killed as bus overturns near Pune on NH-48", _t(8, 5), 3, "Pune", "roadway"),
+                ("Four killed as truck hits divider near Pune", _t(8, 19), 4, "Pune", "roadway")]
+        for n_, (ttl, tsx, dd, plc, cat) in enumerate(seed):
+            conn7.execute(
+                """INSERT INTO articles (id,title,title_en,published,published_ts,category,
+                   language,title_norm,cities,deaths,severity,is_duplicate,dup_group)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?)""",
+                (str(n_), ttl, ttl,
+                 datetime.fromtimestamp(tsx, timezone.utc).strftime("%Y-%m-%d"), tsx, cat,
+                 "English", norm_title(ttl), plc, dd, "Fatal", str(n_)))
+        conn7.commit()
+        rededupe(conn7)
+        evs7 = resolve_events(conn7)
+        assert len(evs7) == 4, f"7 reports should give 4 accidents, got {len(evs7)}"
+        big = [e for e in evs7 if e["n"] == 4]
+        assert big, "the four Bhiwandi reports must merge into one accident"
+        assert big[0]["date"] == "2026-07-30", f"date must be the FIRST report: {big[0]['date']}"
+        assert big[0]["deaths"] == 12, f"toll must be the LATEST reported: {big[0]['deaths']}"
+        # foreign countries named in Indian scripts must be rejected
+        for t in ["கொலம்பியாவில் பயங்கர நிலநடுக்கம்: 77 பேர் உயிரிழப்பு",
+                  "உகாண்டாவில் பள்ளிப் பேருந்து கவிழ்ந்து விபத்து",
+                  "बांग्लादेश में इमारत गिरी, 5 की मौत"]:
+            assert india_verdict(t) == "foreign", f"foreign in native script kept: {t}"
+
+        # MERGING MUST COMPARE ALL THE FACTS, and a contradiction in ANY of them
+        # (place, day, time of day, activity, object, building height, ages)
+        # means two separate accidents no matter how similar the wording.
+        def _mk(rows_):
+            cc = sqlite3.connect(":memory:")
+            init_db(cc)
+            for n_, (ttl, tsx, dd, plc, cat, tod) in enumerate(rows_):
+                cc.execute(
+                    """INSERT INTO articles (id,title,title_en,published,published_ts,category,
+                       language,title_norm,cities,deaths,severity,time_of_day,is_duplicate,dup_group)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0,?)""",
+                    (str(n_), ttl, ttl,
+                     datetime.fromtimestamp(tsx, timezone.utc).strftime("%Y-%m-%d"), tsx, cat,
+                     "English", norm_title(ttl), plc, dd, "Fatal", tod, str(n_)))
+            cc.commit()
+            rededupe(cc)
+            return resolve_events(cc)
+
+        def _T(mo, dy):
+            return datetime(2026, mo, dy, tzinfo=timezone.utc).timestamp()
+
+        merge_cases = [
+            ("follow-up over 11 days", 1,
+             [("Maharashtra: Bhiwandi four-storey building collapse kills 9, rescue on", _T(7, 30), 9, "Bhiwandi", "old_structure_collapse", "Night"),
+              ("Bhiwandi building collapse: contractor and owner under lens", _T(7, 31), None, "Bhiwandi", "old_structure_collapse", ""),
+              ("Civic lapse led to Bhiwandi four-storey building collapse", _T(8, 10), 12, "Bhiwandi", "old_structure_collapse", "")]),
+            ("different building height and time of day", 2,
+             [("Bhiwandi four-storey building collapse kills 9 during night", _T(7, 30), 9, "Bhiwandi", "old_structure_collapse", "Night"),
+              ("Bhiwandi two-storey building collapse kills 3 in the morning", _T(8, 12), 3, "Bhiwandi", "old_structure_collapse", "Day")]),
+            ("different work activity", 2,
+             [("Worker dies as scaffolding collapses at Noida site on Monday", _T(7, 10), 1, "Noida", "construction_ongoing", ""),
+              ("Worker dies as crane topples at Noida site on Friday", _T(7, 25), 1, "Noida", "construction_ongoing", "")]),
+            ("different vehicle", 2,
+             [("Three killed as bus overturns near Pune", _T(8, 5), 3, "Pune", "roadway", ""),
+              ("Three killed as truck overturns near Pune", _T(8, 18), 3, "Pune", "roadway", "")]),
+        ]
+        for label_, want_, rows_ in merge_cases:
+            got_ = len(_mk(rows_))
+            assert got_ == want_, f"merge case {label_!r}: got {got_}, want {want_}"
+        # and the first date with the latest toll
+        one = _mk(merge_cases[0][2])[0]
+        assert one["date"] == "2026-07-30" and one["deaths"] == 12, one
+
         # regressions the user reported
         cat, _ = classify("Road accidents in UP; Mother and daughter killed in truck collision in Sambhal")
         assert cat == "roadway", f"row 57 regression: got {cat}"
@@ -2902,4 +3207,4 @@ if __name__ == "__main__":
         assert uniq == 1, "the two reports of one blast should merge"
         print("SELF-TEST PASSED")
     else:
-        run()
+        run()# How much each fact matters when comparing two reports. Higher = more telling.
