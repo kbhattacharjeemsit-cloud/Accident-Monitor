@@ -547,6 +547,16 @@ NOT_ACCIDENT = re.compile(
 
 NOT_ACCIDENT_NATIVE = ["हत्या", "मर्डर", "दंगा", "हमला", "आत्महत्या", "गोली", "बलात्कार", "अपहरण",
     "प्रदर्शन", "धरना", "हड़ताल", "श्रद्धांजलि", "पुण्यतिथि", "ट्रेकिंग",
+    # agitation / reservation stir vocabulary - deaths during a protest are not
+    # accidents, and the Maratha reservation coverage was slipping through
+    "आंदोलक", "आंदोलन", "मोर्चा", "मोर्चात", "उपोषण", "आरक्षण", "उपोषणकर्ता",
+    "निदर्शन", "संप", "बंद", "रास्ता रोको", "घेराव", "सत्याग्रह",
+    "আন্দোলন", "মিছিল", "অনশন", "ধর্মঘট", "সংরক্ষণ",
+    "போராட்ட", "உண்ணாவிரத", "இடஒதுக்கீடு", "ஆர்ப்பாட்ட",
+    "ఆందోళన", "నిరాహారదీక్ష", "రిజర్వేషన్", "ధర్నా",
+    "ಪ್ರತಿಭಟನೆ", "ಉಪವಾಸ", "ಮೀಸಲಾತಿ", "ಧರಣಿ",
+    "സമരം", "നിരാഹാര", "സംവരണം", "പ്രക്ഷോഭ",
+    "આંદોલન", "અનામત", "ઉપવાસ", "ਅੰਦੋਲਨ", "ਰਾਖਵਾਂਕਰਨ", "ਭੁੱਖ ਹੜਤਾਲ",
     "খুন", "হত্যা", "দাঙ্গা", "হামলা", "আত্মহত্যা", "প্রতিবাদ", "শ্রদ্ধাঞ্জলি",
     "आंदोलन", "கொலை", "தாக்குதல்", "தற்கொலை", "போராட்டம்",
     "హత్య", "దాడి", "ఆత్మహత్య", "నిరసన", "ಕೊಲೆ", "ದಾಳಿ", "ಆತ್ಮಹತ್ಯೆ", "ಪ್ರತಿಭಟನೆ",
@@ -969,7 +979,7 @@ def extract_counts(text):
     best_d = best_i = None
     for mm in re.finditer(r"\d+", t):
         val = int(mm.group())
-        if val <= 0 or val > 500 or 1900 <= val <= 2100:
+        if val <= 0 or val > 200 or 1900 <= val <= 2100:
             continue
         after = t[mm.end(): mm.end() + 26]
         am, hm = ANIMALS.search(after), HUMANS.search(after)
@@ -2472,6 +2482,12 @@ def auto_repair(conn, label=""):
             deleted += 1
             continue
 
+        # 2a. a toll too large for a single Indian accident is a round-up
+        if (d and d > 200) or (i and i > 300):
+            conn.execute("DELETE FROM articles WHERE id=?", (rid,))
+            deleted += 1
+            continue
+
         # 2. a casualty figure that is really an age or a duration
         fixed_d, fixed_i = d, i
         for mm in NUMBER_CONTEXT.finditer(text):
@@ -3177,6 +3193,17 @@ if __name__ == "__main__":
         # and the first date with the latest toll
         one = _mk(merge_cases[0][2])[0]
         assert one["date"] == "2026-07-30" and one["deaths"] == 12, one
+
+        # PROTEST DEATHS ARE NOT ACCIDENTS, in any language.
+        for t in ["मराठा आरक्षण: 18 आंदोलकांचा मृत्यू",
+                  "मराठा मोर्चात 18 जणांचा मृत्यू",
+                  "Maratha morcha: 18 died",
+                  "Maratha reservation stir: 18 deaths"]:
+            assert not screen(t, "", "Lokmat", "", "2026-08-20")[0], f"protest kept: {t}"
+        # AND a toll too large for one Indian accident is a round-up, not a toll
+        assert extract_counts("अपघातात 280 जणांचा मृत्यू") == (None, None)
+        assert extract_counts("Mumbai: 280 died in building collapse") == (None, None)
+        assert extract_counts("Ahmedabad plane crash kills 133") == (133, None)
 
         # regressions the user reported
         cat, _ = classify("Road accidents in UP; Mother and daughter killed in truck collision in Sambhal")
