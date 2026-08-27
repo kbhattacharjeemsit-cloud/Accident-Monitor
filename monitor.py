@@ -1996,7 +1996,7 @@ def store(conn, items, stats, translate_budget=0):
              it["published_ts"], cat, sector, it["language"], norm_title(it["title"]),
              it["snippet"], feed_body if len(feed_body) > len(it["snippet"]) + 40 else "",
              "", cities, deaths, injured,
-             (extract_cause(body_en or feed_body or "", title_en or it["title"])
+             (extract_cause(all_text(body_en, feed_body, it["snippet"]), title_en or it["title"])
               or derive_cause_mechanism(full)),
              extract_time_of_day(full), extract_gender(all_text(title_en, body_en) or full),
              extract_ages(full),
@@ -2035,12 +2035,12 @@ def backfill_articles(conn, budget, time_budget_s=None):
 
     started = time.time()
     rows = conn.execute(
-        """SELECT id,url,title,title_en FROM articles
+        """SELECT id,url,title,title_en,snippet FROM articles
            WHERE (article_text IS NULL OR article_text='') AND url!=''
            ORDER BY (url LIKE '%news.google.com%') ASC, published_ts DESC
            LIMIT ?""", (budget,)).fetchall()
     done = failed = 0
-    for rid, url, title, ten in rows:
+    for rid, url, title, ten, snip in rows:
         if time_budget_s and (time.time() - started) > time_budget_s:
             print(f"[articles] time budget reached after {done} fetches - resuming next run")
             break
@@ -2056,7 +2056,7 @@ def backfill_articles(conn, budget, time_budget_s=None):
         if not keep:
             conn.execute("DELETE FROM articles WHERE id=?", (rid,))
             continue
-        full = all_text(title, ten, body_en, body)
+        full = all_text(title, ten, body_en, body, snip)
         cities, _ = extract_places(full)
         deaths, injured = extract_counts(full)
         cat, sector = classify(full)
@@ -2070,7 +2070,7 @@ def backfill_articles(conn, budget, time_budget_s=None):
                victim_age=CASE WHEN victim_age='' THEN ? ELSE victim_age END,
                severity=? WHERE id=?""",
             (body[:1400], cat, sector, img,
-             (extract_cause(body_en, ten or title) or derive_cause_mechanism(full)),
+             (extract_cause(all_text(body_en, snip), ten or title) or derive_cause_mechanism(full)),
              cities, cities, deaths, injured,
              extract_time_of_day(full), extract_gender(body_en if body_en.isascii() else full),
              extract_ages(full),
@@ -2197,7 +2197,8 @@ def resolve_events(conn):
     # first went wrong.
     cols = ["dup_group", "published", "published_ts", "category", "sector", "cities",
             "deaths", "injured", "cause", "time_of_day", "victim_gender", "victim_age",
-            "severity", "source", "title", "title_en", "url", "language"]
+            "severity", "source", "title", "title_en", "url", "language",
+            "snippet", "article_text"]
     groups = {}
     for row in conn.execute(f"SELECT {','.join(cols)} FROM articles ORDER BY published_ts ASC"):
         rec = dict(zip(cols, row))
@@ -2223,6 +2224,15 @@ def resolve_events(conn):
         if not places:
             places = [c.strip() for m in members
                       for c in (m["cities"] or "").split(";") if c.strip()]
+        # The cause is derived from EVERY text of EVERY report of this accident -
+        # headline, translation, RSS snippet and fetched article body - not from
+        # the headline alone. A later report often explains a cause the first did
+        # not, so all members are pooled before the mechanism is named.
+        cause_parts = []
+        for m in members:
+            body = m["article_text"] if (m["article_text"] and m["article_text"] != "-") else ""
+            cause_parts += [m["title_en"], m["title"], m["snippet"], body]
+        cause_text = all_text(*cause_parts)
         events.append({
             "date": by_time[0]["published"], "last": by_time[-1]["published"],
             "category": (best["category"] or "").replace("_", " "),
@@ -2234,6 +2244,7 @@ def resolve_events(conn):
             "gender": first_of(members, "victim_gender"),
             "ages": first_of(members, "victim_age"),
             "cause": first_of(members, "cause"),
+            "cause_text": cause_text,
             "n": len(members),
             "outlets": "; ".join(sorted({(m["source"] or "").strip() for m in members
                                          if (m["source"] or "").strip()})[:6]),
@@ -2258,14 +2269,16 @@ def export_accidents(conn, events, path="ACCIDENTS.csv"):
             e["date"], e["last"], e["category"], e["sector"], e["places"],
             e["deaths"] if e["deaths"] is not None else "",
             e["injured"] if e["injured"] is not None else "",
-            e["severity"], e["tod"], e["gender"], e["ages"], e["cause"], e["n"],
+            e["severity"], e["tod"], e["gender"], e["ages"],
+            standardise_cause(e), e["cause"], e["n"],
             e["outlets"], e["headline"], e["headline_en"], e["url"]])
     rows.sort(key=lambda r: r[0], reverse=True)
     with _w(path) as f:
         w = csv.writer(f)
         w.writerow(["Date of Accident", "Last Reported", "Accident Type", "Sector (others only)",
                     "City / Place", "Killed", "Injured", "Severity", "Time of Day",
-                    "Victim Gender", "Victim Age(s)", "Reported Cause", "Times Reported",
+                    "Victim Gender", "Victim Age(s)", "Reported Cause (standardised)",
+                    "Reported Cause (as written)", "Times Reported",
                     "Reported By", "Headline", "Headline (English)", "Link"])
         for r in rows:
             w.writerow([v if isinstance(v, int) else clean_field(v) for v in r])
@@ -2302,6 +2315,102 @@ def export_summary(events, path, confirmed_only):
         for (p, c, s), a in sorted(agg.items(), key=lambda kv: (-kv[1]["k"], -kv[1]["n"], kv[0][0])):
             w.writerow([clean_field(p), c, s, a["n"], a["near"], a["fatal"], a["inj"],
                         a["k"], a["i"]])
+    return len(agg)
+
+
+def export_category_summary(events, path="SUMMARY_by_category.csv", confirmed_only=False):
+    """ONE ROW PER CATEGORY. Built from the same resolved event list as
+    ACCIDENTS.csv, so its totals can never disagree with the rest of the tool.
+
+    Two different kinds of number sit in this table and are labelled as such:
+      - ACCIDENT COUNTS  (Number of Accidents, Fatal, Injury-only, Near Misses)
+        -> how many accidents of each severity.
+      - PEOPLE COUNTS    (People Killed, People Injured)
+        -> how many individuals, summed across accidents.
+    'Near miss' is a severity of an accident, never a count of people, which is
+    why the accident-count columns are shown alongside the people totals."""
+    agg = {}
+    for e in events:
+        if confirmed_only:
+            if e["place"] == "Not identified" or not e["category"]:
+                continue
+            if e["category"] == "others" and e["sector"] in ("", "unspecified"):
+                continue
+            if e["severity"] in ("", "Not stated"):
+                continue
+        cat = e["category"] or "not identified"
+        a = agg.setdefault(cat, {"n": 0, "fatal": 0, "inj": 0, "near": 0, "k": 0, "i": 0})
+        a["n"] += 1
+        a["fatal"] += e["severity"] == "Fatal"
+        a["inj"] += e["severity"] == "Injury only"
+        a["near"] += e["severity"] == "Near miss"
+        a["k"] += e["deaths"] or 0
+        a["i"] += e["injured"] or 0
+    total = {"n": 0, "fatal": 0, "inj": 0, "near": 0, "k": 0, "i": 0}
+    for a in agg.values():
+        for key in total:
+            total[key] += a[key]
+    with _w(path) as f:
+        w = csv.writer(f)
+        w.writerow(["Accident Type", "Number of Accidents", "Fatal Accidents",
+                    "Injury-only Accidents", "Near Misses", "People Killed", "People Injured"])
+        for cat, a in sorted(agg.items(), key=lambda kv: (-kv[1]["k"], -kv[1]["n"], kv[0])):
+            w.writerow([cat, a["n"], a["fatal"], a["inj"], a["near"], a["k"], a["i"]])
+        w.writerow(["TOTAL", total["n"], total["fatal"], total["inj"], total["near"],
+                    total["k"], total["i"]])
+    return len(agg)
+
+
+def standardise_cause(e):
+    """The single cause we trust for counting. The stored 'cause' field mixes
+    free-text explanations with standardised labels, so it cannot be counted
+    consistently. This re-derives ONE label from the controlled vocabulary
+    (CAUSE_MECHANISMS) using EVERY text held for the accident - headline,
+    translation, RSS snippet and fetched article body, pooled across all merged
+    reports (see resolve_events -> 'cause_text') - never the headline alone. It
+    returns 'Not stated' when no known cue is present, never a guess. These
+    remain reported, pre-investigation attributions (METHODOLOGY sec 7.6,
+    sec 10.4), not verified causes; consistency is what this buys, not certainty."""
+    text = e.get("cause_text") or " ".join(
+        str(e.get(k) or "") for k in ("headline_en", "cause", "headline"))
+    label = derive_cause_mechanism(text, limit=1)
+    return label or "Not stated"
+
+
+def export_cause_summary(events, path="SUMMARY_by_cause.csv", confirmed_only=False):
+    """Standardised reported cause x count. The 'Not stated' row is ALWAYS shown,
+    because a cause distribution is only honest when the unknown share is visible
+    (METHODOLOGY sec 10.4). Causes are what the early news reported, not verified
+    findings."""
+    agg = {}
+    kept = 0
+    for e in events:
+        if confirmed_only and (e["place"] == "Not identified" or not e["category"]
+                               or e["severity"] in ("", "Not stated")):
+            continue
+        kept += 1
+        cause = standardise_cause(e)
+        a = agg.setdefault(cause, {"n": 0, "k": 0, "i": 0})
+        a["n"] += 1
+        a["k"] += e["deaths"] or 0
+        a["i"] += e["injured"] or 0
+    stated = sum(a["n"] for c, a in agg.items() if c != "Not stated")
+    with _w(path) as f:
+        w = csv.writer(f)
+        w.writerow(["Reported Cause (standardised)", "Number of Accidents",
+                    "People Killed", "People Injured"])
+        # Known causes first, biggest first; "Not stated" pinned to the bottom.
+        ordered = sorted(((c, a) for c, a in agg.items() if c != "Not stated"),
+                         key=lambda kv: (-kv[1]["n"], -kv[1]["k"], kv[0]))
+        for c, a in ordered:
+            w.writerow([c, a["n"], a["k"], a["i"]])
+        if "Not stated" in agg:
+            a = agg["Not stated"]
+            w.writerow(["Not stated", a["n"], a["k"], a["i"]])
+        pct = (100 * stated // kept) if kept else 0
+        w.writerow([])
+        w.writerow([f"Cause identified for {stated} of {kept} accidents ({pct}%). "
+                    "Causes are as first reported, not verified.", "", "", ""])
     return len(agg)
 
 
@@ -2437,6 +2546,8 @@ MoRTH, NCRB and DGFASLI.</div>
 
 <h2>Download the data</h2>
 <a class=dl href="ACCIDENTS.csv">Every accident (CSV)</a>
+<a class=dl href="SUMMARY_by_category.csv">Summary &ndash; by accident type</a>
+<a class=dl href="SUMMARY_by_cause.csv">Summary &ndash; by reported cause</a>
 <a class=dl href="SUMMARY_confirmed.csv">Summary &ndash; confirmed only</a>
 <a class=dl href="SUMMARY_all.csv">Summary &ndash; everything</a>
 <a class=dl href="TREND_monthly.csv">Monthly trend</a>
@@ -2687,6 +2798,8 @@ def run():
     n = export_accidents(conn, events)
     export_summary(events, "SUMMARY_all.csv", False)
     export_summary(events, "SUMMARY_confirmed.csv", True)
+    export_category_summary(events, "SUMMARY_by_category.csv", False)
+    export_cause_summary(events, "SUMMARY_by_cause.csv", False)
     export_monthly_from_events(events)
     export_dashboard(events)
 
@@ -3232,6 +3345,64 @@ if __name__ == "__main__":
         uniq = conn.execute("SELECT COUNT(*) FROM articles WHERE is_duplicate=0").fetchone()[0]
         print(f"steel factory blast: 2 reports -> {uniq} accident(s)")
         assert uniq == 1, "the two reports of one blast should merge"
+
+        # CATEGORY SUMMARY must be built from the events and its TOTAL row must
+        # equal the sum of the per-category rows and of the events themselves.
+        import tempfile, os as _os
+        sample_events = [
+            {"category": "roadway", "sector": "", "place": "Pune", "severity": "Fatal",
+             "deaths": 3, "injured": 2, "headline": "Bus overturns after brake failure near Pune",
+             "headline_en": "Bus overturns after brake failure near Pune", "cause": ""},
+            {"category": "roadway", "sector": "", "place": "Not identified", "severity": "Injury only",
+             "deaths": None, "injured": 4, "headline": "Two injured in car accident in Guntur",
+             "headline_en": "Two injured in car accident in Guntur", "cause": ""},
+            {"category": "old structure collapse", "sector": "", "place": "Bhiwandi", "severity": "Fatal",
+             "deaths": 12, "injured": 0, "headline": "Building collapse kills 12",
+             "headline_en": "Building collapse kills 12", "cause": "wall gave way"},
+            {"category": "construction ongoing", "sector": "", "place": "Noida", "severity": "Near miss",
+             "deaths": None, "injured": None, "headline": "Scaffolding collapses, all safe",
+             "headline_en": "Scaffolding collapses, all safe", "cause": ""},
+        ]
+        _tmp = tempfile.mkdtemp()
+        _cat = _os.path.join(_tmp, "cat.csv")
+        export_category_summary(sample_events, _cat, confirmed_only=False)
+        with open(_cat, encoding="utf-8-sig") as _fh:
+            _rows = list(csv.reader(_fh))
+        _tot = next(r for r in _rows if r and r[0] == "TOTAL")
+        assert int(_tot[1]) == len(sample_events), "category TOTAL accidents must equal event count"
+        assert int(_tot[5]) == 15, f"category TOTAL killed must be 3+12=15, got {_tot[5]}"
+        assert int(_tot[6]) == 6, f"category TOTAL injured must be 2+4=6, got {_tot[6]}"
+        _body = [r for r in _rows[1:] if r and r[0] not in ("TOTAL",)]
+        assert sum(int(r[1]) for r in _body) == int(_tot[1]), "category rows must sum to TOTAL"
+        assert sum(int(r[4]) for r in _body) == int(_tot[4]) == 1, "one near miss expected"
+
+        # STANDARDISED CAUSE must come from the controlled vocabulary or be
+        # 'Not stated' - never free-text, never a guess.
+        allowed = set(CAUSE_MECHANISMS.keys()) | {"Not stated"}
+        for ev in sample_events:
+            assert standardise_cause(ev) in allowed, \
+                f"cause not standardised: {standardise_cause(ev)!r}"
+        assert standardise_cause(sample_events[0]) == "Brake failure", "brake failure cue missed"
+        assert standardise_cause(sample_events[1]) == "Not stated", \
+            "no cue must yield 'Not stated', not a guess"
+        # THE CAUSE MUST COME FROM ALL TEXT, NOT THE HEADLINE ALONE: a headline
+        # with no cue but a body/snippet that explains the cause must still be
+        # classified from that pooled text (resolve_events supplies 'cause_text').
+        buried = {"category": "roadway", "sector": "", "place": "X", "severity": "Fatal",
+                  "deaths": 2, "injured": 0, "headline": "Two die on highway near town",
+                  "headline_en": "Two die on highway near town", "cause": "",
+                  "cause_text": "Two die on highway near town. Police said the truck "
+                                "suffered a sudden brake failure before hitting the divider."}
+        assert standardise_cause(buried) == "Brake failure", \
+            "cause in the body, not the headline, must still be detected"
+
+        # CAUSE SUMMARY must always carry a 'Not stated' row when any cause is unknown.
+        _cau = _os.path.join(_tmp, "cause.csv")
+        export_cause_summary(sample_events, _cau, confirmed_only=False)
+        with open(_cau, encoding="utf-8-sig") as _fh:
+            _ctext = _fh.read()
+        assert "Not stated" in _ctext, "cause summary must display the unknown share"
+
         print("SELF-TEST PASSED")
     else:
         run()# How much each fact matters when comparing two reports. Higher = more telling.
