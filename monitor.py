@@ -879,6 +879,7 @@ WORD_NUM = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "sev
             "এক": 1, "দুই": 2, "তিন": 3, "চার": 4, "পাঁচ": 5,
             "இரண்டு": 2, "மூன்று": 3, "நான்கு": 4, "ஐந்து": 5,
             "ఇద్దరు": 2, "ముగ్గురు": 3, "నలుగురు": 4, "ఐదుగురు": 5, "ఏడుగురు": 7,
+            "ఆరుగురికి": 6, "ఆరుగురిని": 6, "ఆరుగురి": 6, "ఆరుగురు": 6,
             "ఐదుగురికి": 5, "ఏడుగురికి": 7, "ಇಬ್ಬರು": 2, "ಮೂವರು": 3, "બે": 2, "ਦੋ": 2}
 
 DEATH_CUES = ["killed", "kills", "dead", "death", "deaths", "died", "dies", "die",
@@ -899,6 +900,16 @@ HUMANS = re.compile(r"\b(?:people|persons?|passengers?|men|man|women|woman|child
 
 def _clean_numbers(text):
     t = text.translate(DIGITS)
+    # Outlet and channel names carry numbers that are NOT casualties: News18, TV9,
+    # Zee 24, 24 Ghanta, 10TV, V6, P7, ABP7. The number in "News18 Telugu" was
+    # being read as a death toll (a Telugu "six died" story became "18 died"). A
+    # real count always reads "6 killed" - a digit with a space before the
+    # casualty word - so a digit GLUED to letters is never a toll, and the few
+    # outlet names that put a space before the number are removed by name.
+    t = re.sub(r"\b(?:zee|tv|channel|dd|colou?rs|news|sahara|aaj\s*tak|abp)\s+\d{1,3}\b", " ", t, flags=re.I)
+    t = re.sub(r"\b24\s*(?:x\s*7|ghanta|ghante)\b", " ", t, flags=re.I)
+    t = re.sub(r"\b[a-z]+\d{1,3}\b", " ", t, flags=re.I)      # news18, tv9, v6, p7, abp7
+    t = re.sub(r"\b\d{1,3}[a-z]{2,}\b", " ", t, flags=re.I)   # 10tv, 99tv
     t = re.sub(r"\|\s*\d+\s*$", " ", t)
     t = re.sub(r"\b(?:nh|sh|mdr|national highway|state highway|route)\s*[-\u2013]?\s*\d+[a-z]?\b", " ", t, flags=re.I)
     t = re.sub(r"\b\d{1,3}\s*[-\u2013]?\s*(?:year|yr|yrs|years)\s*[-\u2013]?\s*old\b", " ", t, flags=re.I)
@@ -2213,8 +2224,35 @@ def resolve_events(conn):
         best = max(members, key=lambda m: (m["deaths"] is not None) * 3
                    + (m["injured"] is not None) * 2 + bool(m["cities"]) * 2
                    + bool(m["cause"]) * 2 + (m["language"] == "English"))
-        deaths = next((m["deaths"] for m in reversed(by_time) if m["deaths"] is not None), None)
-        injured = next((m["injured"] for m in reversed(by_time) if m["injured"] is not None), None)
+        # CASUALTIES: the methodology takes the toll from the LATEST report (it
+        # only climbs as the event is confirmed). But English reports extract far
+        # more reliably than the foreign-language copies - whose numbers were being
+        # corrupted by outlet names ("News18" -> 18) and unmapped number-words - so
+        # the latest figure is read from the ENGLISH reports first, falling back to
+        # the latest across all languages only when no English report states one.
+        # This is what stopped a Bengali follow-up's thin "6 injured" from
+        # overwriting The Hindu's "12". Killed and injured are judged separately.
+        by_lang_time = lambda ms: sorted(ms, key=lambda m: m["published_ts"] or 0)
+        def _latest(key, english_only):
+            src = [m for m in members if not english_only or m["language"] == "English"]
+            return next((m[key] for m in reversed(by_lang_time(src)) if m[key] is not None), None)
+        deaths = _latest("deaths", True)
+        if deaths is None:
+            deaths = _latest("deaths", False)
+        injured = _latest("injured", True)
+        if injured is None:
+            injured = _latest("injured", False)
+        dvals = [m["deaths"] for m in members if m["deaths"] is not None]
+        ivals = [m["injured"] for m in members if m["injured"] is not None]
+        toll_conflict = len(set(dvals)) > 1 or len(set(ivals)) > 1
+        toll_detail = ""
+        if toll_conflict:
+            bits = []
+            if len(set(dvals)) > 1:
+                bits.append("killed reported as " + "/".join(str(x) for x in sorted(set(dvals))))
+            if len(set(ivals)) > 1:
+                bits.append("injured reported as " + "/".join(str(x) for x in sorted(set(ivals))))
+            toll_detail = "; ".join(bits)
         sev = best["severity"] or ""
         if deaths:
             sev = "Fatal"
@@ -2240,6 +2278,7 @@ def resolve_events(conn):
             "place": places[0] if places else "Not identified",
             "places": "; ".join(dict.fromkeys(places))[:120],
             "deaths": deaths, "injured": injured, "severity": sev,
+            "toll_conflict": toll_conflict, "toll_detail": toll_detail,
             "tod": first_of(members, "time_of_day"),
             "gender": first_of(members, "victim_gender"),
             "ages": first_of(members, "victim_age"),
@@ -2407,6 +2446,10 @@ def export_cause_summary(events, path="SUMMARY_by_cause.csv", confirmed_only=Fal
         if "Not stated" in agg:
             a = agg["Not stated"]
             w.writerow(["Not stated", a["n"], a["k"], a["i"]])
+        tot_n = sum(a["n"] for a in agg.values())
+        tot_k = sum(a["k"] for a in agg.values())
+        tot_i = sum(a["i"] for a in agg.values())
+        w.writerow(["TOTAL", tot_n, tot_k, tot_i])
         pct = (100 * stated // kept) if kept else 0
         w.writerow([])
         w.writerow([f"Cause identified for {stated} of {kept} accidents ({pct}%). "
@@ -2696,6 +2739,14 @@ def audit_events(events, conn):
                  f"same day, type, place and toll as: {by_key[key][:60]}")
         else:
             by_key[key] = e["headline_en"] or e["headline"]
+
+        # 8. reports of the same accident give different casualty numbers. The
+        #    highest is kept (tolls climb), but a human should confirm which is
+        #    right - this is exactly how a wrong "6 injured" hid behind a correct
+        #    "12 injured".
+        if e.get("toll_conflict"):
+            flag(e, "MEDIUM", "reports disagree on the casualty count",
+                 e.get("toll_detail", ""))
 
     summary = {
         "accidents": len(events),
@@ -3402,6 +3453,38 @@ if __name__ == "__main__":
         with open(_cau, encoding="utf-8-sig") as _fh:
             _ctext = _fh.read()
         assert "Not stated" in _ctext, "cause summary must display the unknown share"
+
+        # CASUALTY MERGE: the toll is read from the ENGLISH reports (which extract
+        # reliably) before the foreign-language copies. Here The Hindu reports
+        # "6 killed, 12 injured" and a later Bengali rewrite says "6 injured" - the
+        # English figure (12) must win, not the later Bengali one (the real bug).
+        conn_tel = sqlite3.connect(":memory:")
+        init_db(conn_tel)
+        _tt = datetime(2026, 8, 26, tzinfo=timezone.utc).timestamp()
+        tel = [("Six killed, 12 injured as speeding bus crashes into lorry in Suryapet",
+                _tt, 6, 12, "Suryapet", "English"),
+               ("Suryapet bus crash: 6 killed, 6 injured (Bengali rewrite)",
+                _tt + 3600, 6, 6, "Suryapet", "Bengali")]
+        for n_, (ttl, tsx, dd, ii, plc, lang) in enumerate(tel):
+            conn_tel.execute(
+                """INSERT INTO articles (id,title,title_en,published,published_ts,category,
+                   language,title_norm,cities,deaths,injured,severity,is_duplicate,dup_group)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0,?)""",
+                (str(n_), ttl, ttl,
+                 datetime.fromtimestamp(tsx, timezone.utc).strftime("%Y-%m-%d"), tsx, "roadway",
+                 lang, norm_title(ttl), plc, dd, ii, "Fatal", "g1"))
+        conn_tel.commit()
+        tev = resolve_events(conn_tel)[0]
+        assert tev["deaths"] == 6, f"killed must stay 6, got {tev['deaths']}"
+        assert tev["injured"] == 12, f"injured must be the English 12, not the Bengali 6, got {tev['injured']}"
+        assert tev["toll_conflict"], "disagreeing reports must be flagged for review"
+
+        # NUMBERS IN OUTLET NAMES ARE NOT CASUALTIES: "News18", "TV9" must not be
+        # read as a death toll. This corrupted many regional-language rows.
+        assert extract_counts("Six killed in crash - News18 Telugu") == (6, None), "News18 leaked as toll"
+        assert extract_counts("Labourer dead, 3 injured in collapse - News18") == (1, 3), "News18 leaked"
+        assert extract_counts("Bhiwandi building collapsed - TV9 Marathi") == (None, None), "TV9 leaked"
+        assert extract_counts("8 dead, 24 injured in bus-truck collision") == (8, 24), "real 24 wrongly stripped"
 
         print("SELF-TEST PASSED")
     else:
