@@ -56,7 +56,6 @@ Tiruvallur,others,factory manufacturing,1,0,1,0,7,0
 Bareilly,train,,4,0,4,0,6,0
 Gurugram,roadway,,3,0,3,0,6,0
 Hardoi,roadway,,2,0,2,0,6,1
-Rail,train,,2,0,2,0,6,0
 Satara,roadway,,2,0,2,0,6,0
 Hamirpur,construction ongoing,,1,0,1,0,6,0
 Poonch,roadway,,1,0,1,0,6,41
@@ -94,7 +93,6 @@ Supaul,roadway,,1,0,1,0,4,0
 Udaipur,train,,1,0,1,0,4,0
 Vidisha,roadway,,1,0,1,0,4,0
 Pune,old structure collapse,,4,1,3,0,3,0
-Azamgarh,roadway,,2,0,2,0,3,32
 Barnala,roadway,,2,0,2,0,3,2
 Jaipur,roadway,,2,0,2,0,3,0
 Jhansi,roadway,,2,0,2,0,3,3
@@ -125,6 +123,7 @@ Yadgir,others,factory manufacturing,1,0,1,0,3,0
 Hathras,roadway,,3,0,2,1,2,21
 Mainpuri,roadway,,3,0,2,1,2,9
 Anantapur,roadway,,2,0,1,1,2,20
+Azamgarh,roadway,,2,0,2,0,2,32
 Jammu,construction ongoing,,2,0,2,0,2,0
 Kerala,roadway,,2,0,2,0,2,29
 Meerut,roadway,,2,0,2,0,2,0
@@ -175,6 +174,7 @@ Thoothukudi,roadway,,1,0,1,0,2,0
 Tirupati,roadway,,1,0,1,0,2,0
 Aurangabad,roadway,,2,0,1,1,1,37
 Mathura,roadway,,2,0,1,1,1,25
+Rail,train,,2,1,1,0,1,0
 Aligarh,train,,1,0,1,0,1,0
 Amroha,roadway,,1,0,1,0,1,0
 Amroha,old structure collapse,,1,0,1,0,1,2
