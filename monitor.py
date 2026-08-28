@@ -566,11 +566,27 @@ NOT_ACCIDENT_NATIVE = ["हत्या", "मर्डर", "दंगा", "�
 NATURAL_HAZARD = re.compile(
     r"\b(?:flood\w*|deluge|inundat\w*|landslide|landslip|mudslide|cloudburst|avalanche|"
     r"earthquake|quake|tremor|cyclone|hurricane|typhoon|tornado|tsunami|lightning|"
-    r"thunderbolt|hailstorm|wildfire|forest fire|glacier burst|glacial lake)\b", re.I)
+    r"thunderbolt|hailstorm|wildfire|forest fire|glacier\w*|glacial|snow ?slide|"
+    r"glof|glacial lake)\b", re.I)
 NATURAL_NATIVE = ["बाढ़", "भूस्खलन", "भूकंप", "चक्रवात", "बिजली गिर", "बादल फट", "हिमस्खलन",
-    "বন্যা", "ভূমিধস", "ভূমিকম্প", "ঘূর্ণিঝড়", "বজ্রপাত", "வெள்ளம்", "நிலச்சரிவு",
-    "నిలநடுக்கம்", "వరద", "కొండచరియ", "భూకంపం", "ಪ್ರವಾಹ", "ಭೂಕುಸಿತ", "ಭೂಕಂಪ",
-    "വെള്ളപ്പൊക്കം", "ഉരുൾപൊട്ടൽ", "ഭൂകമ്പം", "પૂર", "ભૂસ્ખલન", "ધરતીકંપ", "ਹੜ੍ਹ", "ਭੂਚਾਲ"]
+    "ग्लेशियर", "हिमनद", "हिमोढ़",
+    "বন্যা", "ভূমিধস", "ভূমিকম্প", "ঘূর্ণিঝড়", "বজ্রপাত", "হিমবাহ", "তুষারধস", "প্লাবন",
+    "வெள்ளம்", "நிலச்சரிவு", "பனிச்சரிவு", "பனியாறு",
+    "నిలநடுக்கம்", "వరద", "కొండచరియ", "భూకంపం", "హిమానీనదం", "మంచు హిమపాతం",
+    "ಪ್ರವಾಹ", "ಭೂಕುಸಿತ", "ಭೂಕಂಪ", "ಹಿಮನದಿ", "ಹಿಮಪಾತ",
+    "വെള്ളപ്പൊക്കം", "ഉരുൾപൊട്ടൽ", "ഭൂകമ്പം", "ഹിമാനി", "ഹിമപാതം",
+    "પૂર", "ભૂસ્ખલન", "ધરતીકંપ", "હિમનદી", "હિમપ્રપાત", "ਹੜ੍ਹ", "ਭੂਚਾਲ", "ਗਲੇਸ਼ੀਅਰ", "ਬਰਫ਼ਸਖਲਨ"]
+
+# "N years ago", "N years back" and their equivalents mark a retrospective, not
+# a current event. The English forms are caught by OLD_EVENT; these are the same
+# cue in Indian scripts (a Bengali glacier-disaster anniversary was slipping the
+# date gate because "১১ বছর আগের" was not recognised as "11 years ago").
+NATIVE_OLD = ["बछर आगे", "बछर आगेर", "साल पहले", "वर्ष पहले", "साल पूर्व", "बरस पहले",
+    "বছর আগে", "বছর আগের", "বছর আগেকার", "বর্ষ আগে",
+    "वर्षापूर्वी", "वर्षांपूर्वी", "साल आधी",
+    "ஆண்டுகளுக்கு முன்", "ஆண்டு முன்", "సంవత్సరాల క్రితం", "ఏళ్ల క్రితం",
+    "ವರ್ಷಗಳ ಹಿಂದೆ", "ವರ್ಷದ ಹಿಂದೆ", "വർഷം മുൻപ്", "വർഷങ്ങൾക്ക് മുൻപ്",
+    "વર્ષ પહેલા", "વર્ષ પહેલાં", "ਸਾਲ ਪਹਿਲਾਂ", "ਵਰ੍ਹੇ ਪਹਿਲਾਂ"]
 
 
 def _has(text, words):
@@ -648,7 +664,7 @@ def currency_verdict(text, published_date):
         return "not_event"
     if NOT_EVENT_REPORT.search(text):
         return "not_event"
-    if OLD_EVENT.search(text):
+    if OLD_EVENT.search(text) or any(w in text for w in NATIVE_OLD):
         return "old"
     if MIN_DATE and published_date and published_date < MIN_DATE:
         return "old"
@@ -3485,6 +3501,23 @@ if __name__ == "__main__":
         assert extract_counts("Labourer dead, 3 injured in collapse - News18") == (1, 3), "News18 leaked"
         assert extract_counts("Bhiwandi building collapsed - TV9 Marathi") == (None, None), "TV9 leaked"
         assert extract_counts("8 dead, 24 injured in bus-truck collision") == (8, 24), "real 24 wrongly stripped"
+
+        # NATURAL DISASTERS must be dropped even in native scripts. A Bengali
+        # glacier-avalanche story from an Indian outlet was being kept and
+        # mislabelled a roadway accident (glacier=হিমবাহ, avalanche=তুষারধস were
+        # not in the native hazard list). A retrospective ("11 years ago" =
+        # "১১ বছর আগের") must also read as old, not current.
+        for bad in ["প্রলয়ের নেপথ্যে প্রকাণ্ড হিমবাহ - ধস ! মত মার্কিন ভূতত্ত্ব সংস্থার",
+                    "ল্যাংটাং রিরুং ফেরাল ১১ বছর আগের হিমবাহ - ধসের বিভীষিকা",
+                    "Massive glacier avalanche kills 40 in the Himalayas"]:
+            k, why = screen(bad, "", "bartamanpatrika.com", "https://x", "2026-08-28")
+            assert not k, f"natural disaster kept ({why}): {bad[:40]}"
+        assert currency_verdict("বছর আগের সেই ভয়াবহ ঘটনা", "2026-08-28") == "old", \
+            "native 'years ago' must read as old"
+        # but a real building-collapse accident that uses ধস must still be kept
+        okc, _ = screen("ভবন ধসে ৩ শ্রমিকের মৃত্যু, মুম্বইয়ে বহুতল ভেঙে পড়ল",
+                        "", "ndtv", "https://x", "2026-08-28")
+        assert okc, "a real building collapse must not be blocked by the hazard fix"
 
         print("SELF-TEST PASSED")
     else:
