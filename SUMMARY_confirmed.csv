@@ -56,7 +56,6 @@ Hamirpur,roadway,,1,0,1,0,7,0
 Tiruvallur,others,factory manufacturing,1,0,1,0,7,0
 Bareilly,train,,4,0,4,0,6,2
 Gurugram,roadway,,3,0,3,0,6,0
-Azamgarh,roadway,,2,0,2,0,6,32
 Hardoi,roadway,,2,0,2,0,6,1
 Satara,roadway,,2,0,2,0,6,0
 Hamirpur,construction ongoing,,1,0,1,0,6,0
@@ -83,6 +82,7 @@ Kanpur,roadway,,2,0,2,0,4,0
 Ludhiana,roadway,,2,0,2,0,4,0
 Nashik,roadway,,2,0,2,0,4,0
 Trichy,roadway,,2,0,2,0,4,7
+Bengaluru,old structure collapse,,1,0,1,0,4,12
 Eluru,train,,1,0,1,0,4,0
 Kannur,roadway,,1,0,1,0,4,1
 Kanpur,old structure collapse,,1,0,1,0,4,4
@@ -97,6 +97,7 @@ Vidisha,roadway,,1,0,1,0,4,0
 Pune,old structure collapse,,4,1,3,0,3,0
 Mainpuri,roadway,,3,0,2,1,3,11
 Nagar,roadway,,3,0,3,0,3,3
+Azamgarh,roadway,,2,0,2,0,3,32
 Barnala,roadway,,2,0,2,0,3,2
 Deoria,roadway,,2,0,2,0,3,1
 Jaipur,roadway,,2,0,2,0,3,0
