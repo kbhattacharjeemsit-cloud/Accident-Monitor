@@ -589,8 +589,27 @@ NATIVE_OLD = ["बछर आगे", "बछर आगेर", "साल पह
     "વર્ષ પહેલા", "વર્ષ પહેલાં", "ਸਾਲ ਪਹਿਲਾਂ", "ਵਰ੍ਹੇ ਪਹਿਲਾਂ"]
 
 
+_INDIC_CHAR = re.compile(r"[\u0900-\u0D7F]")
+
+
 def _has(text, words):
-    return any(w in text for w in words)
+    """True if any cue word appears in the text as a word, not merely as a
+    substring buried inside a longer Indic word. Indian scripts write words
+    space-separated but Python's \\b is unreliable around vowel signs, so a bare
+    "गिर" (fell) was matching inside "कामगिरी" (performance) and "नाव" (boat)
+    inside "मैदानावर" (on the field). A cue is rejected only when an Indic letter
+    immediately PRECEDES it (i.e. it starts mid-word); a following letter is
+    allowed, so inflected forms like "गिरली"/"नावेतून" still match."""
+    for w in words:
+        start = 0
+        while True:
+            i = text.find(w, start)
+            if i < 0:
+                break
+            if i == 0 or not _INDIC_CHAR.match(text[i - 1]):
+                return True
+            start = i + 1
+    return False
 
 
 def accident_verdict(text):
@@ -794,7 +813,7 @@ CATEGORY_RULES = OrderedDict([
     ("port_maritime", re.compile(
         r"\b(?:boat|boats|ferry|ferries|ship|ships|vessel|trawler|barge|steamer|"
         r"dredger|tugboat|harbour|harbor|jetty|dockyard|shipyard|seaport)\b"
-        r"|नाव|नौका|जहाज|बंदरगाह|নৌকা|জাহাজ|লঞ্চ|বন্দর|படகு|கப்பல்|పడవ|నౌక|ದೋಣಿ|ಹಡಗು|ബോട്ട്|હોડી|ਕਿਸ਼ਤੀ", re.I)),
+        r"|(?<![\u0900-\u0D7F])(?:नाव|नौका|जहाज|बंदरगाह|নৌকা|জাহাজ|লঞ্চ|বন্দর|படகு|கப்பல்|పడవ|నౌక|ದೋಣಿ|ಹಡಗು|ബോട്ട്|હોડી|ਕਿਸ਼ਤੀ)", re.I)),
     ("train", re.compile(
         r"\b(?:train|trains|railway|railways|rail|locomotive|derail\w*|level crossing|"
         r"railway crossing|goods train|express train|metro rail|bogie|vande bharat|rajdhani|shatabdi|duronto|garib rath|emu|memu|local train|passenger train|mail express|superfast)\b"
@@ -825,7 +844,7 @@ FAILURE_WORDS = re.compile(
     r"fall[s]?|fell|fallen|falling|sank|sunk|subsid\w*|settl(?:es|ed|ement)|"
     r"sinkhole|razed|crumbl\w*|gave in|buckl\w*|snapped|toppl\w*|"
     r"came (?:down|crashing)|broke (?:off|away))\b"
-    r"|ढह|गिर|धंस|ধস|कोसळ|खचल|இடிந்து|சரிவு|కూలి|కుంగ|ಕುಸಿ|തകർ|ഇടിഞ്ഞ|ધરાશાયી|ધસી|ਢਹਿ|ਧਸ", re.I)
+    r"|(?<![\u0900-\u0D7F])(?:ढह|गिर|धंस|ধস|कोसळ|खचल|இடிந்து|சரிவு|కూలి|కుంగ|ಕುಸಿ|തകർ|ഇടിഞ്ഞ|ધરાશાયી|ધસી|ਢਹਿ|ਧਸ)", re.I)
 
 OTHER_SECTORS = OrderedDict([
     ("factory_manufacturing", re.compile(r"\b(?:factory|plant|mill|workshop|boiler|furnace|foundry|manufactur\w*)\b|फैक्ट्री|कारखाना|কারখানা|தொழிற்சாலை|ఫ్యాక్టరీ|ಕಾರ್ಖಾನೆ|ഫാക്ടറി|ફેક્ટરી|ਫੈਕਟਰੀ", re.I)),
@@ -3619,6 +3638,19 @@ if __name__ == "__main__":
         still = conn_tr.execute(
             "SELECT COUNT(*) FROM articles WHERE title_en IS NULL OR title_en=''").fetchone()[0]
         assert still == 1, f"only the single failed row should remain untranslated, got {still}"
+
+        # NATIVE CUES MUST NOT MATCH MID-WORD. "गिर" (fell) inside "कामगिरी"
+        # (performance) was tagging a sports story as an accident, and "नाव"
+        # (boat) inside "मैदानावर" (on the field) filed it under port. But the
+        # same cues as real words must still fire.
+        assert not _has("क्रीडा कामगिरी उत्कृष्ट", ACCIDENT_NATIVE), "गिर matched inside कामगिरी"
+        assert _has("इमारत गिरली तीन ठार", ACCIDENT_NATIVE), "real गिरली (fell) missed"
+        assert not CATEGORY_RULES["port_maritime"].search("मैदानावर पदक जिंकले"), "नाव matched inside मैदानावर"
+        assert CATEGORY_RULES["port_maritime"].search("गोदावरीत नाव पलटली"), "real नाव (boat) missed"
+        _sports = ("National Sports Day: Delivery Boy to Champion Runner 1500m race "
+                   "नागपूरच्या गौरवची चमकदार कामगिरी मैदानावर वडील ट्रक ड्रायव्हर")
+        _k, _w2 = screen(_sports, "", "marathi.abplive.com", "http://x", "2026-08-29")
+        assert not _k, f"sports story must be dropped, was kept ({_w2})"
 
         print("SELF-TEST PASSED")
     else:
