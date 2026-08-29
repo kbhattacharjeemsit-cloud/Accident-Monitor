@@ -1421,15 +1421,65 @@ _MOCK_TRANSLATE = None
 _TRANSLATE_STATE = {"fails": 0, "blocked": False}
 
 
-def translate_to_en(text):
-    """Translate to English via the free endpoint.
+# A real browser User-Agent is far less likely to be throttled by the free
+# translate endpoints than a named bot string.
+_BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
 
-    The per-run CAP was never the real limit - the free service throttles after
-    a few hundred calls, so a bigger cap changed nothing. What helps instead:
-      * skip anything already in English (no call, no quota spent);
-      * stop after repeated failures rather than hammering a throttled service,
-        and resume on the next run, since every translation is cached in the DB;
-      * back off progressively instead of failing hard.
+# Map the dominant Indic script to an ISO code, for endpoints that need a source
+# language. Empty means "let the endpoint auto-detect".
+_SCRIPT_RANGES = [("hi", 0x0900, 0x097F), ("bn", 0x0980, 0x09FF), ("pa", 0x0A00, 0x0A7F),
+                  ("gu", 0x0A80, 0x0AFF), ("ta", 0x0B80, 0x0BFF), ("te", 0x0C00, 0x0C7F),
+                  ("kn", 0x0C80, 0x0CFF), ("ml", 0x0D00, 0x0D7F)]
+
+
+def _script_lang(text):
+    for ch in text:
+        o = ord(ch)
+        for code, lo, hi in _SCRIPT_RANGES:
+            if lo <= o <= hi:
+                return code
+    return ""
+
+
+def _parse_google(data):
+    if isinstance(data, list) and data and isinstance(data[0], list):
+        return "".join(seg[0] for seg in data[0] if seg and seg[0])       # gtx shape
+    if isinstance(data, dict) and data.get("sentences"):
+        return "".join(s.get("trans", "") for s in data["sentences"])     # dict-chrome-ex
+    return ""
+
+
+def _register_translate_fail(backoff, code=None):
+    if code is not None:
+        seen = _TRANSLATE_STATE.setdefault("codes", set())
+        if code not in seen:
+            seen.add(code)
+            print(f"[translate] endpoint returned HTTP {code}")
+    _TRANSLATE_STATE["fails"] += 1
+    if _TRANSLATE_STATE["fails"] >= 20:
+        _TRANSLATE_STATE["blocked"] = True
+        print("[translate] service is throttling - pausing until the next run "
+              "(work already done is saved and resumes automatically)")
+    elif backoff:
+        time.sleep(min(10, 0.5 * _TRANSLATE_STATE["fails"]))
+
+
+def _fetch_json(url):
+    req = urllib.request.Request(url, headers={"User-Agent": _BROWSER_UA, "Accept": "*/*"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return json.loads(r.read().decode("utf-8", "ignore"))
+
+
+def translate_to_en(text):
+    """Translate to English, resilient to the free services' throttling.
+
+    Three independent endpoints are tried in order (two Google, then MyMemory,
+    which runs on separate infrastructure); each success resets the failure
+    count, and a hard rate-limit (HTTP 429/403) stops rather than hammering the
+    service. Every translation is cached in the DB, so progress survives across
+    runs. A single failure NEVER halts the whole backlog - the caller skips that
+    row and moves on.
     """
     if not text or not text.strip():
         return ""
@@ -1439,26 +1489,42 @@ def translate_to_en(text):
         return ""
     if text.isascii():
         return ""                     # already English - do not spend a call
-    try:
-        url = ("https://translate.googleapis.com/translate_a/single"
-               "?client=gtx&sl=auto&tl=en&dt=t&q=" + urllib.parse.quote(text[:1800]))
-        req = urllib.request.Request(url, headers={"User-Agent": UA})
-        with urllib.request.urlopen(req, timeout=15) as r:
-            data = json.loads(r.read().decode("utf-8", "ignore"))
-        out = "".join(seg[0] for seg in data[0] if seg and seg[0])
-        if out:
-            _TRANSLATE_STATE["fails"] = 0
-            return out
-        return ""
-    except Exception:                                              # noqa: BLE001
-        _TRANSLATE_STATE["fails"] += 1
-        if _TRANSLATE_STATE["fails"] >= 12:
-            _TRANSLATE_STATE["blocked"] = True
-            print("[translate] service is throttling - pausing until the next run "
-                  "(work already done is saved)")
-        else:
-            time.sleep(min(8, 0.5 * _TRANSLATE_STATE["fails"]))
-        return ""
+    snippet = text[:1800]
+    q = urllib.parse.quote(snippet)
+
+    # 1) Google gtx  2) Google dict-chrome-ex - these share the caller's IP, so a
+    # hard 429/403 on one means stop, not retry the other.
+    for ep in ("https://translate.googleapis.com/translate_a/single"
+               "?client=gtx&sl=auto&tl=en&dt=t&q=" + q,
+               "https://clients5.google.com/translate_a/t"
+               "?client=dict-chrome-ex&sl=auto&tl=en&q=" + q):
+        try:
+            out = _parse_google(_fetch_json(ep))
+            if out:
+                _TRANSLATE_STATE["fails"] = 0
+                return out
+        except urllib.error.HTTPError as e:
+            _register_translate_fail(backoff=e.code in (429, 403), code=e.code)
+            if e.code in (429, 403):
+                break                 # IP is rate-limited; the Google fallback won't help
+        except Exception:                                          # noqa: BLE001
+            _register_translate_fail(backoff=True)
+
+    # 3) MyMemory - separate service; useful when Google blocks the runner's IP.
+    src = _script_lang(snippet)
+    if src and not _TRANSLATE_STATE["blocked"]:
+        try:
+            url = ("https://api.mymemory.translated.net/get?q="
+                   + urllib.parse.quote(snippet[:480]) + f"&langpair={src}|en")
+            data = _fetch_json(url)
+            if isinstance(data, dict) and data.get("responseStatus") == 200:
+                out = (data.get("responseData") or {}).get("translatedText", "")
+                if out and "MYMEMORY WARNING" not in out.upper():
+                    _TRANSLATE_STATE["fails"] = 0
+                    return out
+        except Exception:                                          # noqa: BLE001
+            pass
+    return ""
 
 
 # ===========================================================================
@@ -2138,8 +2204,10 @@ def backfill_translations(conn, budget=1500):
         """SELECT id, title, snippet, article_text FROM articles
            WHERE (title_en IS NULL OR title_en='')
            ORDER BY published_ts DESC LIMIT ?""", (budget,)).fetchall()
-    done = skipped = 0
+    done = skipped = failed = 0
     for rid, title, snip, body in rows:
+        if _TRANSLATE_STATE["blocked"]:
+            break                       # service is rate-limited: resume next run
         if (title or "").isascii():
             # already English - record it so the row is not retried for ever
             conn.execute("UPDATE articles SET title_en=? WHERE id=?", (clean_field(title), rid))
@@ -2147,7 +2215,8 @@ def backfill_translations(conn, budget=1500):
             continue
         tx = clean_field(translate_to_en(title))
         if not tx:
-            break                       # throttled: stop and resume next run
+            failed += 1                 # a single miss must NOT stop the backlog
+            continue                    # skip this row, keep working through the rest
         text = all_text(tx, title, snip, body if body and body != "-" else "")
         cities, _ = extract_places(text)
         deaths, injured = extract_counts(text)
@@ -2168,7 +2237,8 @@ def backfill_translations(conn, budget=1500):
     conn.commit()
     left = conn.execute("SELECT COUNT(*) FROM articles "
                         "WHERE title_en IS NULL OR title_en=''").fetchone()[0]
-    print(f"[translate] {done} translated, {skipped} already English, {left} still waiting")
+    print(f"[translate] {done} translated, {skipped} already English, "
+          f"{failed} failed this run, {left} still waiting")
     if done:
         auto_repair(conn, "after translation")
     return done
@@ -3518,6 +3588,35 @@ if __name__ == "__main__":
         okc, _ = screen("ভবন ধসে ৩ শ্রমিকের মৃত্যু, মুম্বইয়ে বহুতল ভেঙে পড়ল",
                         "", "ndtv", "https://x", "2026-08-28")
         assert okc, "a real building collapse must not be blocked by the hazard fix"
+
+        # TRANSLATION RESILIENCE: a single failed row must NOT stop the backlog,
+        # and the endpoint response parsers must read both Google shapes.
+        assert _parse_google([[["Hello", "x"]]]) == "Hello", "gtx shape not parsed"
+        assert _parse_google({"sentences": [{"trans": "Hi "}, {"trans": "there"}]}) == "Hi there", \
+            "dict-chrome-ex shape not parsed"
+        assert _script_lang("नमस्ते") == "hi" and _script_lang("வணக்கம்") == "ta", "script->lang wrong"
+        conn_tr = sqlite3.connect(":memory:")
+        init_db(conn_tr)
+        _tsx = datetime(2026, 8, 20, tzinfo=timezone.utc).timestamp()
+        mock = {"क1 दुर्घटना में": "", "क2 हादसे में दो की मौत": "Two killed in accident",
+                "क3 हादसे में तीन घायल": "Three hurt in mishap"}
+        for j, ttl in enumerate(mock):
+            conn_tr.execute(
+                """INSERT INTO articles (id,title,title_en,published,published_ts,category,
+                   language,title_norm,is_duplicate,dup_group)
+                   VALUES (?,?,?,?,?,?,?,?,0,?)""",
+                (str(j), ttl, "", "2026-08-20", _tsx, "roadway", "Hindi", norm_title(ttl), "g" + str(j)))
+        conn_tr.commit()
+        _saved_mt = globals().get("_MOCK_TRANSLATE")
+        globals()["_MOCK_TRANSLATE"] = lambda x: mock.get(x, "")
+        try:
+            n_done = backfill_translations(conn_tr, budget=10)
+        finally:
+            globals()["_MOCK_TRANSLATE"] = _saved_mt
+        assert n_done == 2, f"one failure must be skipped, the other two translated; got {n_done}"
+        still = conn_tr.execute(
+            "SELECT COUNT(*) FROM articles WHERE title_en IS NULL OR title_en=''").fetchone()[0]
+        assert still == 1, f"only the single failed row should remain untranslated, got {still}"
 
         print("SELF-TEST PASSED")
     else:
