@@ -2396,7 +2396,8 @@ def export_accidents(conn, events, path="ACCIDENTS.csv"):
             e["injured"] if e["injured"] is not None else "",
             e["severity"], e["tod"], e["gender"], e["ages"],
             standardise_cause(e), e["cause"], e["n"],
-            e["outlets"], e["headline"], e["headline_en"], e["url"]])
+            e["outlets"], e["headline"], e["headline_en"], e["url"],
+            e.get("cause_text", "")])
     rows.sort(key=lambda r: r[0], reverse=True)
     with _w(path) as f:
         w = csv.writer(f)
@@ -2404,7 +2405,8 @@ def export_accidents(conn, events, path="ACCIDENTS.csv"):
                     "City / Place", "Killed", "Injured", "Severity", "Time of Day",
                     "Victim Gender", "Victim Age(s)", "Reported Cause (standardised)",
                     "Reported Cause (as written)", "Times Reported",
-                    "Reported By", "Headline", "Headline (English)", "Link"])
+                    "Reported By", "Headline", "Headline (English)", "Link",
+                    "Full Text (all sources)"])
         for r in rows:
             w.writerow([v if isinstance(v, int) else clean_field(v) for v in r])
     return len(rows)
