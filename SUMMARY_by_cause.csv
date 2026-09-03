@@ -1,43 +1,43 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,124,213,86
-Overturning,87,154,425
-Overspeeding,86,164,282
-Head-on collision,44,100,236
-Fire,44,79,107
-Driver lost control,43,73,124
+Building collapse,131,224,116
+Overturning,89,160,425
+Overspeeding,88,166,332
+Fire,46,129,107
+Head-on collision,46,104,243
+Driver lost control,44,73,133
+Hit while on track,41,37,7
 Explosion / blast,40,388,62
-Hit while on track,40,36,7
 Derailment,31,7,11
-Hit divider or barrier,24,30,33
-Bridge or flyover failure,19,12,39
-Slab or roof collapse,17,23,15
-Struck by falling material,16,36,19
+Hit divider or barrier,25,30,33
+Bridge or flyover failure,20,12,39
+Slab or roof collapse,19,24,15
+Struck by falling material,17,38,19
 Crane failure,14,8,265
 Hit stationary vehicle,11,48,51
 Electrocution,11,21,46
+Wall collapse,11,21,8
 Pothole or bad road,11,7,13
 Gas leak,10,26,7
-Wall collapse,10,17,8
-Brake failure,10,1,66
+Brake failure,10,1,73
 Drowning,7,27,0
-Level crossing,5,62,0
-Shuttering / formwork failure,4,54,0
+Level crossing,6,62,0
+Shuttering / formwork failure,5,54,11
 Boiler explosion,4,5,0
+Cylinder or LPG explosion,3,4,32
+Excavation or trench collapse,3,4,40
 Tyre burst,3,3,0
 Drunk driving,3,0,4
 Lift / hoist failure,3,0,3
 Road cave-in or subsidence,3,0,0
 Suffocation / toxic fumes,2,11,0
 Vehicle fell into gorge or water,2,7,11
-Cylinder or LPG explosion,2,4,0
 Wrong-side driving,2,2,0
-Excavation or trench collapse,2,1,40
 Rear-end collision,2,1,2
 Fall from height,1,5,0
 Aircraft technical failure,1,0,0
 Demolition failure,1,0,0
 Wet or slippery road,1,0,0
-Not stated,1689,3985,3517
-TOTAL,2429,5610,5479
+Not stated,1785,4468,3694
+TOTAL,2552,6177,5802
 
-"Cause identified for 740 of 2429 accidents (30%). Causes are as first reported, not verified.",,,
+"Cause identified for 767 of 2552 accidents (30%). Causes are as first reported, not verified.",,,
