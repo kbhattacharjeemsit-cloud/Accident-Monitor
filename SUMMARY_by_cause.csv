@@ -1,31 +1,31 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,142,231,120
-Overturning,101,164,561
-Overspeeding,94,168,345
+Building collapse,148,239,123
+Overturning,104,170,561
+Overspeeding,95,168,345
 Fire,56,137,98
-Driver lost control,50,80,147
-Head-on collision,48,112,346
-Explosion / blast,47,403,64
-Hit while on track,45,39,7
-Derailment,35,7,11
-Hit divider or barrier,30,32,40
-Bridge or flyover failure,26,14,39
-Slab or roof collapse,24,30,30
-Struck by falling material,19,38,19
+Driver lost control,51,80,147
+Head-on collision,49,114,346
+Hit while on track,49,53,7
+Explosion / blast,48,407,64
+Derailment,36,7,11
+Hit divider or barrier,34,36,40
+Bridge or flyover failure,27,14,39
+Slab or roof collapse,25,30,39
+Struck by falling material,20,38,19
 Crane failure,16,9,265
-Hit stationary vehicle,13,48,131
+Hit stationary vehicle,14,56,131
+Pothole or bad road,14,17,13
 Electrocution,13,23,46
-Pothole or bad road,13,9,13
-Wall collapse,12,21,8
+Wall collapse,11,19,8
 Brake failure,11,2,66
 Gas leak,10,26,7
 Drowning,7,27,0
 Level crossing,5,60,0
 Shuttering / formwork failure,5,53,11
 Boiler explosion,5,8,0
+Cylinder or LPG explosion,4,4,35
 Drunk driving,4,0,4
 Lift / hoist failure,4,0,3
-Cylinder or LPG explosion,3,4,35
 Excavation or trench collapse,3,4,40
 Tyre burst,3,3,0
 Rear-end collision,3,1,2
@@ -40,7 +40,7 @@ Fog or poor visibility,1,0,0
 Launching girder / segment failure,1,0,0
 Overloading,1,0,0
 Wet or slippery road,1,0,0
-Not stated,1760,3998,3475
-TOTAL,2623,5772,5944
+Not stated,1840,4374,3573
+TOTAL,2730,6200,6054
 
-"Cause identified for 863 of 2623 accidents (32%). Causes are as first reported, not verified.",,,
+"Cause identified for 890 of 2730 accidents (32%). Causes are as first reported, not verified.",,,
