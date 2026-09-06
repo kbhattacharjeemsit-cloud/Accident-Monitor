@@ -1,46 +1,46 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,148,239,123
-Overturning,104,170,561
-Overspeeding,95,168,345
-Fire,56,137,98
-Driver lost control,51,80,147
+Building collapse,152,250,123
+Overturning,106,178,566
+Overspeeding,99,184,345
+Fire,58,210,98
+Driver lost control,52,80,147
+Explosion / blast,49,408,64
 Head-on collision,49,114,346
 Hit while on track,49,53,7
-Explosion / blast,48,407,64
-Derailment,36,7,11
-Hit divider or barrier,34,36,40
-Bridge or flyover failure,27,14,39
-Slab or roof collapse,25,30,39
-Struck by falling material,20,38,19
+Derailment,40,7,11
+Hit divider or barrier,35,36,40
+Bridge or flyover failure,29,19,39
+Slab or roof collapse,26,30,39
+Struck by falling material,21,38,19
 Crane failure,16,9,265
+Electrocution,15,25,46
+Pothole or bad road,15,17,13
 Hit stationary vehicle,14,56,131
-Pothole or bad road,14,17,13
-Electrocution,13,23,46
+Brake failure,12,5,66
 Wall collapse,11,19,8
-Brake failure,11,2,66
 Gas leak,10,26,7
 Drowning,7,27,0
 Level crossing,5,60,0
 Shuttering / formwork failure,5,53,11
 Boiler explosion,5,8,0
-Cylinder or LPG explosion,4,4,35
+Cylinder or LPG explosion,5,7,35
 Drunk driving,4,0,4
 Lift / hoist failure,4,0,3
+Rear-end collision,3,9,2
 Excavation or trench collapse,3,4,40
 Tyre burst,3,3,0
-Rear-end collision,3,1,2
 Road cave-in or subsidence,3,0,0
 Suffocation / toxic fumes,2,7,0
 Vehicle fell into gorge or water,2,7,11
 Wrong-side driving,2,2,0
+Overloading,2,0,0
 Fall from height,1,5,0
 Aircraft technical failure,1,0,0
 Demolition failure,1,0,0
 Fog or poor visibility,1,0,0
 Launching girder / segment failure,1,0,0
-Overloading,1,0,0
 Wet or slippery road,1,0,0
-Not stated,1840,4374,3573
-TOTAL,2730,6200,6054
+Not stated,1949,4817,3920
+TOTAL,2868,6773,6406
 
-"Cause identified for 890 of 2730 accidents (32%). Causes are as first reported, not verified.",,,
+"Cause identified for 919 of 2868 accidents (32%). Causes are as first reported, not verified.",,,
