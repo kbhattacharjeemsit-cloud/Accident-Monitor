@@ -561,7 +561,16 @@ NOT_ACCIDENT_NATIVE = ["हत्या", "मर्डर", "दंगा", "�
     "आंदोलन", "கொலை", "தாக்குதல்", "தற்கொலை", "போராட்டம்",
     "హత్య", "దాడి", "ఆత్మహత్య", "నిరసన", "ಕೊಲೆ", "ದಾಳಿ", "ಆತ್ಮಹತ್ಯೆ", "ಪ್ರತಿಭಟನೆ",
     "കൊലപാതകം", "ആക്രമണം", "ആത്മഹത്യ", "പ്രതിഷേധം",
-    "હત્યા", "હુમલો", "આત્મહત્યા", "વિરોધ", "ਕਤਲ", "ਹਮਲਾ", "ਖ਼ੁਦਕੁਸ਼ੀ", "ਪ੍ਰਦਰਸ਼ਨ"]
+    "હત્યા", "હુમલો", "આત્મહત્યા", "વિરોધ", "ਕਤਲ", "ਹਮਲਾ", "ਖ਼ੁਦਕੁਸ਼ੀ", "ਪ੍ਰਦਰਸ਼ਨ",
+    # CRIME / POLICE vocabulary. A theft carried out with a JCB ("पाइपलाइन उखाड़ने
+    # ... दो शातिर, पुलिस ने दबोच लिया") was passing the accident gate because
+    # "गिर" (fell) matches inside "गिरफ्तार" (arrested) and "दब" (crushed) inside
+    # "दबोच" (nabbed). NOT_ACCIDENT is tested BEFORE the accident cues, so naming
+    # the crime words here settles it correctly.
+    "चोरी", "चुरा", "गिरफ्तार", "गिरफ्तारी", "आरोपी", "आरोपित", "दबोच", "वारदात",
+    "लूट", "डकैती", "तस्कर", "तस्करी", "शातिर", "अपराधी", "धोखाधड़ी", "ठगी", "जालसाज",
+    "গ্রেপ্তার", "গ্রেফতার", "অভিযুক্ত", "চুরি", "ডাকাতি", "ছিনতাই",
+    "अटक", "लूटमार", "फसवणूक"]
 
 NATURAL_HAZARD = re.compile(
     r"\b(?:flood\w*|deluge|inundat\w*|landslide|landslip|mudslide|cloudburst|avalanche|"
@@ -675,11 +684,28 @@ AGGREGATE_NATIVE = [
 ]
 
 
+# Compensation / ex-gratia announcements are aftermath, not a report of a fresh
+# accident (METHODOLOGY treats these as non-events, like the English cues already
+# in NOT_EVENT_REPORT). Two real rows slipped through with the PAYOUT read as a
+# death toll: "...की मौत पर परिजनों को 18.95 लाख मुआवजा" and "...मौत पर पत्नी को
+# मिलेंगे 15 लाख रुपये". Naming the native money/relief vocabulary drops them.
+COMPENSATION = re.compile(
+    r"\b(?:ex-?gratia|solatium|compensation|relief (?:amount|fund)|claim settled|"
+    r"final payout|insurance payout)\b"
+    r"|मुआवज़?ा|अनुग्रह राशि|राहत राशि|सहायता राशि|आर्थिक सहायता|"
+    r"(?:लाख|करोड़)\s*(?:रुपये|रुपए|रुपयों|रु)|(?:रुपये|रुपए)\s*(?:की\s*)?(?:सहायता|मदद|अनुदान)|"
+    r"ক্ষতিপূরণ|আর্থিক সাহায্য|(?:লাখ|কোটি)\s*টাকা|"
+    r"नुकसान भरपाई|मदतनिधी|(?:लाख|कोटी)\s*रुपये", re.I)
+
+
 def currency_verdict(text, published_date):
     if not text:
         return "not_event"
     # a statistical round-up written in an Indian language
     if any(w in text for w in AGGREGATE_NATIVE):
+        return "not_event"
+    # a compensation / ex-gratia announcement is not a fresh accident report
+    if COMPENSATION.search(text):
         return "not_event"
     if NOT_EVENT_REPORT.search(text):
         return "not_event"
@@ -968,6 +994,25 @@ def _clean_numbers(text):
     t = re.sub(r"\d{1,4}\s*(?:മാസങ്ങളിൽ|മാസം|ദിവസം|മണിക്കൂർ)", " ", t)
     t = re.sub(r"\d{1,4}\s*(?:મહિનામાં|મહિના|દિવસ|કલાક)", " ", t)
     t = re.sub(r"\d{1,4}\s*(?:ਮਹੀਨਿਆਂ|ਮਹੀਨੇ|ਦਿਨ|ਘੰਟੇ)", " ", t)
+    # Calendar dates are not casualties. "...की मौत: 11 सितंबर को टक्कर" was
+    # recording the 11 (11 September) as 11 killed. Strip day+month in English and
+    # Hindi (both day-first and month-first English orders).
+    t = re.sub(r"\b\d{1,2}\s*(?:january|february|march|april|may|june|july|august|"
+               r"september|october|november|december|jan|feb|mar|apr|jun|jul|aug|"
+               r"sept?|oct|nov|dec)\b", " ", t, flags=re.I)
+    t = re.sub(r"\b(?:january|february|march|april|may|june|july|august|september|"
+               r"october|november|december)\s*\d{1,2}\b", " ", t, flags=re.I)
+    t = re.sub(r"\d{1,2}\s*(?:जनवरी|फरवरी|फ़रवरी|मार्च|अप्रैल|अप्रेल|मई|जून|जुलाई|"
+               r"अगस्त|सितंबर|सितम्बर|अक्टूबर|अक्तूबर|नवंबर|नवम्बर|दिसंबर|दिसम्बर)", " ", t)
+    # Money amounts are not casualties. "18.95 लाख", "15 लाख रुपये", "₹20 crore"
+    # were being read as death tolls. Handle decimals and the native amount words
+    # (the English lakh/crore strip below never fired on Devanagari "लाख").
+    t = re.sub(r"[₹\u20b9]\s*\d+(?:[.,]\d+)?", " ", t)
+    t = re.sub(r"\b(?:rs\.?|inr)\s*\d+(?:[.,]\d+)?", " ", t, flags=re.I)
+    t = re.sub(r"\b\d+(?:[.,]\d+)?\s*(?:lakh|lakhs|crore|crores|thousand|rupees?)\b",
+               " ", t, flags=re.I)
+    t = re.sub(r"\d+(?:[.,]\d+)?\s*(?:लाख|करोड़|करोड|कोटी|हज़ार|हजार|अरब|रुपये|रुपए|रुपयों|रु\.?)", " ", t)
+    t = re.sub(r"\d+(?:[.,]\d+)?\s*(?:লাখ|কোটি|হাজার|টাকা)", " ", t)
     t = re.sub(r"\b(?:aged|age)\s*\d{1,3}\b", " ", t, flags=re.I)
     t = re.sub(r"\b([A-Za-z]+)\s*,\s*\d{1,3}\s*,", r" \1 ", t)
     t = re.sub(r"\b\d+(?:\.\d+)?\s*(?:%|per\s*cent|percent)", " ", t, flags=re.I)
@@ -1597,6 +1642,37 @@ PARA_RE = re.compile(r"<p[^>]*>(.*?)</p>", re.I | re.S)
 TAG_RE = re.compile(r"<[^>]+>")
 OG_IMG = re.compile(r'<meta[^>]+og:image["\'][^>]+content=["\']([^"\']+)["\']', re.I)
 
+# <script> and <style> blocks, and HTML comments. Stripping tags alone left the
+# JavaScript BETWEEN the tags in the text, so publisher feeds (Dainik Bhaskar in
+# particular) carried pages of googletag ad code into the article body.
+_SCRIPT_STYLE = re.compile(r"(?is)<(?:script|style)\b[^>]*>.*?</(?:script|style)>|<!--.*?-->")
+# App-navigation / ad chrome that trails the article text in some feeds. The
+# article always leads and the chrome trails, so cutting at the first of these
+# markers keeps the story and drops the junk.
+_JUNK_CUT = re.compile(
+    r"फ्री ई-?पेपर|पर्सनलाइज़्ड फ़ीड|पर्सनलाइज़्ड नोटिफ़िकेशन|लॉयल्टी रिवॉर्ड्स|"
+    r"चलते-फिरते ख़बरें|डाउनलोड करें|free e-?paper|personali[sz]ed feed|"
+    r"document\.\w|googletag|is_premium_user|is_mobile\b|addEventListener|"
+    r"function\s*\(|window\.\w|var\s+\w+\s*=|gam_key_values|querySelector", re.I)
+
+
+def strip_html(s):
+    """Remove <script>/<style>/comment BLOCKS (content included), then tags."""
+    if not s:
+        return ""
+    return TAG_RE.sub(" ", _SCRIPT_STYLE.sub(" ", s))
+
+
+def clean_body(text):
+    """Article text with script/style blocks and trailing page-chrome removed."""
+    if not text:
+        return ""
+    text = strip_html(text)
+    m = _JUNK_CUT.search(text)
+    if m:
+        text = text[:m.start()]      # story leads, ad/nav chrome trails
+    return re.sub(r"\s+", " ", text).strip()
+
 
 def fetch_article(url, max_chars=1400):
     real = resolve_url(url)
@@ -1609,13 +1685,13 @@ def fetch_article(url, max_chars=1400):
     img = OG_IMG.search(page)
     parts = []
     for p in PARA_RE.findall(page)[:14]:
-        t = re.sub(r"\s+", " ", html.unescape(TAG_RE.sub(" ", p))).strip()
+        t = re.sub(r"\s+", " ", html.unescape(strip_html(p))).strip()
         if len(t) > 60 and not t.lower().startswith(("subscribe", "follow us", "also read",
                                                      "read more", "advertisement", "copyright")):
             parts.append(t)
         if sum(len(x) for x in parts) > max_chars:
             break
-    body = " ".join(parts)[:max_chars]
+    body = clean_body(" ".join(parts))[:max_chars]
     if is_boilerplate(body):
         return final or "", "", ""
     return (final or ""), (html.unescape(img.group(1)) if img else ""), body
@@ -1683,7 +1759,7 @@ def parse_feed(xml_bytes, language, query):
         title = clean_field((item.findtext("title") or "").strip())
         if not title:
             continue
-        desc = clean_field(re.sub(r"<[^>]+>", " ", item.findtext("description") or ""))
+        desc = clean_field(clean_body(item.findtext("description") or ""))
         # Many publishers put the WHOLE article in <content:encoded> (or
         # media:description / summary). It is already downloaded with the feed,
         # needs no page fetch, and is not blocked by anything - the single
@@ -1692,7 +1768,7 @@ def parse_feed(xml_bytes, language, query):
         for el in item:
             tag = el.tag.split("}")[-1]
             if tag in ("encoded", "summary", "description", "articleBody") and el.text:
-                cand = clean_field(re.sub(r"<[^>]+>", " ", el.text))
+                cand = clean_field(clean_body(el.text))
                 if len(cand) > len(body):
                     body = cand
         if len(body) < len(desc):
@@ -1795,16 +1871,33 @@ STOPW = {"the", "and", "for", "with", "after", "near", "from", "were", "was", "h
          "year", "old", "today", "yesterday", "morn", "night", "live", "lost", "due"}
 
 
+# Native-script equivalents of STOPW plus the most common Hindi function words
+# and number words. content_words used to extract Latin words only, so a Hindi
+# report produced an EMPTY word set - which is why two near-identical Hindi
+# headlines had no overlap anchor and never merged. Filtering these generic
+# tokens keeps unrelated Hindi accidents from over-merging on shared filler.
+STOPW_NATIVE = {
+    "में", "की", "के", "का", "को", "से", "पर", "और", "है", "था", "थे", "हुई", "हुए",
+    "पर", "बाद", "दौरान", "समय", "गई", "गए", "कारण", "यहां", "वहां", "जब", "तब",
+    "मौत", "मृत", "मृतक", "मृत्यु", "घायल", "दुर्घटना", "हादसा", "हादसे", "हादसों",
+    "पुलिस", "लोग", "लोगों", "व्यक्ति", "जिले", "जिला", "गांव", "समाचार", "खबर",
+    "एक", "दो", "तीन", "चार", "पांच", "पाँच", "छह", "सात", "आठ", "नौ", "दस",
+}
+
+
 def content_words(t):
-    """Meaningful words, lightly stemmed so 'collapse' and 'collapses' match."""
+    """Meaningful words, lightly stemmed so 'collapse' and 'collapses' match.
+    Latin words are stemmed; Indic-script tokens are kept whole (with generic
+    filler removed) so native-language duplicates get an overlap anchor too."""
     out = set()
-    for w in re.findall(r"[a-z]{4,}", (t or "").lower()):
-        if w in STOPW:
+    for w in re.findall(r"[a-z]{4,}|[\u0900-\u0d7f]{3,}", (t or "").lower()):
+        if w in STOPW or w in STOPW_NATIVE:
             continue
-        for suf in ("ing", "ed", "es", "s"):
-            if len(w) > 4 and w.endswith(suf):
-                w = w[: -len(suf)]
-                break
+        if w.isascii():
+            for suf in ("ing", "ed", "es", "s"):
+                if len(w) > 4 and w.endswith(suf):
+                    w = w[: -len(suf)]
+                    break
         out.add(w)
     return out
 
@@ -2007,7 +2100,12 @@ def rededupe(conn):
                              and a["fp"]["place"] & b["fp"]["place"])
             da_, db_ = a["deaths"], b["deaths"]
             same_toll = da_ is not None and db_ is not None and abs(da_ - db_) <= 1
-            if not (same_town or same_toll or ov >= 0.60):
+            # A near-identical headline is its own anchor - needed for native-script
+            # reports that expose no romanised place and no casualty number (three
+            # copies of one Bhaskar story shared 99% of their title but nothing the
+            # other anchors could see). The 0.80 fingerprint bar still decides.
+            title_ratio = SequenceMatcher(None, a["title_norm"], b["title_norm"]).ratio()
+            if not (same_town or same_toll or ov >= 0.60 or title_ratio >= TITLE_DUP_THRESHOLD):
                 continue
             is_followup = gap > EVENT_DATE_WINDOW_DAYS * 86400
             sim = fingerprint_similarity(a["fp"], b["fp"], ov, followup=is_followup)
@@ -3651,6 +3749,67 @@ if __name__ == "__main__":
                    "नागपूरच्या गौरवची चमकदार कामगिरी मैदानावर वडील ट्रक ड्रायव्हर")
         _k, _w2 = screen(_sports, "", "marathi.abplive.com", "http://x", "2026-08-29")
         assert not _k, f"sports story must be dropped, was kept ({_w2})"
+
+        # ---- CRIME / THEFT stories are not accidents (JCB pipeline theft). ----
+        # "गिर" (fell) hid inside "गिरफ्तार" (arrested) and "दब" (crushed) inside
+        # "दबोच" (nabbed), so a theft passed the accident gate.
+        for t in ["जेसीबी लेकर फिर पाइपलाइन उखाड़ने पहुंचे थे दो शातिर, पुलिस ने दबोच लिया",
+                  "जमीन के नीचे से सरकारी पाइप लाइन चुराई, जेसीबी से खोदे गड्ढे; दो गिरफ्तार"]:
+            k, why = screen(t, "", "bhaskar.com", "https://x", "2026-09-14")
+            assert not k, f"crime story kept ({why}): {t[:40]}"
+        # a real building collapse using the same failure words must still pass
+        assert screen("अहमदाबाद में भरभराकर गिरा दो मंजिला मकान, महिला की मौत, तीन घायल",
+                      "", "bhaskar.com", "https://x", "2026-09-14")[0]
+
+        # ---- A DATE is not a death toll: "11 सितंबर" (11 September). ----
+        assert extract_counts(
+            "घायल डीएसपी की मौत: 11 सितंबर को भारी वाहन ने मारी थी टक्कर")[0] != 11, \
+            "day-of-month read as a death toll"
+        assert extract_counts("Man killed on 11 September in Bhopal crash") == (1, None)
+
+        # ---- MONEY is not a death toll, and compensation is not an event. ----
+        for t in ["सड़क हादसे में युवक की मौत पर परिजनों को 18.95 लाख मुआवजा",
+                  "हादसे में पति की मौत पर पत्नी को मिलेंगे 15 लाख रुपये"]:
+            k, why = screen(t, "", "Amar Ujala", "", "2026-09-12")
+            assert not k, f"compensation announcement kept ({why}): {t[:40]}"
+        assert extract_counts("मृतक के परिजनों को 18.95 लाख रुपये")[0] is None, "money as toll"
+        assert extract_counts("Family to get Rs 15 lakh in road crash") == (None, None), \
+            "money leaked as a toll in English"
+        assert extract_counts("Rs 15 lakh given, one man died in the crash") == (1, None), \
+            "money stripped but a real single death must still be counted"
+        # a real accident that merely mentions rupees of damage is still fine to count
+        assert screen("Three killed as bus overturns near Pune", "", "TOI", "", "2026-09-12")[0]
+
+        # ---- SCRIPT/STYLE blocks and app-nav chrome must leave the body. ----
+        assert clean_body("<p>मकान गिरा, तीन घायल</p>"
+                          "<script>googletag.cmd.push(function(){});</script>") \
+            == "मकान गिरा, तीन घायल"
+        # even when the JS/nav trails real text with no tags (worst case)
+        assert clean_body("मकान गिरा, तीन घायल फ्री ई-पेपर डाउनलोड करें "
+                          "document.addEventListener(\"x\", function(){})") \
+            == "मकान गिरा, तीन घायल"
+        assert "googletag" not in clean_body("ठीक है <script>var googletag={};</script>")
+
+        # ---- NATIVE-SCRIPT DUPLICATES must merge (they had no anchor before,
+        # because content_words was Latin-only), while unrelated ones must not. ----
+        def _hindi_dedupe(rows):
+            cc = sqlite3.connect(":memory:"); init_db(cc); s = {}
+            for i, (ttl, src) in enumerate(rows):
+                store(cc, [{"title": ttl, "snippet": "", "body": "", "url": "http://x/" + str(i),
+                            "source": src, "language": "Hindi", "query": "q",
+                            "published": "2026-09-14",
+                            "published_ts": datetime(2026, 9, 14, tzinfo=timezone.utc).timestamp()}], s)
+            rededupe(cc)
+            return cc.execute("SELECT COUNT(*) FROM articles WHERE is_duplicate=0").fetchone()[0]
+        assert _hindi_dedupe([
+            ("मुंबई में निर्माणाधीन इमारत का हिस्सा गिरा, दो मजदूर घायल", "Bhaskar"),
+            ("मुंबई में निर्माणाधीन इमारत का एक हिस्सा गिरा, दो मजदूर घायल", "Amar Ujala"),
+        ]) == 1, "near-identical Hindi reports must merge"
+        assert _hindi_dedupe([
+            ("पुणे में बस पलटने से तीन की मौत", "Bhaskar"),
+            ("इंदौर में ट्रक पलटने से तीन की मौत", "Amar Ujala"),
+        ]) == 2, "unrelated Hindi accidents must stay separate"
+        assert content_words("इमारत गिरने से मजदूर घायल"), "content_words must see Indic tokens"
 
         print("SELF-TEST PASSED")
     else:
