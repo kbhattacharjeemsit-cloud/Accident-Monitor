@@ -369,6 +369,8 @@ FOREIGN_PLACES = re.compile(
     r"congo|ghana|tanzania|uganda|south africa|johannesburg|morocco|algeria|tunisia|libya|"
     r"brazil|sao paulo|mexico|peru|lima|bolivia|colombia|bogota|argentina|chile|venezuela|"
     r"united states|u\.s\.|usa|america|american|alaska|texas|california|florida|new york|"
+    r"miami|atlanta|dallas|houston|boston|seattle|denver|orlando|phoenix|newark|minneapolis|"
+    r"los angeles|san francisco|las vegas|honolulu|louisville|"
     r"chicago|washington|canada|toronto|united kingdom|britain|british|england|london|"
     r"scotland|ireland|france|paris|germany|berlin|italy|rome|spain|madrid|portugal|poland|"
     r"warsaw|greece|athens|hungary|budapest|austria|vienna|switzerland|netherlands|belgium|"
@@ -639,6 +641,8 @@ def accident_verdict(text):
 OLD_EVENT = re.compile(
     r"\b(?:19\d{2}|200\d|201\d|202[0-5])\b|"
     r"\b\d{1,3}\s*(?:years?|yrs?|decades?)\s+(?:ago|after|since|of|on)\b|"
+    r"\b(?:a|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:years?|decades?)\s+"
+    r"(?:ago|after|since|of|on|later)\b|"
     r"\b(?:anniversary|remembering|looking back|flashback|history of|"
     r"back in (?:19|20)\d{2}|that fateful|even after)\b", re.I)
 
@@ -665,6 +669,9 @@ NOT_EVENT_REPORT = re.compile(
     r"how .{0,30}(?:changed|coped|survived)|the death of|way of the death|"
     r"perfect wedding|hours after saying|my son was|newlywed|"
     r"tribute|remembers|recalls|looks back|has (?:not|never) forgot\w*|"
+    r"this (?:week|month|year) in |weekly (?:wrap|round-?up|recap)|(?:month|year) in review|"
+    r"a look (?:at|back)|look(?:ing)? back at|in pictures|past (?:mishaps|accidents|crashes|"
+    r"incidents|disasters|tragedies)|list of (?:major )?(?:accidents|crashes|mishaps)|"
     r"stirred by|claims of|hidden in the .{0,20}report|"
     r"asked for|will not be made public|not caused by|did not happen due to)\b", re.I)
 
@@ -959,8 +966,27 @@ HUMANS = re.compile(r"\b(?:people|persons?|passengers?|men|man|women|woman|child
                     r"youths?|family|victims?|nationals?)\b", re.I)
 
 
+# Aircraft and helicopter TYPE designations carry numbers that are NOT casualties:
+# "AN-32" was recorded as 32 killed and "Mi-17" as 17. These are only stripped
+# when the text is actually about an aircraft, so "an 8-member family" or "a 320
+# sq ft room" in ordinary text is never touched.
+_AIRCRAFT_CTX = re.compile(
+    r"aircraft|aeroplane|airplane|\bplane\b|helicopter|chopper|air\s?force|\biaf\b|"
+    r"\bjet\b|fighter|sortie|squadron|airport|runway|boeing|airbus|sukhoi|\bmig\b|"
+    r"tejas|rafale|dornier|embraer|विमान|हेलिकॉप्टर|বিমান|விமான|విమానం|ವಿಮಾನ|വിമാനം|વિમાન|ਜਹਾਜ਼",
+    re.I)
+
+
 def _clean_numbers(text):
     t = text.translate(DIGITS)
+    # aircraft type designations (aviation context only)
+    if _AIRCRAFT_CTX.search(t):
+        t = re.sub(r"\b(?:il|mig|mi|su|tu|ka|atr|crj|dhc|erj|emb|kc)[-\s]?\d{1,3}[a-z]?\b",
+                   " ", t, flags=re.I)                       # Mi-17, IL-76, MiG-21, ATR-72
+        t = re.sub(r"\b(?:an|c|p|a|b)-\d{1,3}[a-z]?\b", " ", t, flags=re.I)  # AN-32, C-130, A-320
+        t = re.sub(r"\b[ab]\d{3}[a-z]?\b", " ", t, flags=re.I)               # A320, B737
+        t = re.sub(r"\b(?:boeing|airbus|dornier|embraer|bombardier|sukhoi|tupolev)"
+                   r"\s*-?\s*[a-z]?\d{1,3}[a-z]?\b", " ", t, flags=re.I)     # Boeing 737, Dornier 228
     # Outlet and channel names carry numbers that are NOT casualties: News18, TV9,
     # Zee 24, 24 Ghanta, 10TV, V6, P7, ABP7. The number in "News18 Telugu" was
     # being read as a death toll (a Telugu "six died" story became "18 died"). A
@@ -3810,6 +3836,30 @@ if __name__ == "__main__":
             ("इंदौर में ट्रक पलटने से तीन की मौत", "Amar Ujala"),
         ]) == 2, "unrelated Hindi accidents must stay separate"
         assert content_words("इमारत गिरने से मजदूर घायल"), "content_words must see Indic tokens"
+
+        # ---- AVIATION cross-check fixes ----
+        # aircraft TYPE designations are not casualties ("AN-32" -> 32, "Mi-17" -> 17)
+        assert extract_counts("IAF aircraft AN-32 crashes in Jorhat, pilot feared dead")[0] != 32
+        assert extract_counts("Mi-17 helicopter crashes, crew killed")[0] != 17
+        assert extract_counts("MiG-21 crashes near Barmer, pilot dead")[0] != 21
+        # but ordinary numbers outside aviation context must survive
+        assert extract_counts("An 8-member family killed in bus crash") == (8, None)
+        assert extract_counts("32 killed in bus plunge into gorge") == (32, None)
+        # a foreign crash reported by an Indian outlet must be dropped
+        for t in ["Miami Airport plane crash: what happened to Amazon's Boeing 767",
+                  "5 killed as Amazon cargo plane crashes off Miami runway"]:
+            assert not screen(t, "", "The Indian Express", "https://indianexpress.com/x",
+                              "2026-09-07")[0], f"foreign crash kept: {t[:40]}"
+        # anniversary / round-up / listicle aviation pieces are not fresh events
+        for t in ["One year after Ahmedabad plane crash, families still await justice",
+                  "This week in aviation: One year of Air India crash, storm damages aircraft",
+                  "IAF AN-32 Crash: A Look At Past Mishaps Involving The Cargo Plane"]:
+            assert not screen(t, "", "NDTV", "https://ndtv.com/x", "2026-06-12")[0], \
+                f"aviation retrospective kept: {t[:40]}"
+        # a genuine current Indian aviation accident must still be kept + classified
+        k_av, _ = screen("Garg Aviation trainer aircraft crashes in Kanpur, 2 killed",
+                         "", "The Times of India", "", "2026-08-27")
+        assert k_av and classify("Garg Aviation trainer aircraft crashes in Kanpur, 2 killed")[0] == "aviation"
 
         print("SELF-TEST PASSED")
     else:
