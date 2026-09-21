@@ -1,39 +1,39 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,244,330,141
-Overspeeding,163,322,463
-Overturning,151,270,812
-Fire,73,117,80
-Driver lost control,70,117,215
-Hit while on track,70,81,8
-Explosion / blast,63,478,69
-Head-on collision,59,167,355
+Building collapse,247,330,141
+Overspeeding,169,327,493
+Overturning,156,273,889
+Fire,76,117,80
+Driver lost control,74,118,280
+Hit while on track,73,83,8
+Explosion / blast,64,480,80
+Head-on collision,61,170,346
 Derailment,50,7,15
-Hit divider or barrier,45,64,49
-Slab or roof collapse,35,37,62
-Bridge or flyover failure,35,25,49
-Struck by falling material,32,46,294
-Electrocution,26,39,64
-Hit stationary vehicle,21,75,158
-Pothole or bad road,19,23,24
-Crane failure,19,13,280
+Hit divider or barrier,49,66,52
+Slab or roof collapse,37,39,66
+Struck by falling material,36,50,294
+Bridge or flyover failure,36,29,49
+Electrocution,28,39,68
+Hit stationary vehicle,23,79,166
+Pothole or bad road,21,29,50
+Crane failure,20,17,282
 Brake failure,18,9,76
 Wall collapse,15,25,13
-Gas leak,10,25,7
-Drowning,9,32,0
+Drowning,12,34,0
+Gas leak,11,27,8
 Cylinder or LPG explosion,7,9,35
+Drunk driving,7,0,11
 Level crossing,6,60,0
+Shuttering / formwork failure,6,53,11
 Boiler explosion,6,8,0
 Tyre burst,6,7,0
-Drunk driving,6,0,11
-Shuttering / formwork failure,5,53,11
 Excavation or trench collapse,5,4,40
+Demolition failure,4,0,0
 Lift / hoist failure,4,0,3
 Road cave-in or subsidence,4,0,0
 Overloading,3,8,0
 Vehicle fell into gorge or water,3,7,11
 Wrong-side driving,3,2,0
 Rear-end collision,3,1,2
-Demolition failure,3,0,0
 Suffocation / toxic fumes,2,7,0
 Scaffolding failure,2,6,22
 Fall from height,1,5,0
@@ -41,7 +41,7 @@ Aircraft technical failure,1,0,0
 Fog or poor visibility,1,0,0
 Launching girder / segment failure,1,0,0
 Wet or slippery road,1,0,0
-Not stated,2924,6330,5157
-TOTAL,4224,8809,8526
+Not stated,2781,5810,4797
+TOTAL,4133,8335,8388
 
-"Cause identified for 1300 of 4224 accidents (30%). Causes are as first reported, not verified.",,,
+"Cause identified for 1352 of 4133 accidents (32%). Causes are as first reported, not verified.",,,
