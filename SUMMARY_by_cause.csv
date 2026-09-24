@@ -1,28 +1,28 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,249,370,141
-Overspeeding,171,333,511
-Overturning,157,274,888
-Fire,77,119,80
-Hit while on track,77,84,8
+Building collapse,250,370,141
+Overspeeding,176,343,515
+Overturning,158,274,888
+Fire,83,137,80
+Hit while on track,78,86,8
 Driver lost control,74,110,280
-Explosion / blast,67,484,80
-Head-on collision,62,245,354
+Explosion / blast,69,493,80
+Head-on collision,63,248,354
 Hit divider or barrier,51,66,52
 Derailment,50,7,15
+Struck by falling material,38,53,294
 Bridge or flyover failure,38,29,69
-Struck by falling material,37,53,294
 Slab or roof collapse,37,39,66
 Electrocution,29,39,77
-Hit stationary vehicle,23,79,166
+Hit stationary vehicle,24,83,166
 Pothole or bad road,22,31,50
 Crane failure,21,17,282
-Brake failure,18,9,76
-Wall collapse,15,25,13
+Brake failure,19,9,76
+Wall collapse,16,26,13
 Drowning,13,35,0
 Gas leak,11,27,8
+Level crossing,7,60,0
 Cylinder or LPG explosion,7,9,35
 Drunk driving,7,0,11
-Level crossing,6,60,0
 Shuttering / formwork failure,6,53,11
 Boiler explosion,6,8,0
 Tyre burst,6,7,0
@@ -41,7 +41,7 @@ Aircraft technical failure,1,0,0
 Fog or poor visibility,1,0,0
 Launching girder / segment failure,1,0,0
 Wet or slippery road,1,0,0
-Not stated,2970,6437,5094
-TOTAL,4344,9089,8739
+Not stated,3067,6869,5162
+TOTAL,4463,9568,8811
 
-"Cause identified for 1374 of 4344 accidents (31%). Causes are as first reported, not verified.",,,
+"Cause identified for 1396 of 4463 accidents (31%). Causes are as first reported, not verified.",,,
