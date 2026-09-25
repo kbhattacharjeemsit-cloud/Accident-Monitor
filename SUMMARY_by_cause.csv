@@ -1,23 +1,23 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,250,370,141
-Overspeeding,176,343,515
-Overturning,158,274,888
-Fire,83,137,80
-Hit while on track,78,86,8
-Driver lost control,74,110,280
+Building collapse,250,377,141
+Overspeeding,178,344,515
+Overturning,163,281,947
+Fire,93,186,83
+Hit while on track,80,86,9
+Driver lost control,79,131,326
 Explosion / blast,69,493,80
-Head-on collision,63,248,354
+Head-on collision,65,250,354
+Derailment,53,7,15
 Hit divider or barrier,51,66,52
-Derailment,50,7,15
-Struck by falling material,38,53,294
-Bridge or flyover failure,38,29,69
+Struck by falling material,41,59,295
+Bridge or flyover failure,41,33,70
 Slab or roof collapse,37,39,66
-Electrocution,29,39,77
-Hit stationary vehicle,24,83,166
+Electrocution,31,69,78
+Hit stationary vehicle,25,87,166
 Pothole or bad road,22,31,50
 Crane failure,21,17,282
 Brake failure,19,9,76
-Wall collapse,16,26,13
+Wall collapse,17,29,13
 Drowning,13,35,0
 Gas leak,11,27,8
 Level crossing,7,60,0
@@ -27,21 +27,21 @@ Shuttering / formwork failure,6,53,11
 Boiler explosion,6,8,0
 Tyre burst,6,7,0
 Excavation or trench collapse,5,4,40
+Vehicle fell into gorge or water,4,11,11
+Demolition failure,4,0,0
 Lift / hoist failure,4,0,3
 Road cave-in or subsidence,4,0,0
 Overloading,3,8,0
-Vehicle fell into gorge or water,3,7,11
 Wrong-side driving,3,2,0
 Rear-end collision,3,1,2
-Demolition failure,3,0,0
 Suffocation / toxic fumes,2,7,0
 Scaffolding failure,2,6,22
+Fog or poor visibility,2,0,0
 Fall from height,1,5,0
 Aircraft technical failure,1,0,0
-Fog or poor visibility,1,0,0
 Launching girder / segment failure,1,0,0
 Wet or slippery road,1,0,0
-Not stated,3067,6869,5162
-TOTAL,4463,9568,8811
+Not stated,3001,6395,4964
+TOTAL,4439,9232,8725
 
-"Cause identified for 1396 of 4463 accidents (31%). Causes are as first reported, not verified.",,,
+"Cause identified for 1438 of 4439 accidents (32%). Causes are as first reported, not verified.",,,
