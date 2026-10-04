@@ -1,12 +1,12 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,269,427,178
-Overspeeding,200,375,533
-Overturning,183,301,960
-Fire,106,225,84
-Hit while on track,96,321,12
-Driver lost control,96,156,350
-Head-on collision,75,264,361
-Explosion / blast,73,496,89
+Building collapse,268,422,176
+Overspeeding,201,378,540
+Overturning,187,309,1037
+Fire,110,225,84
+Hit while on track,100,333,12
+Driver lost control,97,157,344
+Head-on collision,78,268,416
+Explosion / blast,76,501,102
 Hit divider or barrier,58,76,64
 Derailment,55,8,15
 Struck by falling material,47,60,303
@@ -14,34 +14,34 @@ Bridge or flyover failure,43,34,75
 Slab or roof collapse,37,45,76
 Electrocution,34,69,78
 Hit stationary vehicle,29,87,170
-Pothole or bad road,26,31,50
+Pothole or bad road,27,32,50
+Brake failure,26,14,96
 Crane failure,24,25,282
-Brake failure,24,10,96
 Wall collapse,19,29,14
 Drowning,13,35,0
 Gas leak,11,27,8
-Boiler explosion,10,22,20
-Cylinder or LPG explosion,9,17,42
+Boiler explosion,11,25,25
+Cylinder or LPG explosion,11,17,44
 Drunk driving,9,0,18
-Level crossing,7,60,0
+Level crossing,8,61,0
 Shuttering / formwork failure,6,53,11
+Vehicle fell into gorge or water,6,14,11
 Tyre burst,6,7,0
 Excavation or trench collapse,6,6,40
-Vehicle fell into gorge or water,5,14,11
+Suffocation / toxic fumes,5,14,0
 Rear-end collision,5,1,47
-Suffocation / toxic fumes,4,11,0
 Wrong-side driving,4,2,0
+Demolition failure,4,0,0
 Lift / hoist failure,4,0,3
 Road cave-in or subsidence,4,0,0
 Overloading,3,8,0
-Demolition failure,3,0,0
 Scaffolding failure,2,6,22
 Fog or poor visibility,2,0,0
 Fall from height,1,5,0
 Aircraft technical failure,1,0,0
 Launching girder / segment failure,1,0,0
 Wet or slippery road,1,0,0
-Not stated,3527,7822,5887
-TOTAL,5138,11135,9899
+Not stated,3485,7582,5866
+TOTAL,5125,10935,10029
 
-"Cause identified for 1611 of 5138 accidents (31%). Causes are as first reported, not verified.",,,
+"Cause identified for 1640 of 5125 accidents (32%). Causes are as first reported, not verified.",,,
