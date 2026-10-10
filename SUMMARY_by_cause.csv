@@ -1,27 +1,27 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,286,445,199
-Overspeeding,217,421,556
-Overturning,209,372,1086
+Building collapse,290,450,209
+Overspeeding,220,422,558
+Overturning,212,376,1093
 Fire,121,227,85
+Hit while on track,110,362,12
 Driver lost control,109,168,375
-Hit while on track,108,360,12
-Head-on collision,84,275,419
+Head-on collision,86,279,419
 Explosion / blast,78,504,106
 Hit divider or barrier,62,81,66
-Derailment,61,9,15
-Struck by falling material,48,61,303
+Derailment,62,9,15
+Struck by falling material,49,63,303
 Bridge or flyover failure,44,39,75
 Slab or roof collapse,37,45,76
-Electrocution,35,69,78
+Electrocution,36,69,78
 Hit stationary vehicle,31,94,193
 Pothole or bad road,30,36,50
+Brake failure,27,14,96
 Crane failure,26,25,284
-Brake failure,26,14,96
 Wall collapse,20,29,14
 Drowning,13,35,0
 Cylinder or LPG explosion,13,20,49
+Gas leak,12,27,8
 Boiler explosion,12,24,29
-Gas leak,11,27,8
 Drunk driving,10,1,18
 Level crossing,8,61,0
 Vehicle fell into gorge or water,7,14,11
@@ -31,17 +31,17 @@ Excavation or trench collapse,6,6,40
 Wrong-side driving,6,4,0
 Suffocation / toxic fumes,5,14,0
 Rear-end collision,5,1,47
+Overloading,4,8,0
 Demolition failure,4,0,0
 Lift / hoist failure,4,0,3
 Road cave-in or subsidence,4,0,0
-Overloading,3,8,0
 Fog or poor visibility,3,0,0
 Scaffolding failure,2,6,22
 Fall from height,1,5,0
 Aircraft technical failure,1,0,0
 Launching girder / segment failure,1,0,0
 Wet or slippery road,1,0,0
-Not stated,3764,8374,6460
-TOTAL,5528,11934,10786
+Not stated,3819,8520,6676
+TOTAL,5603,12098,11021
 
-"Cause identified for 1764 of 5528 accidents (31%). Causes are as first reported, not verified.",,,
+"Cause identified for 1784 of 5603 accidents (31%). Causes are as first reported, not verified.",,,
