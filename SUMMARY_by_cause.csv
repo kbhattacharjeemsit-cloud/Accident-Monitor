@@ -1,47 +1,47 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,292,450,209
-Overspeeding,222,428,558
-Overturning,213,378,1093
-Fire,123,227,85
-Hit while on track,110,362,12
-Driver lost control,110,170,375
-Head-on collision,86,279,419
-Explosion / blast,78,504,106
-Hit divider or barrier,62,81,66
-Derailment,62,9,15
-Struck by falling material,49,63,303
-Bridge or flyover failure,44,39,75
-Slab or roof collapse,37,45,76
+Building collapse,295,453,212
+Overspeeding,228,434,560
+Overturning,217,522,1093
+Fire,129,235,133
+Hit while on track,119,380,12
+Driver lost control,116,176,399
+Head-on collision,90,282,465
+Explosion / blast,80,504,106
+Derailment,66,9,15
+Hit divider or barrier,64,81,66
+Struck by falling material,52,68,317
+Bridge or flyover failure,46,40,81
+Slab or roof collapse,38,45,76
 Electrocution,36,69,78
-Hit stationary vehicle,31,94,193
+Hit stationary vehicle,32,95,193
 Pothole or bad road,30,36,50
-Brake failure,27,14,96
-Crane failure,26,25,284
+Crane failure,28,26,284
+Brake failure,28,16,96
 Wall collapse,20,29,14
-Drowning,13,35,0
+Drowning,15,35,0
 Cylinder or LPG explosion,13,20,49
 Gas leak,12,27,8
 Boiler explosion,12,24,29
-Drunk driving,10,1,18
+Drunk driving,11,2,18
 Level crossing,8,61,0
 Vehicle fell into gorge or water,7,14,11
+Tyre burst,7,9,0
 Shuttering / formwork failure,6,53,11
-Tyre burst,6,7,0
+Suffocation / toxic fumes,6,14,0
 Excavation or trench collapse,6,6,40
 Wrong-side driving,6,4,0
-Suffocation / toxic fumes,5,14,0
+Overloading,5,8,0
 Rear-end collision,5,1,47
-Overloading,4,8,0
+Demolition failure,4,0,0
+Fog or poor visibility,4,0,0
 Lift / hoist failure,4,0,3
 Road cave-in or subsidence,4,0,0
-Demolition failure,3,0,0
-Fog or poor visibility,3,0,0
 Scaffolding failure,2,6,22
 Fall from height,1,5,0
 Aircraft technical failure,1,0,0
 Launching girder / segment failure,1,0,0
 Wet or slippery road,1,0,0
-Not stated,4068,9213,6871
-TOTAL,5859,12801,11216
+Not stated,3986,8989,6827
+TOTAL,5841,12778,11315
 
-"Cause identified for 1791 of 5859 accidents (30%). Causes are as first reported, not verified.",,,
+"Cause identified for 1855 of 5841 accidents (31%). Causes are as first reported, not verified.",,,
