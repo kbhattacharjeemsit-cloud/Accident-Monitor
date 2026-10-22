@@ -1,20 +1,20 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,299,456,199
-Overspeeding,243,488,593
-Overturning,238,620,1133
+Building collapse,300,458,199
+Overspeeding,245,496,593
+Overturning,242,622,1143
 Fire,141,288,241
-Driver lost control,137,251,459
-Hit while on track,131,389,26
-Head-on collision,99,305,501
-Explosion / blast,82,514,112
-Hit divider or barrier,72,100,102
-Derailment,72,15,21
+Driver lost control,139,256,458
+Hit while on track,133,391,26
+Head-on collision,100,307,501
+Explosion / blast,88,543,132
+Derailment,74,15,21
+Hit divider or barrier,73,102,104
 Struck by falling material,56,71,317
-Bridge or flyover failure,51,53,96
+Bridge or flyover failure,52,55,96
 Slab or roof collapse,39,45,76
-Electrocution,37,69,78
-Pothole or bad road,36,47,52
-Hit stationary vehicle,34,95,208
+Electrocution,38,70,78
+Pothole or bad road,36,47,53
+Hit stationary vehicle,35,96,209
 Crane failure,29,27,284
 Brake failure,29,20,96
 Wall collapse,21,32,14
@@ -42,7 +42,7 @@ Wet or slippery road,2,0,0
 Fall from height,1,5,0
 Aircraft technical failure,1,0,0
 Launching girder / segment failure,1,0,0
-Not stated,4565,10441,7531
-TOTAL,6572,14711,12437
+Not stated,4685,10656,7695
+TOTAL,6716,14982,12634
 
-"Cause identified for 2007 of 6572 accidents (30%). Causes are as first reported, not verified.",,,
+"Cause identified for 2031 of 6716 accidents (30%). Causes are as first reported, not verified.",,,
