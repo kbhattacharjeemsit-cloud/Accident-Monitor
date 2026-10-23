@@ -6,13 +6,13 @@ Fire,141,288,241
 Driver lost control,139,256,458
 Hit while on track,133,391,26
 Head-on collision,100,307,501
-Explosion / blast,88,543,132
+Explosion / blast,91,544,134
 Derailment,74,15,21
 Hit divider or barrier,73,102,104
 Struck by falling material,56,71,317
 Bridge or flyover failure,52,55,96
+Electrocution,39,70,78
 Slab or roof collapse,39,45,76
-Electrocution,38,70,78
 Pothole or bad road,36,47,53
 Hit stationary vehicle,35,96,209
 Crane failure,29,27,284
@@ -22,7 +22,7 @@ Cylinder or LPG explosion,16,21,49
 Drowning,15,35,0
 Boiler explosion,14,29,29
 Gas leak,13,32,8
-Drunk driving,12,2,18
+Drunk driving,13,2,18
 Level crossing,11,61,0
 Stampede,7,84,60
 Vehicle fell into gorge or water,7,14,11
@@ -42,7 +42,7 @@ Wet or slippery road,2,0,0
 Fall from height,1,5,0
 Aircraft technical failure,1,0,0
 Launching girder / segment failure,1,0,0
-Not stated,4685,10656,7695
-TOTAL,6716,14982,12634
+Not stated,4688,10661,7695
+TOTAL,6724,14988,12636
 
-"Cause identified for 2031 of 6716 accidents (30%). Causes are as first reported, not verified.",,,
+"Cause identified for 2036 of 6724 accidents (30%). Causes are as first reported, not verified.",,,
