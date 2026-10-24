@@ -1,32 +1,32 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,300,458,199
-Overspeeding,245,496,593
-Overturning,242,622,1143
-Fire,141,288,241
-Driver lost control,139,256,458
-Hit while on track,133,391,26
-Head-on collision,100,307,501
-Explosion / blast,91,544,134
-Derailment,74,15,21
-Hit divider or barrier,73,102,104
-Struck by falling material,56,71,317
-Bridge or flyover failure,52,55,96
+Building collapse,301,460,201
+Overspeeding,254,511,613
+Overturning,244,635,1164
+Fire,152,295,241
+Driver lost control,140,256,471
+Hit while on track,135,592,26
+Head-on collision,102,311,502
+Explosion / blast,94,553,135
+Hit divider or barrier,76,102,107
+Derailment,76,15,16
+Struck by falling material,60,78,317
+Bridge or flyover failure,56,65,121
+Slab or roof collapse,40,48,88
 Electrocution,39,70,78
-Slab or roof collapse,39,45,76
-Pothole or bad road,36,47,53
-Hit stationary vehicle,35,96,209
-Crane failure,29,27,284
+Hit stationary vehicle,37,101,248
+Pothole or bad road,36,48,54
+Crane failure,30,28,284
 Brake failure,29,20,96
 Wall collapse,21,32,14
-Cylinder or LPG explosion,16,21,49
+Cylinder or LPG explosion,17,21,49
+Boiler explosion,16,38,30
 Drowning,15,35,0
-Boiler explosion,14,29,29
 Gas leak,13,32,8
 Drunk driving,13,2,18
 Level crossing,11,61,0
+Tyre burst,9,13,4
+Vehicle fell into gorge or water,8,14,11
 Stampede,7,84,60
-Vehicle fell into gorge or water,7,14,11
-Tyre burst,7,9,0
 Excavation or trench collapse,7,6,40
 Wrong-side driving,7,4,0
 Shuttering / formwork failure,6,53,11
@@ -34,15 +34,15 @@ Suffocation / toxic fumes,6,14,0
 Overloading,5,8,0
 Lift / hoist failure,5,1,3
 Rear-end collision,5,1,47
+Demolition failure,4,0,0
 Fog or poor visibility,4,0,0
 Road cave-in or subsidence,4,0,0
-Demolition failure,3,0,0
 Scaffolding failure,2,6,22
+Aircraft technical failure,2,0,6
 Wet or slippery road,2,0,0
 Fall from height,1,5,0
-Aircraft technical failure,1,0,0
 Launching girder / segment failure,1,0,0
-Not stated,4688,10661,7695
-TOTAL,6724,14988,12636
+Not stated,4609,10517,7753
+TOTAL,6701,15135,12838
 
-"Cause identified for 2036 of 6724 accidents (30%). Causes are as first reported, not verified.",,,
+"Cause identified for 2092 of 6701 accidents (31%). Causes are as first reported, not verified.",,,
