@@ -1,28 +1,28 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,301,460,201
-Overspeeding,254,511,613
-Overturning,244,635,1164
-Fire,152,295,241
-Driver lost control,140,256,471
-Hit while on track,135,592,26
-Head-on collision,102,311,502
-Explosion / blast,94,553,135
-Hit divider or barrier,76,102,107
-Derailment,76,15,16
-Struck by falling material,60,78,317
-Bridge or flyover failure,56,65,121
-Slab or roof collapse,40,48,88
+Building collapse,302,460,201
+Overspeeding,259,524,617
+Overturning,246,638,1164
+Fire,155,295,244
+Driver lost control,141,262,501
+Hit while on track,136,664,26
+Head-on collision,103,311,504
+Explosion / blast,98,568,138
+Hit divider or barrier,77,104,107
+Derailment,77,15,16
+Struck by falling material,61,78,322
+Bridge or flyover failure,56,65,103
+Slab or roof collapse,41,49,88
 Electrocution,39,70,78
 Hit stationary vehicle,37,101,248
-Pothole or bad road,36,48,54
+Pothole or bad road,37,54,55
 Crane failure,30,28,284
 Brake failure,29,20,96
 Wall collapse,21,32,14
 Cylinder or LPG explosion,17,21,49
 Boiler explosion,16,38,30
 Drowning,15,35,0
+Drunk driving,14,2,18
 Gas leak,13,32,8
-Drunk driving,13,2,18
 Level crossing,11,61,0
 Tyre burst,9,13,4
 Vehicle fell into gorge or water,8,14,11
@@ -42,7 +42,7 @@ Aircraft technical failure,2,0,6
 Wet or slippery road,2,0,0
 Fall from height,1,5,0
 Launching girder / segment failure,1,0,0
-Not stated,4609,10517,7753
-TOTAL,6701,15135,12838
+Not stated,4655,10579,7751
+TOTAL,6771,15315,12866
 
-"Cause identified for 2092 of 6701 accidents (31%). Causes are as first reported, not verified.",,,
+"Cause identified for 2116 of 6771 accidents (31%). Causes are as first reported, not verified.",,,
