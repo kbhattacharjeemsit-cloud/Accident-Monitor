@@ -1,23 +1,23 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,311,471,202
-Overspeeding,278,649,800
-Overturning,254,639,1179
-Fire,166,302,249
-Driver lost control,149,271,502
+Building collapse,314,472,205
+Overspeeding,282,663,810
+Overturning,256,646,1186
+Fire,167,302,252
+Driver lost control,151,277,505
 Hit while on track,143,702,27
 Head-on collision,108,361,509
-Explosion / blast,103,575,141
-Derailment,81,21,16
-Hit divider or barrier,80,106,107
-Struck by falling material,64,84,322
+Explosion / blast,104,575,141
+Hit divider or barrier,82,106,107
+Derailment,82,21,21
+Struck by falling material,65,84,325
 Bridge or flyover failure,62,81,106
-Slab or roof collapse,47,56,88
-Hit stationary vehicle,43,123,340
+Slab or roof collapse,49,58,88
+Hit stationary vehicle,43,125,340
 Pothole or bad road,41,58,55
-Electrocution,39,70,78
+Electrocution,40,70,78
 Crane failure,33,28,284
 Brake failure,31,20,96
-Wall collapse,21,32,14
+Wall collapse,22,32,14
 Cylinder or LPG explosion,17,21,49
 Boiler explosion,16,38,30
 Drowning,15,35,0
@@ -27,11 +27,11 @@ Level crossing,12,62,6
 Vehicle fell into gorge or water,9,18,11
 Tyre burst,9,13,4
 Stampede,8,84,60
-Excavation or trench collapse,7,6,40
+Excavation or trench collapse,8,7,40
 Wrong-side driving,7,4,0
 Shuttering / formwork failure,6,53,11
 Suffocation / toxic fumes,6,14,0
-Overloading,5,8,0
+Overloading,6,10,9
 Lift / hoist failure,5,1,3
 Rear-end collision,5,1,47
 Demolition failure,4,0,0
@@ -42,7 +42,7 @@ Aircraft technical failure,2,0,6
 Wet or slippery road,2,0,0
 Fall from height,1,5,0
 Launching girder / segment failure,1,0,0
-Not stated,4891,11771,8133
-TOTAL,7119,16823,13563
+Not stated,5025,12894,8736
+TOTAL,7276,17981,14209
 
-"Cause identified for 2228 of 7119 accidents (31%). Causes are as first reported, not verified.",,,
+"Cause identified for 2251 of 7276 accidents (30%). Causes are as first reported, not verified.",,,
