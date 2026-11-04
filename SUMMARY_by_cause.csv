@@ -1,25 +1,25 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,315,478,215
-Overspeeding,293,727,797
-Overturning,265,657,1234
+Building collapse,316,478,215
+Overspeeding,294,729,797
+Overturning,268,657,1234
 Fire,171,310,254
 Driver lost control,160,285,551
-Hit while on track,149,706,27
+Hit while on track,151,708,27
 Head-on collision,112,372,514
-Explosion / blast,106,575,144
-Derailment,86,21,16
-Hit divider or barrier,85,110,107
-Struck by falling material,68,84,328
+Explosion / blast,109,575,144
+Hit divider or barrier,88,113,107
+Derailment,86,21,21
+Struck by falling material,69,88,328
 Bridge or flyover failure,63,83,103
 Slab or roof collapse,51,58,88
 Electrocution,48,120,83
 Hit stationary vehicle,44,127,342
 Pothole or bad road,43,63,55
-Crane failure,37,30,286
+Crane failure,38,33,287
 Brake failure,32,20,96
 Wall collapse,24,35,17
 Cylinder or LPG explosion,18,21,49
-Drowning,17,35,0
+Drowning,17,36,0
 Gas leak,16,39,9
 Boiler explosion,16,38,30
 Drunk driving,14,2,18
@@ -35,14 +35,14 @@ Shuttering / formwork failure,6,53,11
 Fog or poor visibility,5,1,0
 Lift / hoist failure,5,1,3
 Rear-end collision,5,1,47
-Demolition failure,4,0,0
 Road cave-in or subsidence,4,0,0
+Demolition failure,3,0,0
 Scaffolding failure,2,6,22
 Aircraft technical failure,2,0,6
 Wet or slippery road,2,0,0
 Fall from height,1,5,0
 Launching girder / segment failure,1,0,0
-Not stated,5168,12219,8550
-TOTAL,7506,17496,14132
+Not stated,5322,13937,9032
+TOTAL,7674,19229,14620
 
-"Cause identified for 2338 of 7506 accidents (31%). Causes are as first reported, not verified.",,,
+"Cause identified for 2352 of 7674 accidents (30%). Causes are as first reported, not verified.",,,
