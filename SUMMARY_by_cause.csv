@@ -1,18 +1,18 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,340,502,222
-Overspeeding,305,760,809
-Overturning,275,676,1276
-Fire,176,322,254
-Driver lost control,163,302,551
+Building collapse,343,514,226
+Overspeeding,309,765,812
+Overturning,288,689,1382
+Fire,188,323,258
+Driver lost control,164,300,573
 Hit while on track,153,709,27
-Head-on collision,113,374,514
-Explosion / blast,112,576,150
-Hit divider or barrier,88,113,109
-Derailment,87,21,21
+Head-on collision,117,380,540
+Explosion / blast,114,576,158
+Hit divider or barrier,90,113,109
+Derailment,87,21,16
 Struck by falling material,71,90,328
-Bridge or flyover failure,66,85,103
-Slab or roof collapse,53,62,94
-Electrocution,51,120,83
+Bridge or flyover failure,68,91,120
+Slab or roof collapse,54,99,94
+Electrocution,53,130,83
 Hit stationary vehicle,45,129,343
 Pothole or bad road,43,63,55
 Crane failure,38,33,287
@@ -24,25 +24,25 @@ Gas leak,16,39,9
 Boiler explosion,16,38,30
 Drunk driving,14,2,18
 Level crossing,13,61,6
+Tyre burst,11,12,4
 Vehicle fell into gorge or water,9,18,11
-Tyre burst,9,12,4
 Stampede,8,84,60
 Excavation or trench collapse,8,7,40
 Wrong-side driving,8,5,0
 Shuttering / formwork failure,7,53,11
 Suffocation / toxic fumes,7,18,0
 Overloading,7,10,9
-Fog or poor visibility,6,1,0
+Fog or poor visibility,7,2,0
 Lift / hoist failure,5,1,3
 Rear-end collision,5,1,47
+Demolition failure,5,0,0
 Road cave-in or subsidence,4,0,0
-Demolition failure,3,0,0
 Scaffolding failure,2,6,22
 Aircraft technical failure,2,0,6
 Wet or slippery road,2,0,0
 Fall from height,1,5,0
 Launching girder / segment failure,1,0,0
-Not stated,5495,14416,9225
-TOTAL,7918,19826,14889
+Not stated,5407,12794,8800
+TOTAL,7881,18293,14649
 
-"Cause identified for 2423 of 7918 accidents (30%). Causes are as first reported, not verified.",,,
+"Cause identified for 2474 of 7881 accidents (31%). Causes are as first reported, not verified.",,,
