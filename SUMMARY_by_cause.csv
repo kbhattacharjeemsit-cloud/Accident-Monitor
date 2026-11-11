@@ -1,49 +1,49 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
 Building collapse,350,542,226
-Overspeeding,315,789,817
-Overturning,296,722,1439
-Fire,206,435,261
-Driver lost control,168,305,585
-Hit while on track,159,718,27
-Head-on collision,122,388,547
+Overspeeding,316,782,811
+Overturning,301,726,1464
+Fire,207,435,261
+Driver lost control,170,307,589
+Hit while on track,160,718,27
+Head-on collision,124,388,578
 Explosion / blast,117,593,274
-Hit divider or barrier,94,121,112
-Derailment,89,21,16
-Struck by falling material,71,90,328
-Bridge or flyover failure,70,98,127
+Derailment,99,21,35
+Hit divider or barrier,95,121,112
+Struck by falling material,73,91,328
+Bridge or flyover failure,71,101,152
 Slab or roof collapse,60,100,96
 Electrocution,53,130,83
 Hit stationary vehicle,46,130,345
 Pothole or bad road,44,65,63
 Crane failure,40,67,299
-Brake failure,34,20,96
+Brake failure,35,20,102
 Wall collapse,24,35,17
 Cylinder or LPG explosion,20,25,50
+Gas leak,19,45,9
 Drowning,18,36,0
-Gas leak,17,42,9
 Boiler explosion,16,38,30
 Drunk driving,15,2,18
 Level crossing,13,61,6
-Tyre burst,12,13,4
+Tyre burst,13,13,4
+Suffocation / toxic fumes,10,29,0
 Vehicle fell into gorge or water,10,21,11
-Suffocation / toxic fumes,9,25,0
+Wrong-side driving,9,6,3
 Lift / hoist failure,8,179,7
 Stampede,8,84,60
 Excavation or trench collapse,8,7,40
-Wrong-side driving,8,5,0
 Shuttering / formwork failure,7,53,11
 Overloading,7,10,9
 Fog or poor visibility,7,2,0
+Road cave-in or subsidence,6,0,0
 Rear-end collision,5,1,47
 Demolition failure,5,0,0
-Road cave-in or subsidence,4,0,0
 Scaffolding failure,2,6,22
 Aircraft technical failure,2,0,6
 Wet or slippery road,2,0,0
 Fall from height,1,5,0
 Driver fatigue,1,0,20
 Launching girder / segment failure,1,0,0
-Not stated,5668,14225,10216
-TOTAL,8232,20209,16324
+Not stated,5759,14345,10399
+TOTAL,8357,20340,16614
 
-"Cause identified for 2564 of 8232 accidents (31%). Causes are as first reported, not verified.",,,
+"Cause identified for 2598 of 8357 accidents (31%). Causes are as first reported, not verified.",,,
