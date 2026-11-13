@@ -1,28 +1,28 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
 Building collapse,352,544,243
-Overspeeding,317,783,812
-Overturning,301,726,1464
-Fire,209,439,261
-Driver lost control,171,307,589
-Hit while on track,161,718,27
-Head-on collision,124,388,578
-Explosion / blast,117,593,274
-Derailment,109,21,50
-Hit divider or barrier,95,121,112
-Bridge or flyover failure,73,103,166
+Overspeeding,320,784,873
+Overturning,309,738,1583
+Fire,218,463,261
+Driver lost control,176,323,622
+Hit while on track,162,718,27
+Head-on collision,128,393,588
+Explosion / blast,119,617,274
+Derailment,109,21,56
+Hit divider or barrier,96,124,112
+Bridge or flyover failure,76,110,192
 Struck by falling material,73,91,328
 Slab or roof collapse,60,100,96
 Electrocution,54,130,83
-Hit stationary vehicle,46,130,345
+Hit stationary vehicle,50,136,408
 Pothole or bad road,44,65,63
 Crane failure,40,67,299
-Brake failure,35,20,102
-Wall collapse,24,35,17
-Cylinder or LPG explosion,20,25,50
+Brake failure,35,20,107
+Wall collapse,25,37,17
+Cylinder or LPG explosion,21,25,54
 Gas leak,19,45,9
 Drowning,18,36,0
 Boiler explosion,16,38,30
-Drunk driving,15,2,18
+Drunk driving,16,3,18
 Level crossing,13,61,6
 Tyre burst,13,13,4
 Suffocation / toxic fumes,11,33,0
@@ -39,11 +39,12 @@ Rear-end collision,5,1,47
 Demolition failure,5,0,0
 Scaffolding failure,2,6,22
 Aircraft technical failure,2,0,6
+Driver fatigue,2,0,20
+Septic tank / sewer,2,0,0
 Wet or slippery road,2,0,0
 Fall from height,1,5,0
-Driver fatigue,1,0,20
 Launching girder / segment failure,1,0,0
-Not stated,5842,14561,10490
-TOTAL,8461,20569,16752
+Not stated,5789,13820,9569
+TOTAL,8454,19929,16158
 
-"Cause identified for 2619 of 8461 accidents (30%). Causes are as first reported, not verified.",,,
+"Cause identified for 2665 of 8454 accidents (31%). Causes are as first reported, not verified.",,,
