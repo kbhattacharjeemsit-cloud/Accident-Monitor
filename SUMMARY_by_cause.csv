@@ -1,38 +1,38 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
 Building collapse,352,544,243
-Overspeeding,320,784,873
-Overturning,309,738,1583
-Fire,218,463,261
-Driver lost control,176,323,622
-Hit while on track,162,718,27
-Head-on collision,128,393,588
-Explosion / blast,119,617,274
-Derailment,109,21,56
-Hit divider or barrier,96,124,112
-Bridge or flyover failure,76,110,192
+Overspeeding,326,884,933
+Overturning,311,738,1591
+Fire,219,463,261
+Driver lost control,177,323,622
+Hit while on track,163,722,27
+Head-on collision,132,455,628
+Explosion / blast,123,619,274
+Derailment,110,21,104
+Hit divider or barrier,98,125,112
+Bridge or flyover failure,77,111,192
 Struck by falling material,73,91,328
 Slab or roof collapse,60,100,96
 Electrocution,54,130,83
-Hit stationary vehicle,50,136,408
+Hit stationary vehicle,51,138,408
 Pothole or bad road,44,65,63
 Crane failure,40,67,299
-Brake failure,35,20,107
+Brake failure,35,20,102
 Wall collapse,25,37,17
 Cylinder or LPG explosion,21,25,54
 Gas leak,19,45,9
 Drowning,18,36,0
 Boiler explosion,16,38,30
 Drunk driving,16,3,18
+Tyre burst,14,43,4
 Level crossing,13,61,6
-Tyre burst,13,13,4
-Suffocation / toxic fumes,11,33,0
+Suffocation / toxic fumes,12,36,0
 Vehicle fell into gorge or water,10,21,11
 Wrong-side driving,9,6,3
 Lift / hoist failure,8,179,7
 Stampede,8,84,60
+Overloading,8,10,9
 Excavation or trench collapse,8,7,40
 Shuttering / formwork failure,7,53,11
-Overloading,7,10,9
 Fog or poor visibility,7,2,0
 Road cave-in or subsidence,6,0,0
 Rear-end collision,5,1,47
@@ -44,7 +44,7 @@ Septic tank / sewer,2,0,0
 Wet or slippery road,2,0,0
 Fall from height,1,5,0
 Launching girder / segment failure,1,0,0
-Not stated,5789,13820,9569
-TOTAL,8454,19929,16158
+Not stated,5948,15509,10340
+TOTAL,8640,21823,17080
 
-"Cause identified for 2665 of 8454 accidents (31%). Causes are as first reported, not verified.",,,
+"Cause identified for 2692 of 8640 accidents (31%). Causes are as first reported, not verified.",,,
