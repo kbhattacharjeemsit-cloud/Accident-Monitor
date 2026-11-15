@@ -1,5 +1,5 @@
 ﻿City,Accident Type,Sector (others only),Number of Accidents,Near Misses,Fatal Accidents,Injury-only Accidents,People Killed,People Injured
-Assam,roadway,,26,0,26,0,338,182
+Assam,roadway,,26,0,26,0,340,182
 Delhi,roadway,,35,1,32,2,273,27
 Delhi,old structure collapse,,57,4,52,1,239,54
 Moradabad,roadway,,9,0,8,1,184,14
@@ -28,16 +28,17 @@ Telangana,roadway,,20,0,19,1,74,126
 Banga,roadway,,2,0,2,0,74,0
 Bhandara,roadway,,4,0,4,0,71,14
 Kadapa,train,,1,0,1,0,71,0
+Punjab,roadway,,17,0,17,0,70,48
 Karnataka,roadway,,21,1,20,0,69,49
 Barabanki,roadway,,12,0,11,1,69,57
 Chhattisgarh,roadway,,19,0,18,1,67,107
 Hardoi,roadway,,19,0,19,0,67,5
 Meerut,roadway,,16,0,16,0,65,16
 Unnao,roadway,,10,0,10,0,65,27
-Punjab,roadway,,15,0,15,0,61,30
 Bihar,port maritime,,5,0,5,0,61,0
 Uttar Pradesh,roadway,,11,0,10,1,58,29
 Tamil Nadu,roadway,,10,0,10,0,58,15
+Kerala,roadway,,16,0,14,2,56,137
 Pune,roadway,,19,1,17,1,54,14
 Jammu,construction ongoing,,3,0,3,0,52,3
 Kishangarh,old structure collapse,,3,0,3,0,52,0
@@ -46,7 +47,6 @@ Bhiwandi,old structure collapse,,7,0,7,0,51,3
 Mumbai,roadway,,35,0,25,10,50,121
 Dungarpur,roadway,,2,0,2,0,49,3
 Thrissur,roadway,,10,0,9,1,45,35
-Kerala,roadway,,15,0,13,2,42,137
 Dehradun,roadway,,9,0,8,1,42,12
 Gwalior,roadway,,6,0,6,0,42,33
 Adilabad,roadway,,2,0,2,0,42,0
@@ -110,6 +110,7 @@ Maharashtra,train,,2,0,2,0,19,14
 Bengaluru,others,factory manufacturing,1,0,1,0,19,0
 Mathura,roadway,,12,0,12,0,18,33
 Indore,roadway,,11,0,9,2,18,7
+Haryana,roadway,,9,0,7,2,18,129
 Sonipat,roadway,,9,0,9,0,18,11
 Morena,roadway,,7,0,6,1,18,4
 Dausa,roadway,,6,0,6,0,18,89
@@ -127,7 +128,6 @@ Kolhapur,train,,1,0,1,0,17,0
 Bijnor,roadway,,13,0,13,0,16,11
 Hathras,roadway,,11,0,9,2,16,55
 Jammu,roadway,,10,0,8,2,16,47
-Haryana,roadway,,8,0,6,2,16,112
 Andhra Pradesh,others,factory manufacturing,4,0,4,0,16,10
 Jaipur,others,factory manufacturing,4,0,4,0,16,0
 Yamunanagar,roadway,,4,0,4,0,16,1
@@ -194,6 +194,7 @@ Assam,train,,7,0,3,4,10,76
 Moga,roadway,,7,0,7,0,10,5
 Sangrur,roadway,,5,0,5,0,10,74
 Raipur,roadway,,4,0,4,0,10,22
+Tarn Taran,roadway,,4,0,4,0,10,24
 Udaipur,roadway,,4,0,3,1,10,2
 Yavatmal,roadway,,3,0,3,0,10,0
 Ambala,construction ongoing,,2,0,2,0,10,22
@@ -322,6 +323,7 @@ Uttarakhand,aviation,,2,0,1,1,6,6
 Chamoli,aviation,,1,0,1,0,6,0
 Haryana,old structure collapse,,1,0,1,0,6,0
 Manoharpur,train,,1,0,1,0,6,0
+Nerul,roadway,,1,0,1,0,6,1
 Pratapgarh,old structure collapse,,1,0,1,0,6,1
 Puri,roadway,,1,0,1,0,6,0
 Saharanpur,construction ongoing,,1,0,1,0,6,0
@@ -397,7 +399,6 @@ Korba,train,,3,0,3,0,4,5
 Lucknow,train,,3,1,2,0,4,10
 Ranchi,train,,3,1,2,0,4,0
 Roorkee,roadway,,3,0,3,0,4,0
-Tarn Taran,roadway,,3,0,3,0,4,8
 Amethi,train,,2,0,2,0,4,1
 Assam,others,fire,2,0,2,0,4,9
 Babugarh,roadway,,2,0,2,0,4,7
@@ -512,6 +513,7 @@ Chittorgarh,roadway,,1,0,1,0,3,0
 Chittorgarh,old structure collapse,,1,0,1,0,3,9
 Gurugram,old structure collapse,,1,0,1,0,3,0
 Jaipur,train,,1,0,1,0,3,25
+Jaisalmer,roadway,,1,0,1,0,3,4
 Jaswantnagar,roadway,,1,0,1,0,3,1
 Jhalawar,roadway,,1,0,1,0,3,0
 Jodhpur,others,factory manufacturing,1,0,1,0,3,0
@@ -905,6 +907,7 @@ Sholinghur,roadway,,1,0,1,0,1,0
 Shyamnagar,roadway,,1,0,1,0,1,0
 Siliguri,roadway,,1,0,1,0,1,1
 Singrauli,train,,1,0,1,0,1,2
+Sitamarhi,train,,1,0,1,0,1,0
 Siwan,train,,1,0,1,0,1,0
 Siwan,construction ongoing,,1,0,1,0,1,0
 Solapur,aviation,,1,0,1,0,1,0

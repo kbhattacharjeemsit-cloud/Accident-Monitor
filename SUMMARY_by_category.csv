@@ -1,9 +1,9 @@
 ﻿Accident Type,Number of Accidents,Fatal Accidents,Injury-only Accidents,Near Misses,People Killed,People Injured
-roadway,5426,3596,457,47,13071,12569
-train,1053,439,52,89,3288,1639
-others,1029,539,43,22,3060,867
-old structure collapse,739,287,50,38,1467,1203
-construction ongoing,306,158,33,5,597,714
-port maritime,65,28,0,2,301,82
-aviation,22,10,1,2,39,6
-TOTAL,8640,5057,636,205,21823,17080
+roadway,5499,3640,459,47,13325,12814
+train,1075,447,54,89,3373,1652
+others,1046,542,43,22,3068,867
+old structure collapse,747,291,50,38,1475,1228
+construction ongoing,310,161,33,5,608,731
+port maritime,66,28,0,2,301,82
+aviation,23,10,1,2,39,6
+TOTAL,8766,5119,640,205,22189,17380
