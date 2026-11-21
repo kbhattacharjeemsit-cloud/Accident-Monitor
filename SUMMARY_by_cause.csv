@@ -1,24 +1,24 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,363,564,259
-Overspeeding,330,902,938
+Building collapse,365,569,255
+Overspeeding,334,912,940
 Overturning,314,738,1631
-Fire,225,465,261
-Driver lost control,179,325,626
-Hit while on track,167,731,27
+Fire,227,466,261
+Driver lost control,180,326,629
+Hit while on track,168,733,27
 Head-on collision,137,471,651
-Explosion / blast,125,619,274
-Derailment,116,22,112
-Hit divider or barrier,101,136,141
+Explosion / blast,127,620,274
+Derailment,119,22,136
+Hit divider or barrier,102,139,141
 Bridge or flyover failure,80,111,194
 Struck by falling material,74,93,345
 Slab or roof collapse,64,110,136
-Electrocution,56,130,83
-Hit stationary vehicle,52,141,435
+Electrocution,57,131,83
+Hit stationary vehicle,54,145,435
 Pothole or bad road,44,65,63
 Crane failure,42,71,299
 Brake failure,36,20,102
 Wall collapse,25,37,17
-Cylinder or LPG explosion,22,25,55
+Cylinder or LPG explosion,23,35,55
 Gas leak,19,45,9
 Drowning,18,36,0
 Boiler explosion,16,38,30
@@ -28,7 +28,7 @@ Tyre burst,14,43,4
 Suffocation / toxic fumes,12,36,0
 Vehicle fell into gorge or water,11,27,31
 Wrong-side driving,11,11,21
-Fog or poor visibility,9,6,2
+Fog or poor visibility,10,7,2
 Lift / hoist failure,8,179,7
 Stampede,8,84,60
 Shuttering / formwork failure,8,53,11
@@ -45,7 +45,7 @@ Driver fatigue,2,0,20
 Septic tank / sewer,2,0,0
 Fall from height,1,5,0
 Machinery entrapment,1,3,2
-Not stated,6523,17734,12216
-TOTAL,9288,24169,19229
+Not stated,6593,17993,12260
+TOTAL,9379,24467,19298
 
-"Cause identified for 2765 of 9288 accidents (29%). Causes are as first reported, not verified.",,,
+"Cause identified for 2786 of 9379 accidents (29%). Causes are as first reported, not verified.",,,
