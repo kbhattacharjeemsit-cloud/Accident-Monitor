@@ -1,21 +1,21 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,369,569,255
-Overspeeding,341,928,945
-Overturning,314,738,1631
-Fire,228,466,262
-Driver lost control,180,326,629
-Hit while on track,169,734,27
-Head-on collision,139,474,651
+Building collapse,373,569,255
+Overspeeding,348,945,952
+Overturning,319,744,1664
+Fire,229,466,270
+Driver lost control,181,329,631
+Hit while on track,171,936,27
+Head-on collision,140,474,657
 Explosion / blast,127,620,274
 Derailment,119,22,136
-Hit divider or barrier,103,140,141
+Hit divider or barrier,105,146,141
 Bridge or flyover failure,80,111,194
-Struck by falling material,75,97,345
+Struck by falling material,76,97,345
 Slab or roof collapse,64,110,136
+Hit stationary vehicle,57,166,450
 Electrocution,57,131,83
-Hit stationary vehicle,56,163,450
 Pothole or bad road,44,65,63
-Crane failure,42,71,299
+Crane failure,43,141,299
 Brake failure,36,20,102
 Wall collapse,25,37,17
 Cylinder or LPG explosion,23,35,55
@@ -23,7 +23,7 @@ Gas leak,19,45,9
 Drowning,18,36,0
 Drunk driving,17,3,18
 Boiler explosion,16,38,30
-Level crossing,14,61,6
+Level crossing,15,62,6
 Tyre burst,14,43,4
 Suffocation / toxic fumes,12,36,0
 Vehicle fell into gorge or water,11,27,31
@@ -45,7 +45,7 @@ Driver fatigue,2,0,20
 Septic tank / sewer,2,0,0
 Fall from height,1,5,0
 Machinery entrapment,1,3,2
-Not stated,6665,18320,12420
-TOTAL,9471,24837,19479
+Not stated,6752,18561,12673
+TOTAL,9585,25386,19788
 
-"Cause identified for 2806 of 9471 accidents (29%). Causes are as first reported, not verified.",,,
+"Cause identified for 2833 of 9585 accidents (29%). Causes are as first reported, not verified.",,,

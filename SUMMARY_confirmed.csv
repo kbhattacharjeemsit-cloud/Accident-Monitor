@@ -2,18 +2,19 @@
 Assam,roadway,,27,0,27,0,326,164
 Delhi,old structure collapse,,62,4,56,2,290,66
 Delhi,roadway,,38,1,35,2,277,27
+Agra,train,,3,1,2,0,201,0
 Moradabad,roadway,,9,0,8,1,184,14
 Supaul,roadway,,8,0,8,0,171,11
-Rajasthan,roadway,,34,0,33,1,165,94
+Rajasthan,roadway,,34,0,33,1,165,109
 Uttarakhand,roadway,,23,1,22,0,145,251
-Madhya Pradesh,roadway,,19,1,17,1,131,156
+Maharashtra,roadway,,23,1,22,0,134,85
+Madhya Pradesh,roadway,,20,1,18,1,134,156
 Uttarakhand,old structure collapse,,5,0,5,0,127,71
-Maharashtra,roadway,,22,1,21,0,125,85
+Gujarat,roadway,,25,0,25,0,125,255
 Sagar,roadway,,6,0,5,1,122,20
 Garhwa,roadway,,1,0,1,0,119,0
-Gujarat,roadway,,24,0,24,0,118,255
 Madhupur,roadway,,2,0,2,0,117,3
-Jharkhand,roadway,,21,0,21,0,110,36
+Jharkhand,roadway,,22,0,22,0,116,36
 Bihar,roadway,,37,0,33,4,109,115
 Mumbai,train,,8,2,4,2,106,12
 Rewari,roadway,,4,0,3,1,103,15
@@ -34,9 +35,10 @@ Karnataka,roadway,,22,1,21,0,72,50
 Bhandara,roadway,,4,0,4,0,71,14
 Kadapa,train,,1,0,1,0,71,0
 Tamil Nadu,roadway,,13,0,13,0,70,15
+Madhya Pradesh,construction ongoing,,1,0,1,0,70,0
+Meerut,roadway,,17,0,17,0,68,16
 Chhattisgarh,roadway,,19,0,18,1,67,107
 Hardoi,roadway,,19,0,19,0,67,5
-Meerut,roadway,,16,0,16,0,65,16
 Unnao,roadway,,10,0,10,0,65,27
 Uttar Pradesh,roadway,,13,0,12,1,63,31
 Bihar,port maritime,,5,0,5,0,61,0
@@ -50,8 +52,8 @@ Mumbai,roadway,,35,0,25,10,50,121
 Dungarpur,roadway,,2,0,2,0,49,3
 Thrissur,roadway,,10,0,9,1,45,35
 Jaunpur,roadway,,9,0,8,1,43,8
+Gwalior,roadway,,7,0,7,0,43,33
 Dehradun,roadway,,9,0,8,1,42,12
-Gwalior,roadway,,6,0,6,0,42,33
 Adilabad,roadway,,2,0,2,0,42,0
 Shahjahanpur,roadway,,12,0,12,0,40,8
 Fatehpur,old structure collapse,,3,0,3,0,40,0
@@ -65,10 +67,10 @@ Sitapur,roadway,,15,0,14,1,31,57
 Sambhal,roadway,,13,0,13,0,31,13
 Nagar,roadway,,10,1,8,1,31,43
 Mirzapur,roadway,,8,0,8,0,31,20
+Azamgarh,roadway,,14,0,14,0,30,43
 Kolkata,old structure collapse,,5,0,5,0,30,34
-Kota,roadway,,5,0,5,0,30,11
 Kasganj,train,,1,0,1,0,30,0
-Azamgarh,roadway,,14,0,14,0,29,43
+Kota,roadway,,5,0,5,0,29,11
 Hyderabad,roadway,,19,0,16,3,28,39
 Bareilly,train,,15,0,15,0,28,3
 Delhi,construction ongoing,,15,0,13,2,27,33
@@ -85,6 +87,7 @@ Greater Noida,roadway,,6,0,5,1,25,5
 Himachal Pradesh,roadway,,5,0,4,1,25,57
 Lucknow,roadway,,19,1,17,1,24,12
 Bengaluru,roadway,,15,0,15,0,24,129
+Mathura,roadway,,14,0,14,0,24,36
 Sultanpur,roadway,,13,0,13,0,24,31
 Patna,roadway,,11,1,10,0,24,4
 Nanded,roadway,,4,0,4,0,24,19
@@ -96,6 +99,7 @@ Andhra Pradesh,roadway,,6,0,6,0,23,16
 Suryapet,roadway,,6,0,6,0,23,52
 West Bengal,train,,7,1,6,0,22,10
 Jagraon,roadway,,1,0,1,0,22,0
+Hathras,roadway,,13,0,11,2,21,58
 Churu,roadway,,4,0,4,0,21,1
 Gujarat,train,,3,0,3,0,21,0
 Highways,roadway,,1,0,1,0,21,0
@@ -113,18 +117,17 @@ West Bengal,roadway,,4,0,2,2,19,73
 Maharashtra,train,,2,0,2,0,19,14
 Bengaluru,others,factory manufacturing,1,0,1,0,19,0
 Bijnor,roadway,,14,0,14,0,18,11
-Mathura,roadway,,12,0,12,0,18,33
 Indore,roadway,,11,0,9,2,18,7
 Samastipur,roadway,,10,0,10,0,18,6
 Haryana,roadway,,9,0,7,2,18,129
 Sonipat,roadway,,9,0,9,0,18,11
 Morena,roadway,,7,0,6,1,18,4
 Surat,roadway,,7,1,5,1,18,59
+Bharuch,roadway,,6,0,6,0,18,32
 Dausa,roadway,,6,0,6,0,18,89
 Shamshabad,roadway,,6,0,6,0,18,0
 Ranchi,roadway,,5,0,5,0,18,2
 Hapur,roadway,,12,0,11,1,17,14
-Hathras,roadway,,12,0,10,2,17,58
 Kannauj,roadway,,10,0,8,2,17,84
 Ambala,roadway,,8,0,8,0,17,23
 Kushinagar,roadway,,8,0,7,1,17,37
@@ -153,6 +156,7 @@ Fatehpur,roadway,,8,0,8,0,14,55
 Bhadohi,roadway,,7,0,7,0,14,6
 Aligarh,roadway,,6,0,6,0,14,2
 Hamirpur,roadway,,6,0,5,1,14,5
+Kochi,roadway,,6,0,6,0,14,0
 Ghazipur,roadway,,5,0,5,0,14,1
 Panipat,roadway,,5,0,5,0,14,5
 Tarn Taran,roadway,,5,0,5,0,14,42
@@ -177,7 +181,6 @@ Chennai,roadway,,6,0,5,1,12,4
 Sirsa,roadway,,6,0,6,0,12,16
 Buxar,roadway,,5,0,4,1,12,31
 Jamshedpur,roadway,,5,0,5,0,12,1
-Kochi,roadway,,5,0,5,0,12,0
 Madhepura,roadway,,5,0,5,0,12,17
 Palwal,roadway,,5,0,5,0,12,4
 Ramgarh,roadway,,5,0,4,1,12,4
@@ -194,7 +197,6 @@ Gaya,roadway,,7,0,6,1,11,23
 Faridkot,roadway,,6,0,6,0,11,4
 Nawada,roadway,,6,0,6,0,11,7
 Rampur,roadway,,6,0,6,0,11,22
-Bharuch,roadway,,5,0,5,0,11,30
 Delhi,others,factory manufacturing,4,1,3,0,11,2
 Rishikesh,roadway,,4,0,4,0,11,5
 Maharashtra,others,fire,3,0,3,0,11,0
@@ -222,6 +224,7 @@ Tirupati,others,factory manufacturing,2,0,2,0,10,15
 Bhiwandi,construction ongoing,,1,0,1,0,10,3
 Amethi,roadway,,9,0,6,3,9,58
 Amroha,roadway,,9,0,8,1,9,29
+Aurangabad,roadway,,8,0,7,1,9,44
 Alwar,roadway,,5,0,5,0,9,1
 Hardoi,train,,5,0,5,0,9,0
 Jharkhand,others,factory manufacturing,5,0,3,2,9,12
@@ -261,6 +264,7 @@ Thane,old structure collapse,,3,0,2,1,8,11
 Baharampur,train,,2,0,2,0,8,0
 Bihar,others,factory manufacturing,2,0,2,0,8,0
 Dharmapuri,roadway,,2,0,2,0,8,0
+Haryana,old structure collapse,,2,0,2,0,8,0
 Hazaribagh,roadway,,2,0,2,0,8,12
 Kota,old structure collapse,,2,1,1,0,8,15
 Madhya Pradesh,train,,2,0,2,0,8,0
@@ -277,9 +281,10 @@ Kerala,construction ongoing,,1,0,1,0,8,0
 Rajasthan,construction ongoing,,1,0,1,0,8,5
 Sangrur,construction ongoing,,1,0,1,0,8,0
 Tamil Nadu,construction ongoing,,1,0,1,0,8,0
+Tiruchirappalli,roadway,,1,0,1,0,8,2
 Visakhapatnam,construction ongoing,,1,0,1,0,8,0
-Aurangabad,roadway,,7,0,6,1,7,43
 Banda,roadway,,7,0,6,1,7,9
+Karnal,roadway,,7,0,6,1,7,12
 Siwan,roadway,,6,0,4,2,7,15
 Jalgaon,roadway,,5,0,4,1,7,8
 Kathua,roadway,,5,0,4,1,7,13
@@ -314,6 +319,8 @@ Mysuru,roadway,,4,0,3,1,6,44
 Raebareli,roadway,,4,0,4,0,6,16
 Visakhapatnam,roadway,,4,0,3,1,6,6
 Along,roadway,,3,0,3,0,6,0
+Beed,roadway,,3,0,2,1,6,20
+Bhadohi,train,,3,0,3,0,6,0
 Chhapra,roadway,,3,0,3,0,6,2
 Durgapur,roadway,,3,0,3,0,6,0
 Guna,roadway,,3,0,3,0,6,6
@@ -327,6 +334,7 @@ Belagavi,roadway,,2,0,2,0,6,0
 Fazilka,roadway,,2,0,2,0,6,11
 Indore,construction ongoing,,2,0,2,0,6,5
 Jharkhand,others,mining quarry,2,0,2,0,6,3
+Katni,roadway,,2,0,2,0,6,0
 Kushinagar,train,,2,1,1,0,6,0
 Mancherial,roadway,,2,0,2,0,6,6
 Mizoram,roadway,,2,0,2,0,6,0
@@ -334,7 +342,6 @@ Satara,port maritime,,2,0,2,0,6,63
 Surat,old structure collapse,,2,0,2,0,6,0
 Uttarakhand,aviation,,2,0,1,1,6,6
 Chamoli,aviation,,1,0,1,0,6,0
-Haryana,old structure collapse,,1,0,1,0,6,0
 Manoharpur,train,,1,0,1,0,6,0
 Nerul,roadway,,1,0,1,0,6,1
 Pratapgarh,old structure collapse,,1,0,1,0,6,1
@@ -344,7 +351,7 @@ Saharanpur,construction ongoing,,1,0,1,0,6,0
 Suryapet,construction ongoing,,1,0,1,0,6,0
 Telangana,old structure collapse,,1,0,1,0,6,12
 Rail,train,,9,4,5,0,5,6
-Karnal,roadway,,6,0,5,1,5,9
+Ballia,roadway,,6,0,5,1,5,20
 Kurukshetra,roadway,,6,0,5,1,5,8
 Bihar,train,,5,2,2,1,5,4
 Ballia,train,,4,1,2,1,5,4
@@ -366,7 +373,6 @@ Sangli,roadway,,3,0,3,0,5,17
 Trichy,roadway,,3,0,3,0,5,49
 Assam,others,factory manufacturing,2,0,2,0,5,0
 Auraiya,old structure collapse,,2,0,1,1,5,7
-Beed,roadway,,2,0,1,1,5,20
 Bhiwani,train,,2,0,2,0,5,0
 Bilaspur,roadway,,2,0,2,0,5,0
 Bilaspur,train,,2,1,1,0,5,0
@@ -392,11 +398,10 @@ Rajnandgaon,roadway,,1,0,1,0,5,0
 Rohini,construction ongoing,,1,0,1,0,5,0
 Uttar Pradesh,others,factory manufacturing,1,0,1,0,5,0
 Ghazipur,train,,6,3,3,0,4,1
-Ballia,roadway,,5,0,4,1,4,20
+Munger,roadway,,5,0,4,1,4,5
 Raigarh,roadway,,5,0,3,2,4,16
 Chennai,train,,4,0,4,0,4,0
 Kollam,roadway,,4,0,2,2,4,11
-Munger,roadway,,4,0,4,0,4,2
 Amritsar,roadway,,3,0,3,0,4,3
 Bareilly,roadway,,3,0,3,0,4,1
 Barnala,roadway,,3,0,3,0,4,6
@@ -418,7 +423,6 @@ Azamgarh,train,,2,0,2,0,4,13
 Babugarh,roadway,,2,0,2,0,4,7
 Baran,roadway,,2,0,2,0,4,0
 Bareli,train,,2,0,2,0,4,11
-Bhadohi,train,,2,0,2,0,4,0
 Chaibasa,roadway,,2,0,2,0,4,2
 Chandigarh,old structure collapse,,2,0,2,0,4,10
 Cuddalore,roadway,,2,0,2,0,4,0
@@ -477,6 +481,7 @@ Medchal,roadway,,3,0,3,0,3,0
 Patti,roadway,,3,0,3,0,3,0
 Pilibhit,train,,3,1,2,0,3,1
 Samastipur,train,,3,0,3,0,3,0
+Shahjahanpur,train,,3,0,3,0,3,2
 Thane,roadway,,3,0,2,1,3,5
 Una,roadway,,3,0,3,0,3,3
 Amreli,roadway,,2,0,1,1,3,4
@@ -537,7 +542,6 @@ Jodhpur,others,factory manufacturing,1,0,1,0,3,0
 Kadapa,roadway,,1,0,1,0,3,0
 Karjat,roadway,,1,0,1,0,3,3
 Karnataka,train,,1,0,1,0,3,0
-Katni,roadway,,1,0,1,0,3,0
 Kawardha,roadway,,1,0,1,0,3,0
 Mandi,others,factory manufacturing,1,0,1,0,3,0
 Mannargudi,roadway,,1,0,1,0,3,0
@@ -554,6 +558,7 @@ Pithampur,roadway,,1,0,1,0,3,0
 Punjab,construction ongoing,,1,0,1,0,3,1
 Raipur,others,factory manufacturing,1,0,1,0,3,3
 Rohini,old structure collapse,,1,0,1,0,3,1
+Sagar,others,agriculture,1,0,1,0,3,33
 Saharanpur,others,fire,1,0,1,0,3,0
 Sambhal,others,agriculture,1,0,1,0,3,12
 Sangli,train,,1,0,1,0,3,0
@@ -585,6 +590,7 @@ Gonda,train,,2,0,2,0,2,0
 Hoshiarpur,roadway,,2,0,2,0,2,0
 Jabalpur,others,factory manufacturing,2,0,1,1,2,4
 Jhajha,train,,2,0,2,0,2,2
+Jodhpur,train,,2,1,1,0,2,0
 Kasba,roadway,,2,0,1,1,2,1
 Kashipur,roadway,,2,0,2,0,2,1
 Lakhimpur,train,,2,0,2,0,2,0
@@ -600,13 +606,13 @@ Nalanda,roadway,,2,0,2,0,2,1
 Orai,roadway,,2,0,2,0,2,1
 Palakkad,roadway,,2,0,2,0,2,3
 Panipat,others,factory manufacturing,2,0,2,0,2,1
+Patiala,roadway,,2,0,2,0,2,9
 Pendra,roadway,,2,0,2,0,2,0
 Pratapgarh,train,,2,0,2,0,2,0
 Pune,train,,2,1,1,0,2,9
 Purnia,roadway,,2,0,2,0,2,1
 Sector,roadway,,2,0,1,1,2,3
 Shahdol,roadway,,2,0,1,1,2,30
-Shahjahanpur,train,,2,0,2,0,2,2
 Sheikhpura,train,,2,0,2,0,2,0
 Sikar,roadway,,2,0,2,0,2,0
 Thanjavur,roadway,,2,0,1,1,2,27
@@ -653,7 +659,6 @@ Hubballi,others,gas cylinder,1,0,1,0,2,1
 Jaito,roadway,,1,0,1,0,2,0
 Jalandhar,others,agriculture,1,0,1,0,2,0
 Jalna,old structure collapse,,1,0,1,0,2,0
-Jodhpur,train,,1,0,1,0,2,0
 Kamalganj,roadway,,1,0,1,0,2,0
 Kangra,old structure collapse,,1,0,1,0,2,1
 Kannauj,others,factory manufacturing,1,0,1,0,2,0
@@ -713,7 +718,6 @@ Hathras,old structure collapse,,3,1,1,1,1,4
 Karur,roadway,,3,0,1,2,1,17
 Ratlam,train,,3,2,1,0,1,0
 Thiruvananthapuram,roadway,,3,0,1,2,1,30
-Agra,train,,2,1,1,0,1,0
 Azamgarh,old structure collapse,,2,0,1,1,1,1
 Buldhana,roadway,,2,0,1,1,1,18
 Chandigarh,roadway,,2,1,1,0,1,0
@@ -762,6 +766,7 @@ Begusarai,construction ongoing,,1,0,1,0,1,0
 Bengaluru,others,gas cylinder,1,0,1,0,1,5
 Bharuch,construction ongoing,,1,0,1,0,1,0
 Bhilai,others,factory manufacturing,1,0,1,0,1,0
+Bhilwara,train,,1,0,1,0,1,0
 Bhim,roadway,,1,0,1,0,1,0
 Bhiwadi,old structure collapse,,1,0,1,0,1,5
 Bhiwadi,others,factory manufacturing,1,0,1,0,1,0
@@ -893,7 +898,6 @@ Pali,train,,1,0,1,0,1,0
 Pandharpur,roadway,,1,0,1,0,1,0
 Panipat,train,,1,0,1,0,1,0
 Pathankot,train,,1,0,1,0,1,0
-Patiala,roadway,,1,0,1,0,1,0
 Phulpur,train,,1,0,1,0,1,0
 Ponda,roadway,,1,0,1,0,1,0
 Ponnampet,roadway,,1,0,1,0,1,0
@@ -958,13 +962,13 @@ Yadagirigutta,roadway,,1,0,1,0,1,0
 Yamuna Nagar,roadway,,1,0,1,0,1,0
 Goregaon,roadway,,3,0,0,3,0,8
 Kolhapur,roadway,,3,2,0,1,0,3
+Navi Mumbai,train,,3,1,0,2,0,2
 Bijnor,train,,2,2,0,0,0,0
 Etah,old structure collapse,,2,1,0,1,0,2
 Ghaziabad,others,factory manufacturing,2,2,0,0,0,0
 Guwahati,train,,2,0,0,2,0,14
 Mettur,roadway,,2,0,0,2,0,27
 Mirzapur,old structure collapse,,2,2,0,0,0,0
-Navi Mumbai,train,,2,0,0,2,0,2
 Navi Mumbai,roadway,,2,1,0,1,0,9
 Parbhani,roadway,,2,0,0,2,0,31
 Pimpri,roadway,,2,1,0,1,0,1
@@ -1034,6 +1038,7 @@ Khetri,roadway,,1,0,0,1,0,6
 Kochi,others,fire,1,1,0,0,0,0
 Kolkata,train,,1,0,0,1,0,24
 Kondagaon,roadway,,1,0,0,1,0,1
+Kosi,construction ongoing,,1,1,0,0,0,0
 Kottayam,old structure collapse,,1,1,0,0,0,0
 Kozhikode,old structure collapse,,1,0,0,1,0,1
 Kullu,old structure collapse,,1,0,0,1,0,2
