@@ -1,51 +1,51 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,374,569,255
-Overspeeding,354,986,965
-Overturning,320,744,1678
-Fire,230,466,270
-Driver lost control,183,331,648
-Hit while on track,171,936,27
-Head-on collision,144,494,678
+Building collapse,375,570,257
+Overspeeding,361,1001,1054
+Overturning,326,793,1669
+Fire,238,468,274
+Driver lost control,187,337,648
+Hit while on track,178,953,28
+Head-on collision,148,511,727
 Explosion / blast,129,628,274
-Derailment,121,22,136
-Hit divider or barrier,105,146,141
-Bridge or flyover failure,82,111,194
-Struck by falling material,77,99,346
+Derailment,124,22,136
+Hit divider or barrier,116,168,197
+Bridge or flyover failure,84,112,196
+Struck by falling material,78,101,346
 Slab or roof collapse,64,110,136
-Hit stationary vehicle,61,171,486
+Hit stationary vehicle,63,180,489
 Electrocution,57,131,83
-Pothole or bad road,44,65,63
-Crane failure,43,141,299
+Pothole or bad road,48,66,63
+Crane failure,44,141,303
 Brake failure,36,20,102
 Wall collapse,25,37,17
-Cylinder or LPG explosion,23,35,55
+Cylinder or LPG explosion,23,35,82
 Gas leak,19,45,9
 Drowning,18,36,0
 Drunk driving,17,3,18
 Boiler explosion,16,38,30
 Level crossing,15,62,6
 Tyre burst,14,43,4
-Suffocation / toxic fumes,12,36,0
+Suffocation / toxic fumes,13,38,0
 Fog or poor visibility,12,8,2
 Vehicle fell into gorge or water,11,27,31
 Wrong-side driving,11,11,21
+Lift / hoist failure,9,179,7
+Overloading,9,13,9
 Excavation or trench collapse,9,7,40
-Lift / hoist failure,8,179,7
 Stampede,8,84,60
 Shuttering / formwork failure,8,53,11
-Overloading,8,10,9
 Rear-end collision,6,6,47
 Road cave-in or subsidence,6,0,0
 Demolition failure,5,0,0
+Scaffolding failure,3,6,22
 Septic tank / sewer,3,3,0
 Launching girder / segment failure,3,0,12
 Wet or slippery road,3,0,7
-Scaffolding failure,2,6,22
 Aircraft technical failure,2,0,6
 Driver fatigue,2,0,20
 Fall from height,1,5,0
 Machinery entrapment,1,3,2
-Not stated,7135,19975,13613
-TOTAL,9998,26882,20830
+Not stated,6911,19265,12888
+TOTAL,9839,26319,20333
 
-"Cause identified for 2863 of 9998 accidents (28%). Causes are as first reported, not verified.",,,
+"Cause identified for 2928 of 9839 accidents (29%). Causes are as first reported, not verified.",,,
