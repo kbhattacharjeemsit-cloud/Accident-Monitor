@@ -1,36 +1,36 @@
 ﻿Reported Cause (standardised),Number of Accidents,People Killed,People Injured
-Building collapse,375,570,257
-Overspeeding,361,1001,1054
-Overturning,326,793,1669
-Fire,238,468,274
-Driver lost control,187,337,648
-Hit while on track,178,953,28
-Head-on collision,148,511,727
-Explosion / blast,129,628,274
-Derailment,124,22,136
-Hit divider or barrier,116,168,197
-Bridge or flyover failure,84,112,196
-Struck by falling material,78,101,346
-Slab or roof collapse,64,110,136
-Hit stationary vehicle,63,180,489
-Electrocution,57,131,83
+Building collapse,378,574,267
+Overspeeding,369,1026,1084
+Overturning,336,967,1715
+Fire,249,469,278
+Driver lost control,196,345,684
+Hit while on track,182,969,29
+Head-on collision,152,499,734
+Explosion / blast,128,620,274
+Derailment,124,26,197
+Hit divider or barrier,117,168,189
+Bridge or flyover failure,85,110,198
+Struck by falling material,83,122,376
+Slab or roof collapse,65,110,136
+Hit stationary vehicle,64,177,438
+Electrocution,58,131,83
 Pothole or bad road,48,66,63
-Crane failure,44,141,303
-Brake failure,36,20,102
-Wall collapse,25,37,17
-Cylinder or LPG explosion,23,35,82
-Gas leak,19,45,9
+Crane failure,45,142,303
+Brake failure,37,20,120
+Wall collapse,26,37,17
+Cylinder or LPG explosion,24,36,82
+Gas leak,20,45,9
+Boiler explosion,18,44,47
 Drowning,18,36,0
-Drunk driving,17,3,18
-Boiler explosion,16,38,30
-Level crossing,15,62,6
-Tyre burst,14,43,4
-Suffocation / toxic fumes,13,38,0
-Fog or poor visibility,12,8,2
-Vehicle fell into gorge or water,11,27,31
-Wrong-side driving,11,11,21
+Drunk driving,18,3,21
+Level crossing,16,62,6
+Vehicle fell into gorge or water,15,57,82
+Tyre burst,15,44,8
+Suffocation / toxic fumes,14,41,0
+Fog or poor visibility,13,8,2
+Wrong-side driving,12,12,21
 Lift / hoist failure,9,179,7
-Overloading,9,13,9
+Overloading,9,39,9
 Excavation or trench collapse,9,7,40
 Stampede,8,84,60
 Shuttering / formwork failure,8,53,11
@@ -45,7 +45,7 @@ Aircraft technical failure,2,0,6
 Driver fatigue,2,0,20
 Fall from height,1,5,0
 Machinery entrapment,1,3,2
-Not stated,6911,19265,12888
-TOTAL,9839,26319,20333
+Not stated,6616,16799,11248
+TOTAL,9619,24150,18954
 
-"Cause identified for 2928 of 9839 accidents (29%). Causes are as first reported, not verified.",,,
+"Cause identified for 3003 of 9619 accidents (31%). Causes are as first reported, not verified.",,,
